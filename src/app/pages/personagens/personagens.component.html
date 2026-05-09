@@ -1,0 +1,179 @@
+<div class="personagens-container">
+  <header class="page-header">
+    <div class="header-info">
+      <h1>Personagens & Fichas</h1>
+      <p>Gerencie sua biblioteca de modelos de ficha e personagens globais.</p>
+    </div>
+    <div class="header-nav-tabs">
+      <button class="nav-tab" [class.active]="activeView() === 'templates'" (click)="activeView.set('templates')">Modelos de Ficha</button>
+      <button class="nav-tab" [class.active]="activeView() === 'characters'" (click)="activeView.set('characters')">Meus Personagens</button>
+    </div>
+  </header>
+
+  <!-- View: Templates -->
+  <main class="content-view" *ngIf="activeView() === 'templates'">
+    <div class="view-header">
+      <h2>Modelos de Ficha</h2>
+      <div class="header-actions">
+        <button class="btn-outline" (click)="showImportTemplateModal.set(true)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0-13l-4 4m4-4l4 4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Importar
+        </button>
+        <button class="btn-primary" (click)="createNewTemplate('player')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Novo Jogador
+        </button>
+        <button class="btn-primary monster" (click)="createNewTemplate('monster')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Novo Monstro
+        </button>
+      </div>
+    </div>
+
+    <div class="items-grid">
+      @for (tmpl of templates(); track tmpl.id) {
+        <div class="item-card template-card" (click)="editTemplate(tmpl)">
+          <div class="card-type" [class.monster]="tmpl.type === 'monster'">{{ tmpl.type === 'player' ? 'Jogador' : 'Monstro' }}</div>
+          <div class="card-info">
+            <h3>{{ tmpl.name }}</h3>
+            <p>{{ tmpl.schema.components?.length || 0 }} componentes</p>
+          </div>
+          <div class="card-footer-actions">
+            <button class="action-btn" (click)="selectedTemplate.set(tmpl); showExportTemplateModal.set(true); $event.stopPropagation()">Exportar</button>
+            <button class="delete-btn" (click)="deleteTemplate(tmpl.id, $event)">×</button>
+          </div>
+        </div>
+      }
+      <div class="empty-state" *ngIf="templates().length === 0">
+        <div class="empty-icon">📜</div>
+        <p>Nenhum modelo de ficha salvo.</p>
+        <button class="btn-outline" (click)="showImportTemplateModal.set(true)">Importar meu primeiro modelo</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- View: Template Editor -->
+  <main class="editor-full-view" *ngIf="activeView() === 'template-editor'">
+    <div class="editor-header-bar">
+      <button class="btn-text-back" (click)="activeView.set('templates'); loadData()">← Voltar aos Modelos</button>
+      <h2>Editando Modelo: {{ selectedTemplate()?.name }}</h2>
+    </div>
+    
+    <app-sheet-editor 
+      [globalTemplateId]="selectedTemplate()?.id || null"
+      [templateType]="selectedTemplate()?.type || 'player'">
+    </app-sheet-editor>
+  </main>
+
+  <!-- View: Characters -->
+  <main class="content-view" *ngIf="activeView() === 'characters'">
+    <div class="view-header">
+      <h2>Meus Personagens</h2>
+      <button class="btn-primary" (click)="showImportCharModal.set(true)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0-13l-4 4m4-4l4 4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Importar da Campanha
+      </button>
+    </div>
+
+    <div class="items-grid">
+      @for (char of characters(); track char.id) {
+        <div class="item-card char-card" (click)="selectedChar.set(char); showExportCharModal.set(true)">
+          <div class="char-avatar">{{ char.isMonster ? '💀' : '👤' }}</div>
+          <div class="card-info">
+            <h3>{{ char.name }}</h3>
+            <p>{{ char.isMonster ? 'Monstro / NPC' : 'Herói / Jogador' }}</p>
+          </div>
+          <button class="delete-btn" (click)="deleteCharacter(char.id, $event)">×</button>
+        </div>
+      }
+      <div class="empty-state" *ngIf="characters().length === 0">
+        <div class="empty-icon">👤</div>
+        <p>Sua biblioteca de personagens está vazia.</p>
+        <button class="btn-outline" (click)="showImportCharModal.set(true)">Importar um personagem</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- MODALS -->
+
+  <!-- Import Template Modal -->
+  <div class="modal-overlay" *ngIf="showImportTemplateModal()" (click)="showImportTemplateModal.set(false)">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Importar Modelo de Ficha</h2>
+        <button class="close-btn" (click)="showImportTemplateModal.set(false)">×</button>
+      </div>
+      <div class="campaign-list">
+        @for (camp of campaigns(); track camp.id) {
+          <div class="campaign-group">
+            <h4>{{ camp.nome }}</h4>
+            <div class="import-actions">
+              <button class="btn-import-sm" (click)="importTemplateFromCampaign(camp.id, 'player')">Ficha Jogador</button>
+              <button class="btn-import-sm monster" (click)="importTemplateFromCampaign(camp.id, 'monster')">Ficha Monstro</button>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- Export Template Modal -->
+  <div class="modal-overlay" *ngIf="showExportTemplateModal()" (click)="showExportTemplateModal.set(false)">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Exportar Modelo para Campanha</h2>
+        <button class="close-btn" (click)="showExportTemplateModal.set(false)">×</button>
+      </div>
+      <div class="modal-body">
+        <p>Selecione a campanha para aplicar o modelo <strong>{{ selectedTemplate()?.name }}</strong>.</p>
+        <div class="campaign-list">
+          @for (camp of campaigns(); track camp.id) {
+            <div class="campaign-item" (click)="exportTemplateToCampaign(camp.id)">
+              <span>{{ camp.nome }}</span>
+              <button class="btn-export-sm">Exportar</button>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import Char Modal -->
+  <div class="modal-overlay" *ngIf="showImportCharModal()" (click)="showImportCharModal.set(false)">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Importar Personagem</h2>
+        <button class="close-btn" (click)="showImportCharModal.set(false)">×</button>
+      </div>
+      <div class="campaign-list">
+        @for (camp of campaigns(); track camp.id) {
+          <div class="campaign-item" (click)="importCharFromCampaign(camp.id)">
+            <span>{{ camp.nome }}</span>
+            <button class="btn-import-sm">Selecionar Personagem</button>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- Export Char Modal -->
+  <div class="modal-overlay" *ngIf="showExportCharModal()" (click)="showExportCharModal.set(false)">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Exportar Personagem para Campanha</h2>
+        <button class="close-btn" (click)="showExportCharModal.set(false)">×</button>
+      </div>
+      <div class="modal-body">
+        <p>Selecione a campanha para onde deseja enviar <strong>{{ selectedChar()?.name }}</strong>.</p>
+        <div class="campaign-list">
+          @for (camp of campaigns(); track camp.id) {
+            <div class="campaign-item" (click)="exportCharToCampaign(camp.id)">
+              <span>{{ camp.nome }}</span>
+              <button class="btn-export-sm">Exportar</button>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

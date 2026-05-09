@@ -1,0 +1,394 @@
+.editor-shell {
+  display: grid;
+  grid-template-columns: 240px 1fr 300px; /* Increased right panel width */
+  height: 82vh;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-top: 20px;
+}
+
+/* ── Components Panel ── */
+.components-panel {
+  background: var(--bg-elevated);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-header {
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+  h3 { font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+  p { font-size: 0.75rem; color: var(--text-muted); }
+}
+
+.component-list {
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.comp-item {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+    color: var(--accent);
+  }
+
+  .icon { font-size: 1.25rem; }
+  .label { font-size: 0.7rem; font-weight: 600; }
+}
+
+.panel-footer {
+  padding: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.btn-save {
+  width: 100%;
+  padding: 10px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+/* ── Canvas Area ── */
+.canvas-area {
+  background: #0d0d12;
+  overflow: auto;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.canvas-tabs {
+  display: flex;
+  gap: 4px;
+  width: 800px;
+  margin-bottom: -1px;
+  z-index: 5;
+}
+
+.sheet-tab {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  transition: all 0.2s;
+
+  &.active {
+    background: var(--bg-elevated);
+    color: var(--accent);
+    border-color: var(--border-hover);
+    padding-bottom: 9px;
+  }
+
+  input {
+    background: transparent;
+    border: none;
+    color: inherit;
+    font-weight: 600;
+    width: 80px;
+    outline: none;
+    font-size: inherit;
+  }
+
+  .tab-del {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 14px;
+    cursor: pointer;
+    &:hover { color: #e05a5a; }
+  }
+}
+
+.add-tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 8px;
+  &:hover { color: var(--accent); }
+}
+
+.canvas {
+  width: 800px;
+  height: 1100px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.grid-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: 
+    linear-gradient(to right, rgba(124, 111, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(124, 111, 255, 0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+
+  /* Highlight the 4 columns */
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(to right, rgba(124, 111, 255, 0.2) 2px, transparent 2px);
+    background-size: 200px 100%;
+  }
+}
+
+.canvas-element {
+  position: absolute;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px;
+  cursor: move;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  user-select: none;
+  z-index: 10;
+
+  &.selected {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-dim);
+    z-index: 20;
+  }
+
+  &.dragging {
+    opacity: 0.8;
+    cursor: grabbing;
+    z-index: 30;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+
+  &:active { cursor: grabbing; }
+}
+
+.element-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.element-preview {
+  flex: 1;
+  background: rgba(0,0,0,0.2);
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+
+  .preview-text {
+    width: 100%;
+    height: 100%;
+    padding: 4px;
+    display: flex;
+    justify-content: flex-start;
+    align-items: flex-start;
+    text-align: left;
+  }
+}
+
+.preview-table {
+  width: 100%;
+  height: 100%;
+  padding: 8px;
+  .table-grid-mock {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 2px;
+    height: 100%;
+    span { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); }
+  }
+}
+
+.preview-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 0 8px;
+  .box { width: 14px; height: 14px; border: 1px solid var(--border); border-radius: 2px; flex-shrink: 0; }
+  .txt { font-size: 0.7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+.color-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  .color-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    &:hover { transform: scale(1.1); }
+  }
+  input[type="color"] {
+    width: 24px;
+    height: 24px;
+    border: none;
+    padding: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+}
+
+.preview-health {
+  width: 90%;
+  height: 8px;
+  background: #333;
+  border-radius: 4px;
+  position: relative;
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; height: 100%; width: 70%;
+    background: #e05a5a;
+    border-radius: 4px;
+  }
+}
+
+.element-actions {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  .del-btn {
+    width: 20px;
+    height: 20px;
+    background: #e05a5a;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 14px;
+    cursor: pointer;
+  }
+}
+
+.resize-handle {
+  position: absolute;
+  bottom: 0; right: 0;
+  width: 8px; height: 8px;
+  background: var(--accent);
+  cursor: nwse-resize;
+  border-radius: 2px 0 0 0;
+}
+
+/* ── Properties Panel ── */
+.properties-panel {
+  background: var(--bg-elevated);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
+  width: 300px;
+  overflow-y: auto; /* Enable scrolling for long forms */
+
+  .panel-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--bg-elevated);
+  }
+}
+
+.prop-form {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.prop-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  label { font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; }
+  input {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    width: 100%;
+    min-width: 0; /* Allow shrinking but handle it with grid */
+    &:focus { border-color: var(--accent); outline: none; }
+  }
+}
+
+.prop-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.empty-properties {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+
+  .empty-icon { font-size: 3rem; margin-bottom: 16px; opacity: 0.3; }
+  h3 { color: var(--text-primary); margin-bottom: 8px; font-size: 1.1rem; }
+  p { margin-bottom: 24px; }
+
+  /* When showing global settings, don't center vertically */
+  &:has(.global-props) {
+    justify-content: flex-start;
+    padding: 0;
+    text-align: left;
+    align-items: stretch;
+
+    .empty-icon, h3, p, .empty-state-msg { display: none; } /* Hide the default empty message */
+    
+    .prop-form {
+      padding: 20px;
+    }
+  }
+}

@@ -1,0 +1,37 @@
+<section class="hero" id="inicio">
+  <div class="hero-bg"></div>
+  <div class="hero-overlay"></div>
+
+  <div class="hero-content">
+    <span class="hero-eyebrow">A ferramenta definitiva para RPG</span>
+
+    <h1 class="hero-title">
+      Crie. Gerencie.<br>
+      <span class="hero-title-accent">Conte histórias.</span>
+    </h1>
+
+    <p class="hero-description">
+      MythMaker é a plataforma completa para mestres e jogadores criarem campanhas,
+      sistemas, fichas, monstros e tudo que precisam para viver grandes aventuras.
+    </p>
+
+    <div class="hero-actions">
+      <a routerLink="/dashboard" class="btn-primary btn-lg">
+        Começar agora
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+      <a href="#recursos" class="btn-outline btn-lg">Ver recursos</a>
+    </div>
+
+    <div class="hero-badges">
+      @for (badge of badges; track badge.label) {
+        <div class="hero-badge">
+          <span class="badge-icon">{{ badge.icon }}</span>
+          <span>{{ badge.label }}</span>
+        </div>
+      }
+    </div>
+  </div>
+</section>

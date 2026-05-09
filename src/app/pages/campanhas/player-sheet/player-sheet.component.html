@@ -1,0 +1,149 @@
+<div class="player-sheet-container" *ngIf="template() as t">
+  
+  <!-- Tabs -->
+  <nav class="sheet-tabs">
+    @for (tab of t.tabs; track tab.id) {
+      <button 
+        class="tab-btn" 
+        [class.active]="activeTabId() === tab.id"
+        (click)="activeTabId.set(tab.id)"
+      >
+        {{ tab.label }}
+      </button>
+    }
+  </nav>
+
+  <!-- Sheet Area -->
+  <div class="sheet-paper" [style.backgroundColor]="sheetSettings().backgroundColor">
+    @for (comp of getComponentsForActiveTab(); track comp.id) {
+      <div 
+        class="sheet-element"
+        [style.left.px]="comp.x"
+        [style.top.px]="comp.y"
+        [style.width.px]="comp.w"
+        [style.height.px]="comp.h"
+      >
+        <label [style.color]="sheetSettings().accentColor">{{ comp.label }}</label>
+        
+        <div class="field-container" [ngSwitch]="comp.type">
+          
+          <!-- Checkbox -->
+          <div *ngSwitchCase="'checkbox'" class="checkbox-field">
+            <input 
+              type="checkbox" 
+              [id]="comp.id"
+              [ngModel]="character()?.data?.[comp.id] ?? false"
+              (ngModelChange)="updateValue(comp.id, $event)"
+            />
+            <span>{{ comp.label }}</span>
+          </div>
+
+          <!-- Table -->
+          <div *ngSwitchCase="'table'" class="table-field">
+            <table>
+              <tr *ngFor="let r of [].constructor(comp.properties.rows); let ri = index">
+                <td *ngFor="let c of [].constructor(comp.properties.cols); let ci = index">
+                  <input 
+                    type="text" 
+                    [ngModel]="character()?.data?.[comp.id + '-' + ri + '-' + ci] ?? ''"
+                    (ngModelChange)="updateValue(comp.id + '-' + ri + '-' + ci, $event)"
+                  />
+                </td>
+              </tr>
+            </table>
+          </div>
+
+          <!-- Attribute -->
+          <div *ngSwitchCase="'attribute'" class="attr-field">
+            <input 
+              type="number" 
+              [ngModel]="character()?.data?.[comp.id] ?? comp.defaultValue"
+              (ngModelChange)="updateValue(comp.id, $event)"
+            />
+          </div>
+
+          <!-- Number -->
+          <div *ngSwitchCase="'number'" class="num-field">
+            <input 
+              type="number" 
+              [ngModel]="character()?.data?.[comp.id] ?? comp.defaultValue"
+              (ngModelChange)="updateValue(comp.id, $event)"
+            />
+          </div>
+
+          <!-- Health Bar -->
+          <div *ngSwitchCase="'health'" class="health-field">
+            <div class="health-meta">
+              <input type="number" 
+                [ngModel]="character()?.data?.[comp.id + '-current'] ?? 0"
+                (ngModelChange)="updateValue(comp.id + '-current', $event)"
+              > / 
+              <input type="number" 
+                [ngModel]="character()?.data?.[comp.id + '-max'] ?? 100"
+                (ngModelChange)="updateValue(comp.id + '-max', $event)"
+              >
+            </div>
+            <div class="health-bar-bg">
+              <div class="health-bar-fill" 
+                [style.background]="comp.properties.color"
+                [style.width.%]="((character()?.data?.[comp.id + '-current'] ?? 0) / (character()?.data?.[comp.id + '-max'] ?? 100)) * 100">
+              </div>
+            </div>
+          </div>
+
+          <!-- Notes / Inventory / Text Area -->
+          <div *ngSwitchCase="'notes'" class="notes-field">
+            <textarea
+              [ngModel]="character()?.data?.[comp.id] ?? comp.defaultValue"
+              (ngModelChange)="updateValue(comp.id, $event)"
+              placeholder="..."
+            ></textarea>
+          </div>
+
+          <div *ngSwitchCase="'inventory'" class="notes-field">
+            <textarea
+              [ngModel]="character()?.data?.[comp.id] ?? comp.defaultValue"
+              (ngModelChange)="updateValue(comp.id, $event)"
+              placeholder="Itens..."
+            ></textarea>
+          </div>
+
+          <!-- Dropdown -->
+          <div *ngSwitchCase="'dropdown'" class="dropdown-field">
+            <select 
+              [ngModel]="character()?.data?.[comp.id] ?? ''"
+              (ngModelChange)="updateValue(comp.id, $event)"
+            >
+              <option value="" disabled selected>Selecionar...</option>
+              <option *ngFor="let opt of getOptions(comp.properties.options)" [value]="opt">{{ opt }}</option>
+            </select>
+            <span>{{ comp.label }}</span>
+          </div>
+
+          <!-- Photo -->
+          <div *ngSwitchCase="'photo'" class="photo-field" (click)="photoInput.click()">
+            <input #photoInput type="file" [style.display]="'none'" (change)="onPhotoChange($event, comp.id)" accept="image/*" />
+            <img *ngIf="character()?.data?.[comp.id]" [src]="character()?.data?.[comp.id]" alt="Character" />
+            <div *ngIf="!character()?.data?.[comp.id]" class="photo-placeholder">
+              <span>📷</span>
+              <p>Adicionar Foto</p>
+            </div>
+          </div>
+
+          <!-- Default Text -->
+          <div *ngSwitchDefault class="text-field">
+            <input 
+              type="text" 
+              [ngModel]="character()?.data?.[comp.id] ?? comp.defaultValue"
+              (ngModelChange)="updateValue(comp.id, $event)"
+            />
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+</div>
+
+<div *ngIf="!template()" class="no-template">
+  <p>O mestre ainda não criou um modelo de ficha para esta campanha.</p>
+</div>

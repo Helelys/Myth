@@ -1,0 +1,36 @@
+<div class="dashboard-container">
+  <header class="dash-header">
+    <div class="welcome-text">
+      <h1>Bem-vindo, {{ userName() }}!</h1>
+      <p>Pronto para continuar suas aventuras hoje?</p>
+    </div>
+    <div class="dash-actions">
+      <a routerLink="/campanhas/criar" class="btn-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Nova Campanha
+      </a>
+    </div>
+  </header>
+
+  <div class="dash-grid">
+    <div class="stat-card">
+      <div class="stat-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </div>
+      <div class="stat-content">
+        <h3>Campanhas Ativas</h3>
+        <p class="stat-number">{{ campaignCount() }}</p>
+      </div>
+    </div>
+
+    <!-- Quick Links -->
+    <div class="quick-links">
+      <div class="link-card" routerLink="/campanhas">
+        <span class="link-label">Ver Campanhas</span>
+      </div>
+      <div class="link-card" routerLink="/personagens">
+        <span class="link-label">Meus Personagens</span>
+      </div>
+    </div>
+  </div>
+</div>

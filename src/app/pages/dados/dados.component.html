@@ -1,0 +1,131 @@
+<div class="dados-container">
+  <header class="page-header">
+    <div class="header-nav">
+      <a routerLink="/dashboard" class="btn-back">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Voltar
+      </a>
+    </div>
+  </header>
+
+  <div class="dice-layout-grid">
+    <!-- Left Column -->
+    <div class="left-column">
+      <section class="quick-roll-section">
+        <h2 class="sub-title">ROLAGEM RÁPIDA</h2>
+        <div class="dice-buttons-grid">
+          @for (sides of dieTypes; track sides) {
+            <button class="die-btn" (click)="quickRoll(sides)">
+              <div class="die-icon">
+                <ng-container [ngSwitch]="sides">
+                  <svg *ngSwitchCase="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke="currentColor" fill="none" stroke-width="2"/></svg>
+                  <svg *ngSwitchCase="4" viewBox="0 0 24 24"><path d="M12 4l8 15H4z" stroke="currentColor" fill="none" stroke-width="2"/></svg>
+                  <svg *ngSwitchCase="6" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2" stroke="currentColor" fill="none" stroke-width="2"/></svg>
+                  <svg *ngSwitchCase="8" viewBox="0 0 24 24"><path d="M12 3l7 9-7 9-7-9z" stroke="currentColor" fill="none" stroke-width="2"/></svg>
+                  <svg *ngSwitchCase="10" viewBox="0 0 24 24"><path d="M12 3l6 6-6 12-6-12z" stroke="currentColor" fill="none" stroke-width="2"/></svg>
+                  <svg *ngSwitchCase="12" viewBox="0 0 24 24"><path d="M12 3l8 4.5v9l-8 4.5-8-4.5v-9z" stroke="currentColor" fill="none" stroke-width="2"/></svg>
+                  <svg *ngSwitchCase="20" viewBox="0 0 24 24"><path d="M12 3l8 4.5v9l-8 4.5-8-4.5v-9z M12 3v18 M4 7.5l16 9 M4 16.5l16-9" stroke="currentColor" fill="none" stroke-width="1"/></svg>
+                  <svg *ngSwitchCase="100" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke="currentColor" fill="none" stroke-width="2"/><circle cx="12" cy="12" r="5" stroke="currentColor" fill="none" stroke-width="1"/></svg>
+                </ng-container>
+              </div>
+              <span class="die-name">d{{ sides }}</span>
+            </button>
+          }
+        </div>
+      </section>
+
+      <!-- Results Section (In-page) -->
+      <section class="results-display-area" *ngIf="currentResult()">
+        <div class="result-box">
+          <div class="result-header">
+            <h3>Resultado {{ currentResult()?.dieResults?.length === 1 ? 'do d' + currentResult()?.dieResults?.[0]?.sides : 'da Bandeja' }}</h3>
+            <button class="btn-close-result" (click)="currentResult.set(null)">×</button>
+          </div>
+          
+          <div class="result-body">
+            <div class="total-display">
+              <span class="label">TOTAL</span>
+              <span class="value">{{ currentResult()?.finalValue }}</span>
+            </div>
+
+            <div class="dice-results-row">
+              @for (res of currentResult()?.dieResults; track $index) {
+                <div class="die-res">
+                  <div class="die-val-box">{{ res.value }}</div>
+                  <span class="die-type">d{{ res.sides }}</span>
+                </div>
+              }
+            </div>
+          </div>
+
+          <div class="result-footer">
+            <button class="btn-ok" (click)="currentResult.set(null)">OK</button>
+            <div class="calc-text">
+              <p>Cálculo: (
+                @for (res of currentResult()?.dieResults; track $index) {
+                  <span>{{ res.value }}{{ $last ? '' : (currentResult()?.mode === 'sum' ? ' + ' : ', ') }}</span>
+                }
+                ) 
+                <span *ngIf="currentResult()?.modifier !== 0"> + {{ currentResult()?.modifier }}</span>
+              </p>
+              <p class="mode-text" *ngIf="currentResult()?.mode !== 'sum'">Modo: {{ currentResult()?.mode === 'highest' ? 'Pegar Maior' : 'Pegar Menor' }}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Right Column: Tray -->
+    <aside class="tray-column">
+      <div class="tray-card">
+        <div class="tray-title">
+          <h2>BANDEJA DE DADOS</h2>
+          <button class="btn-limpar" (click)="clearTray()" *ngIf="trayDice().length > 0">Limpar</button>
+        </div>
+
+        <div class="tray-active-area">
+          <div class="active-dice-list">
+            @for (d of trayDice(); track d.sides) {
+              <div class="active-die-chip">
+                <span>{{ d.count }}d{{ d.sides }}</span>
+                <button class="btn-remove" (click)="removeFromTray(d.sides)">+</button>
+              </div>
+            }
+          </div>
+        </div>
+
+        <div class="tray-actions">
+          <p class="label">Adicionar à Bandeja:</p>
+          <div class="mini-btn-grid">
+            @for (sides of dieTypes; track sides) {
+              <button class="mini-btn" (click)="addToTray(sides)">d{{ sides }}</button>
+            }
+          </div>
+
+          <div class="form-group">
+            <label>Modificador (+)</label>
+            <input type="number" [(ngModel)]="modifier">
+          </div>
+
+          <div class="form-group">
+            <label>Modo de Rolagem</label>
+            <div class="segmented-control">
+              <button [class.active]="rollMode() === 'sum'" (click)="rollMode.set('sum')">SOMAR</button>
+              <button [class.active]="rollMode() === 'highest'" (click)="rollMode.set('highest')">MAIOR</button>
+              <button [class.active]="rollMode() === 'lowest'" (click)="rollMode.set('lowest')">MENOR</button>
+            </div>
+          </div>
+
+          <button class="btn-roll-main" (click)="rollTray()" [disabled]="trayDice().length === 0">
+            {{ isRolling() ? 'ROLANDO...' : 'ROLAR BANDEJA' }}
+          </button>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Roll Overlay (Simple) -->
+  <div class="roll-overlay" *ngIf="isRolling()">
+    <div class="spin-die">🎲</div>
+  </div>
+</div>

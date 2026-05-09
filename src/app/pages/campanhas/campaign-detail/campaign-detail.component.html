@@ -1,0 +1,282 @@
+<div class="campaign-detail-container" *ngIf="campaign() as camp">
+  <!-- Campaign Header -->
+  <header class="campaign-header">
+    <div class="header-main">
+      <div class="header-left">
+        <a routerLink="/campanhas" class="back-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+        <div class="campaign-info">
+          <h1>{{ camp.nome }}</h1>
+          <p>{{ camp.descricao || 'Campanha sem descrição' }}</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn-outline">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Editar
+        </button>
+      </div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <nav class="tab-nav">
+      <button class="tab-btn" [class.active]="activeTab() === 'sistema'" (click)="setActiveTab('sistema')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Sistema
+      </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'personagens'" (click)="setActiveTab('personagens')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Personagens
+      </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'combates'" (click)="setActiveTab('combates')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Combates
+      </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'escudo'" (click)="setActiveTab('escudo')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="currentColor" stroke-width="1.5"/></svg>
+        Escudo do Mestre
+      </button>
+    </nav>
+  </header>
+
+  <!-- Tab Content -->
+  <main class="tab-content" [class.no-padding]="activeTab() === 'sistema' && (activeSystemView() === 'ficha' || activeSystemView() === 'ficha-monstro')">
+    
+    <!-- Tab: Sistema -->
+    <section *ngIf="activeTab() === 'sistema'" class="view-section" [class.full-width]="activeSystemView() === 'ficha' || activeSystemView() === 'ficha-monstro'">
+      
+      <!-- Overview / Menu -->
+      <div *ngIf="activeSystemView() === 'overview'">
+        <div class="section-header">
+          <h2>Gerenciar Sistema</h2>
+          <p>Configure a base mecânica, as regras e as anotações da sua campanha.</p>
+        </div>
+        <div class="system-menu-grid">
+          <div class="menu-card" (click)="setSystemView('ficha')">
+            <div class="menu-icon">🛡️</div>
+            <div class="menu-text">
+              <h3>Ficha de Jogador</h3>
+              <p>Crie o modelo base que todos os jogadores usarão nesta campanha.</p>
+            </div>
+          </div>
+          <div class="menu-card" (click)="setSystemView('ficha-monstro')">
+            <div class="menu-icon">👿</div>
+            <div class="menu-text">
+              <h3>Ficha de Monstro</h3>
+              <p>Crie o modelo base para as criaturas e NPCs desta campanha.</p>
+            </div>
+          </div>
+          <div class="menu-card" (click)="setSystemView('regras')">
+            <div class="menu-icon">⚖️</div>
+            <div class="menu-text">
+              <h3>Sistema e Regras</h3>
+              <p>Defina as mecânicas, magias e regras customizadas do seu mundo.</p>
+            </div>
+          </div>
+          <div class="menu-card" (click)="setSystemView('anotacoes')">
+            <div class="menu-icon">📓</div>
+            <div class="menu-text">
+              <h3>Anotações do Mestre</h3>
+              <p>Espaço para rascunhos, segredos e ideias da trama.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="activeSystemView() === 'ficha' || activeSystemView() === 'ficha-monstro'">
+        <div class="section-header sub-header">
+          <div class="header-nav">
+            <button class="btn-text-back" (click)="setSystemView('overview')">← Voltar ao Menu</button>
+          </div>
+          <div class="header-info">
+            <h2>{{ activeSystemView() === 'ficha' ? 'Editor de Ficha de Jogador' : 'Editor de Ficha de Monstro' }}</h2>
+            <p>Configure o template base para {{ activeSystemView() === 'ficha' ? 'os jogadores' : 'as criaturas' }} desta campanha.</p>
+          </div>
+          <button class="btn-outline btn-sm" (click)="importGlobalTemplate(activeSystemView() === 'ficha' ? 'player' : 'monster')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0-13l-4 4m4-4l4 4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Importar Modelo
+          </button>
+        </div>
+        
+        <app-sheet-editor 
+          [campaignId]="campaignId()" 
+          [templateType]="activeSystemView() === 'ficha' ? 'player' : 'monster'">
+        </app-sheet-editor>
+      </div>
+
+      <!-- Sub-view: Regras -->
+      <div *ngIf="activeSystemView() === 'regras'">
+        <div class="section-header sub-header">
+          <button class="btn-text-back" (click)="setSystemView('overview')">← Voltar</button>
+          <div class="header-main-info">
+            <h2>Regras do Sistema</h2>
+            <p>Escreva aqui as mecânicas que regem o seu RPG.</p>
+          </div>
+          <button class="btn-outline btn-sm" (click)="importGlobalSystem()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0-13l-4 4m4-4l4 4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Importar do MythMaker
+          </button>
+        </div>
+        <div class="rich-text-editor">
+          <div class="editor-toolbar">
+            <button class="tool-btn"><b>B</b></button>
+            <button class="tool-btn"><i>I</i></button>
+            <button class="tool-btn"><u>U</u></button>
+          </div>
+          <textarea 
+            class="editor-area" 
+            [(ngModel)]="systemRules"
+            placeholder="Comece a escrever as regras do seu sistema..."></textarea>
+        </div>
+        <div class="view-actions">
+          <button class="btn-primary" (click)="saveSystemData()">Salvar Alterações</button>
+        </div>
+      </div>
+
+      <!-- Sub-view: Anotacoes -->
+      <div *ngIf="activeSystemView() === 'anotacoes'">
+        <div class="section-header sub-header">
+          <button class="btn-text-back" (click)="setSystemView('overview')">← Voltar</button>
+          <div class="header-main-info">
+            <h2>Anotações do Mestre</h2>
+            <p>Seus segredos e planos para a campanha.</p>
+          </div>
+          <button class="btn-outline btn-sm" (click)="importGlobalNote()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0-13l-4 4m4-4l4 4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Importar do MythMaker
+          </button>
+        </div>
+        <div class="rich-text-editor">
+          <textarea 
+            class="editor-area" 
+            [(ngModel)]="gmNotes"
+            placeholder="Anotações privadas do mestre..."></textarea>
+        </div>
+        <div class="view-actions">
+          <button class="btn-primary" (click)="saveSystemData()">Salvar Alterações</button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Tab: Personagens -->
+    <section *ngIf="activeTab() === 'personagens'" class="view-section" [class.full-width]="charViewMode() === 'sheet'">
+      
+      <div *ngIf="charViewMode() === 'list'">
+        <div class="section-header sub-header">
+          <div class="header-main-info">
+            <h2>Personagens e Criaturas</h2>
+            <p>Gerencie os heróis e os monstros da sua campanha.</p>
+          </div>
+          <button class="btn-outline btn-sm" (click)="importGlobalItem()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20 7H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1Z" stroke="currentColor" stroke-width="1.5"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" stroke="currentColor" stroke-width="1.5"/></svg>
+            Compêndio de Itens
+          </button>
+          <button class="btn-outline btn-sm" (click)="importGlobalCharacter()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0-13l-4 4m4-4l4 4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Importar do MythMaker
+          </button>
+        </div>
+
+        <div class="char-sections">
+          <!-- Players -->
+          <div class="char-group">
+            <h3 class="group-title">👥 Heróis</h3>
+            <div class="char-grid">
+              @for (char of characters(); track char.id) {
+                <div class="char-card" (click)="openCharacter(char.id)">
+                  <button class="card-del" (click)="deleteCharacter(char.id, $event)">×</button>
+                  <div class="char-avatar">👤</div>
+                  <div class="char-info">
+                    <input type="text" [(ngModel)]="char.name" (click)="$event.stopPropagation()" (change)="loadCharacters(campaignId()!)" />
+                    <p>Ficha de Jogador</p>
+                  </div>
+                </div>
+              }
+              <div class="char-card add-card" (click)="createCharacter(false)">
+                <div class="char-avatar">+</div>
+                <div class="char-info">
+                  <h3>Novo Herói</h3>
+                  <p>Adicionar jogador</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Monsters -->
+          <div class="char-group" style="margin-top: 40px;">
+            <h3 class="group-title">👿 Bestiário</h3>
+            <div class="char-grid">
+              @for (monster of monsters(); track monster.id) {
+                <div class="char-card monster-card" (click)="openCharacter(monster.id)">
+                  <button class="card-del" (click)="deleteCharacter(monster.id, $event)">×</button>
+                  <div class="char-avatar">💀</div>
+                  <div class="char-info">
+                    <input type="text" [(ngModel)]="monster.name" (click)="$event.stopPropagation()" (change)="loadCharacters(campaignId()!)" />
+                    <p>Ficha de Monstro</p>
+                  </div>
+                </div>
+              }
+              <div class="char-card add-card" (click)="createCharacter(true)">
+                <div class="char-avatar">+</div>
+                <div class="char-info">
+                  <h3>Nova Criatura</h3>
+                  <p>Adicionar monstro</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="charViewMode() === 'sheet'">
+        <div class="section-header sub-header">
+          <button class="btn-text-back" (click)="closeCharacter()">← Voltar à Lista</button>
+          <h2>{{ getSelectedChar()?.name }}</h2>
+        </div>
+        
+        <app-player-sheet 
+          [campaignId]="campaignId()" 
+          [characterId]="selectedCharId()"
+          [templateType]="getSelectedChar()?.isMonster ? 'monster' : 'player'">
+        </app-player-sheet>
+      </div>
+
+    </section>
+
+    <!-- Tab: Combates -->
+    <section *ngIf="activeTab() === 'combates'" class="view-section">
+      <div class="section-header">
+        <h2>Gerenciador de Combates</h2>
+        <p>Prepare encontros épicos e controle a iniciativa.</p>
+      </div>
+      <div class="empty-view">
+        <div class="empty-icon">⚔️</div>
+        <p>Nenhum combate agendado ou ativo.</p>
+        <button class="btn-primary">Novo Encontro</button>
+      </div>
+    </section>
+
+    <!-- Tab: Escudo -->
+    <section *ngIf="activeTab() === 'escudo'" class="view-section">
+      <div class="section-header">
+        <h2>Escudo do Mestre</h2>
+        <p>Visão rápida de todos os dados cruciais para a sua narrativa.</p>
+      </div>
+      <div class="empty-view">
+        <div class="empty-icon">🛡️</div>
+        <p>Configure o seu escudo para ver os dados dos jogadores em tempo real.</p>
+        <button class="btn-primary">Configurar Painel</button>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- 404 Case -->
+<div *ngIf="!campaign()" class="empty-state-full">
+  <h2>Campanha não encontrada</h2>
+  <p>Verifique o link ou retorne à lista.</p>
+  <a routerLink="/campanhas" class="btn-outline">Voltar para Campanhas</a>
+</div>

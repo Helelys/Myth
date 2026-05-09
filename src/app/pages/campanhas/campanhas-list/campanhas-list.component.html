@@ -1,0 +1,47 @@
+<div class="list-container">
+  <header class="list-header">
+    <div class="header-text">
+      <h1>Minhas Campanhas</h1>
+      <p>Gerencie seus mundos e aventuras.</p>
+    </div>
+    <a routerLink="/campanhas/criar" class="btn-primary">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      Criar Nova
+    </a>
+  </header>
+
+  @if (campaigns().length > 0) {
+    <div class="campaign-grid">
+      @for (camp of campaigns(); track camp.id) {
+        <div class="campaign-card">
+          <a [routerLink]="['/campanhas', camp.id]" class="card-link">
+            <div class="card-cover">
+              @if (camp.imagemCapa) {
+                <img [src]="camp.imagemCapa" alt="Capa">
+              } @else {
+                <img src="/hero-bg.png" alt="Capa Padrão">
+              }
+            </div>
+            <div class="card-content">
+              <h3>{{ camp.nome }}</h3>
+              <p>{{ camp.descricao || 'Sem descrição.' }}</p>
+            </div>
+          </a>
+          <div class="card-footer">
+            <span class="date">{{ camp.criadoEm | date:'dd/MM/yyyy' }}</span>
+            <button class="btn-delete" (click)="deleteCampaign(camp.id)" title="Excluir">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="1.5"/></svg>
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  } @else {
+    <div class="empty-state">
+      <div class="empty-icon">🐉</div>
+      <h2>Nenhuma campanha encontrada</h2>
+      <p>Que tal começar uma nova jornada agora mesmo?</p>
+      <a routerLink="/campanhas/criar" class="btn-outline">Criar minha primeira campanha</a>
+    </div>
+  }
+</div>

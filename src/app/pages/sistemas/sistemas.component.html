@@ -1,0 +1,125 @@
+<div class="sistemas-container">
+  <header class="page-header">
+    <div class="header-info">
+      <h1>Sistemas</h1>
+      <p>Gerencie seus sistemas de RPG e importe/exporte entre campanhas.</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn-outline" (click)="toggleImportModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0-13l-4 4m4-4l4 4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Importar de Campanha
+      </button>
+      <button class="btn-primary" (click)="createNewSystem()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Novo Sistema
+      </button>
+    </div>
+  </header>
+
+  <!-- Systems Grid -->
+  <main class="systems-grid" *ngIf="!isEditing()">
+    @for (system of systems(); track system.id) {
+      <div class="system-card" (click)="editSystem(system)">
+        <div class="card-header">
+          <h3>{{ system.title }}</h3>
+          <div class="card-actions">
+            <button class="card-btn" (click)="exportToCampaign(system); $event.stopPropagation()" title="Exportar para Campanha">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 17V4m0 13l-4-4m4 4l4-4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <button class="card-btn delete" (click)="deleteSystem(system.id, $event)" title="Excluir">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="card-content">
+          <p>{{ system.content || 'Sem conteúdo...' }}</p>
+        </div>
+        <div class="card-footer">
+          <span>Criado em {{ system.createdAt | date:'shortDate' }}</span>
+        </div>
+      </div>
+    }
+
+    <div class="empty-state" *ngIf="systems().length === 0">
+      <div class="empty-icon">⚖️</div>
+      <h3>Nenhum sistema criado</h3>
+      <p>Crie seu primeiro sistema ou importe de uma campanha existente.</p>
+      <button class="btn-primary" (click)="createNewSystem()">Criar Agora</button>
+    </div>
+  </main>
+
+  <!-- Editor View -->
+  <section class="editor-view" *ngIf="isEditing()">
+    <div class="editor-header">
+      <button class="btn-text-back" (click)="cancelEdit()">← Voltar</button>
+      <input type="text" class="title-input" [(ngModel)]="systemTitle" placeholder="Título do Sistema...">
+    </div>
+
+    <div class="rich-text-editor">
+      <div class="editor-toolbar">
+        <button class="tool-btn"><b>B</b></button>
+        <button class="tool-btn"><i>I</i></button>
+        <button class="tool-btn"><u>U</u></button>
+        <div class="tool-sep"></div>
+        <button class="tool-btn">H1</button>
+        <button class="tool-btn">H2</button>
+      </div>
+      <textarea 
+        class="editor-area" 
+        [(ngModel)]="systemContent"
+        placeholder="Escreva aqui as regras e detalhes do seu sistema..."></textarea>
+    </div>
+
+    <div class="editor-actions">
+      <button class="btn-outline" (click)="cancelEdit()">Cancelar</button>
+      <button class="btn-primary" (click)="saveSystem()">Salvar Sistema</button>
+    </div>
+  </section>
+
+  <!-- Import Modal -->
+  <div class="modal-overlay" *ngIf="showImportModal()" (click)="toggleImportModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Importar de Campanha</h2>
+        <button class="close-btn" (click)="toggleImportModal()">×</button>
+      </div>
+      <div class="campaign-list">
+        <p *ngIf="campaigns().length === 0">Nenhuma campanha encontrada.</p>
+        @for (camp of campaigns(); track camp.id) {
+          <div class="campaign-item" (click)="importFromCampaign(camp.id)">
+            <div class="camp-icon">📂</div>
+            <div class="camp-info">
+              <h4>{{ camp.nome }}</h4>
+              <p>ID: {{ camp.id }}</p>
+            </div>
+            <button class="btn-import">Importar</button>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- Export Modal -->
+  <div class="modal-overlay" *ngIf="showExportModal()" (click)="toggleExportModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Exportar para Campanha</h2>
+        <button class="close-btn" (click)="toggleExportModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">Selecione a campanha para onde deseja enviar o sistema <strong>{{ systemToExport()?.title }}</strong>.</p>
+        <div class="campaign-list">
+          @for (camp of campaigns(); track camp.id) {
+            <div class="campaign-item" (click)="confirmExport(camp.id)">
+              <div class="camp-icon">📂</div>
+              <div class="camp-info">
+                <h4>{{ camp.nome }}</h4>
+              </div>
+              <button class="btn-import">Exportar</button>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

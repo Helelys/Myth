@@ -1,0 +1,247 @@
+.anotacoes-container {
+  padding: 40px;
+  max-width: 1200px;
+  margin: 0 auto;
+
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 40px;
+
+    .header-info {
+      h1 {
+        font-size: 2.5rem;
+        background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 8px;
+      }
+      p { color: var(--text-secondary); font-size: 1.1rem; }
+    }
+    
+    .header-actions { display: flex; gap: 12px; }
+  }
+
+  .notes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 24px;
+    animation: fadeIn 0.3s ease;
+  }
+
+  .note-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    height: 240px;
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+    transition: all var(--transition);
+    position: relative;
+
+    &:hover {
+      background: var(--bg-elevated);
+      border-color: var(--accent);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+      .delete-btn { opacity: 1; }
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      h3 { font-size: 1.2rem; color: var(--text-primary); margin: 0; }
+    }
+
+    .card-preview {
+      flex: 1;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 6;
+      -webkit-box-orient: vertical;
+      line-height: 1.5;
+    }
+
+    .card-footer {
+      margin-top: 16px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      opacity: 0.6;
+    }
+
+    .delete-btn {
+      background: rgba(224, 90, 90, 0.1);
+      color: #e05a5a;
+      border: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      opacity: 0;
+      transition: all var(--transition);
+      &:hover { background: #e05a5a; color: #fff; }
+    }
+  }
+
+  .editor-view {
+    animation: fadeIn 0.3s ease;
+    
+    .editor-header {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      margin-bottom: 32px;
+
+      .title-input {
+        flex: 1;
+        background: none;
+        border: none;
+        border-bottom: 2px solid var(--border);
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        padding: 8px 0;
+        transition: border-color 0.3s ease;
+        &:focus { outline: none; border-color: var(--accent); }
+      }
+    }
+
+    .rich-text-editor {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      margin-bottom: 32px;
+
+      .editor-toolbar {
+        background: var(--bg-elevated);
+        padding: 8px 16px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        gap: 8px;
+        .tool-btn {
+          background: none;
+          border: none;
+          color: var(--text-muted);
+          width: 32px;
+          height: 32px;
+          border-radius: 4px;
+          cursor: pointer;
+          &:hover { background: var(--bg-surface); color: var(--text-primary); }
+        }
+      }
+
+      .editor-area {
+        width: 100%;
+        min-height: 500px;
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        padding: 32px;
+        font-size: 1.1rem;
+        line-height: 1.6;
+        resize: vertical;
+        &:focus { outline: none; }
+      }
+    }
+
+    .editor-actions {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      .spacer { flex: 1; }
+    }
+  }
+
+  .empty-state {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 80px 0;
+    color: var(--text-muted);
+    text-align: center;
+    .empty-icon { font-size: 4rem; margin-bottom: 24px; opacity: 0.2; }
+    p { margin-bottom: 32px; font-size: 1.2rem; }
+  }
+
+  // Modals (reuse from Personagens)
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+  }
+
+  .modal-content {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    width: 100%;
+    max-width: 500px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+
+    .modal-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      h2 { font-size: 1.25rem; }
+      .close-btn { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; }
+    }
+
+    .campaign-list {
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+
+      .campaign-item {
+        background: var(--bg-elevated);
+        padding: 16px;
+        border-radius: var(--radius-md);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+        transition: all var(--transition);
+        &:hover { background: var(--border); }
+      }
+    }
+  }
+
+  .btn-import-sm, .btn-export-sm {
+    background: var(--accent-dim);
+    color: var(--accent);
+    border: 1px solid var(--accent-dim);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    &:hover { background: var(--accent); color: #fff; }
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

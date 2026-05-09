@@ -1,0 +1,170 @@
+<div class="criar-page">
+
+  <!-- Top Bar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <a routerLink="/" class="back-btn" aria-label="Voltar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+      <div>
+        <h1 class="page-title">Criar Campanha</h1>
+        <p class="page-subtitle">Dê vida a uma nova história. Crie o lar das aventuras que serão lembradas.</p>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="search-bar">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.8"/><path d="m21 21-4.35-4.35" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <span>Buscar...</span>
+        <kbd>Ctrl K</kbd>
+      </div>
+      <button class="icon-btn" aria-label="Notificações">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+      <div class="user-chip">
+        <div class="user-avatar">M</div>
+        <div class="user-chip-info">
+          <span>Mestre das Lendas</span>
+          <small>Mestre</small>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Body -->
+  <div class="page-body">
+
+    <!-- Left: Form -->
+    <div class="form-col">
+
+      <!-- Section 1 -->
+      <section class="form-section">
+        <h2 class="section-num"><span>1.</span> Informações Básicas</h2>
+
+        <div class="field">
+          <label class="field-label" for="camp-nome">Nome da Campanha</label>
+          <input
+            id="camp-nome"
+            class="field-input"
+            [class.error]="erroNome()"
+            type="text"
+            placeholder="Ex: A Maldição do Corvo Carmesim"
+            [value]="nome()"
+            (input)="nome.set($any($event.target).value); erroNome.set(false)"
+          />
+          @if (erroNome()) {
+            <span class="field-error">O nome da campanha é obrigatório.</span>
+          }
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="camp-desc">
+            Descrição <span class="optional">(opcional)</span>
+          </label>
+          <textarea
+            id="camp-desc"
+            class="field-input field-textarea"
+            placeholder="Conte um pouco sobre sua campanha, o mundo, o tom e a história..."
+            [value]="descricao()"
+            (input)="descricao.set($any($event.target).value)"
+          ></textarea>
+        </div>
+      </section>
+
+      <!-- Section 2: Personalização (formerly section 3) -->
+      <section class="form-section">
+        <h2 class="section-num"><span>2.</span> Personalização</h2>
+
+        <div class="field">
+          <label class="field-label">Imagem da Campanha</label>
+          <input #fileInput type="file" accept="image/*" class="hidden-input" (change)="onImageUpload($event)" id="camp-imagem"/>
+          <div
+            class="upload-zone"
+            [class.dragging]="isDragging()"
+            [class.has-image]="imagemCapa()"
+            (dragover)="onDragOver($event)"
+            (dragleave)="onDragLeave()"
+            (drop)="onDrop($event)"
+            (click)="triggerFileInput(fileInput)"
+          >
+            @if (imagemCapa()) {
+              <img [src]="imagemCapa()" alt="Capa da campanha" class="upload-preview"/>
+              <div class="upload-overlay">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>Alterar imagem</span>
+              </div>
+            } @else {
+              <svg class="upload-icon" width="32" height="32" viewBox="0 0 24 24" fill="none">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <p class="upload-text">Clique para enviar ou arraste uma imagem</p>
+              <p class="upload-hint">Recomendado: 16:9 (1280×720)</p>
+            }
+          </div>
+        </div>
+      </section>
+
+      <!-- Form Footer -->
+      <div class="form-footer">
+        <a routerLink="/" class="btn-outline">Cancelar</a>
+        <button class="btn-primary" [class.loading]="salvando()" (click)="criarCampanha()">
+          @if (salvando()) { <span class="spinner"></span> Salvando... }
+          @else { Criar Campanha }
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Right: Preview -->
+    <aside class="preview-col">
+
+      <!-- Cover image -->
+      <div class="preview-cover">
+        @if (imagemCapa()) {
+          <img [src]="imagemCapa()" alt="Capa" class="cover-img"/>
+        } @else {
+          <img src="/hero-bg.png" alt="Capa padrão" class="cover-img"/>
+        }
+        <button class="cover-edit-btn" (click)="triggerFileInput(coverFileInput)">
+          <input #coverFileInput type="file" accept="image/*" class="hidden-input" (change)="onImageUpload($event)"/>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          Alterar imagem
+        </button>
+      </div>
+
+      <!-- Summary -->
+      <div class="preview-summary">
+        <h3 class="preview-title">Resumo da Campanha</h3>
+        <p class="preview-subtitle">Estas configurações podem ser alteradas a qualquer momento nas configurações da campanha.</p>
+
+        <div class="summary-rows">
+          <div class="summary-row">
+            <span class="summary-key">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              Nome
+            </span>
+            <span class="summary-val" [class.empty]="!nome()">{{ nome() || 'Ainda não definido' }}</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-key">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              Jogadores
+            </span>
+            <span class="summary-val">8 jogadores (Plano Free)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tip -->
+      <div class="preview-tip">
+        <div class="tip-header">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <span>Dica do Mestre</span>
+        </div>
+        <p>Uma boa campanha começa com uma ideia clara e jogadores empolgados. Prepare o terreno para aventuras inesquecíveis!</p>
+      </div>
+
+    </aside>
+  </div>
+</div>

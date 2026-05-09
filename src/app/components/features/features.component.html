@@ -1,0 +1,93 @@
+<section class="features" id="recursos">
+  <div class="container">
+
+    <!-- Section Header -->
+    <div class="section-header">
+      <span class="section-eyebrow">Tudo o que você precisa</span>
+      <h2 class="section-title">Uma plataforma completa<br>para RPG de mesa</h2>
+      <p class="section-subtitle">
+        Crie sistemas do zero, monte fichas personalizadas,
+        organize suas campanhas e tenha tudo em um só lugar.
+      </p>
+    </div>
+
+    <!-- Main Features Split -->
+    <div class="features-split">
+      <div class="features-left">
+        <ul class="highlight-list">
+          @for (item of highlights; track item) {
+            <li class="highlight-item">
+              <span class="check-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              {{ item }}
+            </li>
+          }
+        </ul>
+      </div>
+
+      <div class="features-right">
+        <!-- Mock UI Card -->
+        <div class="mock-card">
+          <div class="mock-card-header">
+            <div class="mock-dots">
+              <span></span><span></span><span></span>
+            </div>
+            <span class="mock-title">Ficha de Personagem</span>
+            <div class="mock-actions">
+              <span class="mock-btn-save">Salvar</span>
+            </div>
+          </div>
+          <div class="mock-card-body">
+            <div class="mock-section">
+              <div class="mock-label">Atributos</div>
+              <div class="mock-attrs">
+                @for (attr of [
+                  {name:'Destreza', val:'+3'},
+                  {name:'Constituição', val:'+1'},
+                  {name:'Inteligência', val:'+0'},
+                  {name:'Sabedoria', val:'+1'},
+                  {name:'Carisma', val:'+2'}
+                ]; track attr.name) {
+                  <div class="mock-attr">
+                    <span class="attr-val">{{ attr.val }}</span>
+                    <span class="attr-name">{{ attr.name }}</span>
+                  </div>
+                }
+              </div>
+            </div>
+            <div class="mock-divider"></div>
+            <div class="mock-section">
+              <div class="mock-label">Vida</div>
+              <div class="mock-hp">
+                <div class="hp-col">
+                  <div class="hp-label">PV Máximo</div>
+                  <div class="hp-value">24</div>
+                </div>
+                <div class="hp-col">
+                  <div class="hp-label">PV Atual</div>
+                  <div class="hp-value">24 / 24</div>
+                  <div class="hp-bar"><div class="hp-fill" style="width:100%"></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feature Grid -->
+    <div class="feature-grid" id="features-grid">
+      @for (feature of featureList; track feature.title) {
+        <div class="feature-card">
+          <div class="feature-icon">{{ feature.icon }}</div>
+          <h3 class="feature-title">{{ feature.title }}</h3>
+          <p class="feature-desc">{{ feature.description }}</p>
+        </div>
+      }
+    </div>
+
+  </div>
+</section>

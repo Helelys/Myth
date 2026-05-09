@@ -1,0 +1,23 @@
+<section class="how-it-works" id="como-funciona">
+  <div class="container">
+
+    <div class="section-header center">
+      <span class="section-eyebrow">Como funciona</span>
+      <h2 class="section-title">Crie em minutos.<br>Jogue para sempre.</h2>
+    </div>
+
+    <div class="steps-grid">
+      @for (step of steps; track step.number; let i = $index) {
+        <div class="step-card">
+          <div class="step-number">{{ step.number }}</div>
+          @if (i < steps.length - 1) {
+            <div class="step-connector"></div>
+          }
+          <h3 class="step-title">{{ step.title }}</h3>
+          <p class="step-desc">{{ step.description }}</p>
+        </div>
+      }
+    </div>
+
+  </div>
+</section>

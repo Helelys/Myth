@@ -1,0 +1,208 @@
+<div class="editor-shell">
+  
+  <!-- Left Sidebar: Components -->
+  <aside class="components-panel">
+    <div class="panel-header">
+      <h3>Componentes</h3>
+      <p>Arraste para o canvas</p>
+    </div>
+    <div class="component-list">
+      @for (comp of componentTypes; track comp.type) {
+        <div class="comp-item" (click)="addComponent(comp)">
+          <span class="icon">{{ comp.icon }}</span>
+          <span class="label">{{ comp.label }}</span>
+        </div>
+      }
+    </div>
+    <div class="panel-footer">
+      <button class="btn-save" (click)='saveTemplate()'>Salvar Template</button>
+    </div>
+  </aside>
+
+  <!-- Center: Canvas Area -->
+  <main class="canvas-area" (click)="selectedId.set(null)">
+    
+    <!-- Tab Bar -->
+    <div class="canvas-tabs">
+      @for (tab of tabs(); track tab.id) {
+        <div 
+          class="sheet-tab" 
+          [class.active]="activeTabId() === tab.id"
+          (click)="activeTabId.set(tab.id); selectedId.set(null)"
+        >
+          <input type="text" [(ngModel)]="tab.label" (click)="$event.stopPropagation()" />
+          <button *ngIf="tabs().length > 1" class="tab-del" (click)="deleteTab(tab.id, $event)">×</button>
+        </div>
+      }
+      <button class="add-tab-btn" (click)="addTab()">+ Aba</button>
+    </div>
+
+    <!-- The Canvas -->
+    <div class="canvas" [style.backgroundColor]="sheetSettings().backgroundColor">
+      <!-- Grid overlay -->
+      <div class="grid-overlay"></div>
+      
+      @for (comp of activeTabComponents(); track comp.id) {
+        <div 
+          class="canvas-element"
+          [class.selected]="selectedId() === comp.id"
+          [class.dragging]="draggingId() === comp.id"
+          [style.left.px]="comp.x"
+          [style.top.px]="comp.y"
+          [style.width.px]="comp.w"
+          [style.height.px]="comp.h"
+          (mousedown)="startDragging($event, comp)"
+          (click)="$event.stopPropagation()"
+        >
+          <div class="element-label" [style.color]="sheetSettings().accentColor">{{ comp.label }}</div>
+          
+          <div class="element-preview" [ngSwitch]="comp.type">
+            <div *ngSwitchCase="'attribute'" class="preview-attr">0</div>
+            <div *ngSwitchCase="'number'" class="preview-num">0</div>
+            <div *ngSwitchCase="'health'" class="preview-health" [style.background]="comp.properties.color"></div>
+            <div *ngSwitchCase="'table'" class="preview-table">
+              <div class="table-grid-mock">
+                <span></span><span></span><span></span>
+                <span></span><span></span><span></span>
+              </div>
+            </div>
+            <div *ngSwitchCase="'checkbox'" class="preview-check">
+              <span class="box"></span>
+              <span class="txt">{{ comp.label }}</span>
+            </div>
+            <div *ngSwitchCase="'photo'" class="preview-photo">
+              📷
+            </div>
+            <div *ngSwitchCase="'dropdown'" class="preview-dropdown">
+              <span class="select-box">▼</span>
+              <span class="txt">{{ comp.label }}</span>
+            </div>
+            <div *ngSwitchCase="'text'" class="preview-text">...</div>
+            <div *ngSwitchCase="'dice'" class="preview-dice">d20</div>
+            <div *ngSwitchDefault class="preview-generic"></div>
+          </div>
+
+          @if (selectedId() === comp.id) {
+            <div class="element-actions">
+              <button class="del-btn" (click)="deleteComponent(comp.id)">×</button>
+            </div>
+            <div class="resize-handle"></div>
+          }
+        </div>
+      }
+    </div>
+  </main>
+
+  <!-- Right Sidebar: Properties -->
+  <aside class="properties-panel" [class.open]="selectedId()">
+    @if (selectedComponent(); as selected) {
+      <div class="panel-header">
+        <h3>Propriedades</h3>
+        <p>Configurar {{ selected.type }}</p>
+      </div>
+
+      <div class="prop-form">
+        <div class="prop-field">
+          <label>Nome do Campo</label>
+          <input type="text" [(ngModel)]="selected.label" />
+        </div>
+
+        <div class="prop-row">
+          <div class="prop-field">
+            <label>Largura (px)</label>
+            <input type="number" [(ngModel)]="selected.w" step="20" />
+          </div>
+          <div class="prop-field">
+            <label>Altura (px)</label>
+            <input type="number" [(ngModel)]="selected.h" step="20" />
+          </div>
+        </div>
+
+        <div class="prop-row">
+          <div class="prop-field">
+            <label>Posição X</label>
+            <input type="number" [(ngModel)]="selected.x" step="20" />
+          </div>
+          <div class="prop-field">
+            <label>Posição Y</label>
+            <input type="number" [(ngModel)]="selected.y" step="20" />
+          </div>
+        </div>
+
+        <div class="prop-field">
+          <label>Valor Padrão</label>
+          <input type="text" [(ngModel)]="selected.defaultValue" />
+        </div>
+
+        @if (selected.type === 'health') {
+          <div class="prop-field">
+            <label>Cor da Barra</label>
+            <div class="color-presets">
+              <button class="color-btn" style="background: #e05a5a" (click)="selected.properties.color = '#e05a5a'"></button>
+              <button class="color-btn" style="background: #5ae08d" (click)="selected.properties.color = '#5ae08d'"></button>
+              <button class="color-btn" style="background: #5aace0" (click)="selected.properties.color = '#5aace0'"></button>
+              <button class="color-btn" style="background: #e0d05a" (click)="selected.properties.color = '#e0d05a'"></button>
+              <input type="color" [(ngModel)]="selected.properties.color" />
+            </div>
+          </div>
+        }
+
+        @if (selected.type === 'dropdown') {
+          <div class="prop-field">
+            <label>Opções (separadas por vírgula)</label>
+            <input type="text" [(ngModel)]="selected.properties.options" placeholder="Opção 1, Opção 2" />
+          </div>
+        }
+
+        @if (selected.type === 'table') {
+          <div class="prop-row">
+            <div class="prop-field">
+              <label>Linhas</label>
+              <input type="number" [(ngModel)]="selected.properties.rows" />
+            </div>
+            <div class="prop-field">
+              <label>Colunas</label>
+              <input type="number" [(ngModel)]="selected.properties.cols" />
+            </div>
+          </div>
+        }
+      </div>
+    } @else {
+      <div class="empty-properties">
+        <div class="prop-form global-props">
+          <div class="panel-header" style="padding: 0 0 20px 0; border-bottom: 1px solid var(--border); margin-bottom: 20px;">
+            <h3>Configuração da Ficha</h3>
+            <p>Personalize as cores globais.</p>
+          </div>
+
+          <div class="prop-field">
+            <label>Cor do Fundo</label>
+            <div class="color-presets">
+              <button class="color-btn" style="background: #1c1c24" (click)="updateSetting('backgroundColor', '#1c1c24')"></button>
+              <button class="color-btn" style="background: #2a2a35" (click)="updateSetting('backgroundColor', '#2a2a35')"></button>
+              <button class="color-btn" style="background: #ffffff" (click)="updateSetting('backgroundColor', '#ffffff')"></button>
+              <input type="color" [ngModel]="sheetSettings().backgroundColor" (ngModelChange)="updateSetting('backgroundColor', $event)" />
+            </div>
+          </div>
+
+          <div class="prop-field">
+            <label>Cor de Destaque (Texto)</label>
+            <div class="color-presets">
+              <button class="color-btn" style="background: #ffffff" (click)="updateSetting('accentColor', '#ffffff')"></button>
+              <button class="color-btn" style="background: #e05a5a" (click)="updateSetting('accentColor', '#e05a5a')"></button>
+              <button class="color-btn" style="background: #5aace0" (click)="updateSetting('accentColor', '#5aace0')"></button>
+              <input type="color" [ngModel]="sheetSettings().accentColor" (ngModelChange)="updateSetting('accentColor', $event)" />
+            </div>
+          </div>
+        </div>
+
+        <div class="empty-state-msg">
+          <div class="empty-icon">⚙️</div>
+          <h3>Propriedades</h3>
+          <p>Selecione um componente para editar ou use as configurações globais acima.</p>
+        </div>
+      </div>
+    }
+  </aside>
+
+</div>

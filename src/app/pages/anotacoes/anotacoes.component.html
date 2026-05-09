@@ -1,0 +1,103 @@
+<div class="anotacoes-container">
+  <header class="page-header">
+    <div class="header-info">
+      <h1>Anotações</h1>
+      <p>Gerencie seus rascunhos, segredos e ideias globais.</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn-outline" (click)="showImportModal.set(true)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0-13l-4 4m4-4l4 4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Importar de Campanha
+      </button>
+      <button class="btn-primary" (click)="createNewNote()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Nova Anotação
+      </button>
+    </div>
+  </header>
+
+  <!-- Notes Grid -->
+  <main class="notes-grid" *ngIf="!isEditing()">
+    @for (note of notes(); track note.id) {
+      <div class="note-card" (click)="editNote(note)">
+        <div class="card-header">
+          <h3>{{ note.title }}</h3>
+          <button class="delete-btn" (click)="deleteNote(note.id, $event)">×</button>
+        </div>
+        <div class="card-preview">
+          {{ note.content }}
+        </div>
+        <div class="card-footer">
+          {{ note.createdAt | date:'shortDate' }}
+        </div>
+      </div>
+    }
+    <div class="empty-state" *ngIf="notes().length === 0">
+      <div class="empty-icon">📝</div>
+      <p>Nenhuma anotação criada.</p>
+      <button class="btn-primary" (click)="createNewNote()">Criar Primeira Anotação</button>
+    </div>
+  </main>
+
+  <!-- Editor View -->
+  <section class="editor-view" *ngIf="isEditing()">
+    <div class="editor-header">
+      <button class="btn-text-back" (click)="cancelEdit()">← Voltar</button>
+      <input type="text" class="title-input" [(ngModel)]="noteTitle" placeholder="Título da Anotação...">
+    </div>
+
+    <div class="rich-text-editor">
+      <div class="editor-toolbar">
+        <button class="tool-btn"><b>B</b></button>
+        <button class="tool-btn"><i>I</i></button>
+        <button class="tool-btn"><u>U</u></button>
+      </div>
+      <textarea 
+        class="editor-area" 
+        [(ngModel)]="noteContent"
+        placeholder="Sua anotação aqui..."></textarea>
+    </div>
+
+    <div class="editor-actions">
+      <button class="btn-outline" (click)="showExportModal.set(true)">Exportar para Campanha</button>
+      <div class="spacer"></div>
+      <button class="btn-outline" (click)="cancelEdit()">Cancelar</button>
+      <button class="btn-primary" (click)="saveNote()">Salvar Anotação</button>
+    </div>
+  </section>
+
+  <!-- Modals -->
+  <div class="modal-overlay" *ngIf="showImportModal()" (click)="showImportModal.set(false)">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Importar de Campanha</h2>
+        <button class="close-btn" (click)="showImportModal.set(false)">×</button>
+      </div>
+      <div class="campaign-list">
+        @for (camp of campaigns(); track camp.id) {
+          <div class="campaign-item" (click)="importFromCampaign(camp.id)">
+            <span>{{ camp.nome }}</span>
+            <button class="btn-import-sm">Importar</button>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" *ngIf="showExportModal()" (click)="showExportModal.set(false)">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Exportar para Campanha</h2>
+        <button class="close-btn" (click)="showExportModal.set(false)">×</button>
+      </div>
+      <div class="campaign-list">
+        @for (camp of campaigns(); track camp.id) {
+          <div class="campaign-item" (click)="exportToCampaign(camp.id)">
+            <span>{{ camp.nome }}</span>
+            <button class="btn-export-sm">Exportar</button>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</div>

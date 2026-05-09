@@ -1,0 +1,208 @@
+.player-sheet-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+}
+
+.sheet-tabs {
+  display: flex;
+  gap: 4px;
+  width: 800px;
+  margin-bottom: -1px;
+}
+
+.tab-btn {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  padding: 10px 20px;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &.active {
+    background: white;
+    color: #1a1a1a;
+    border-color: #ddd;
+    padding-bottom: 11px;
+  }
+}
+
+.sheet-paper {
+  width: 800px;
+  min-height: 1100px;
+  background: white;
+  border: 1px solid #ddd;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  position: relative;
+  padding: 40px;
+  color: #1a1a1a;
+}
+
+.sheet-element {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  label {
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: #666;
+  }
+}
+
+.field-container {
+  flex: 1;
+  display: flex;
+
+  input:not([type="checkbox"]), textarea, select {
+    width: 100%;
+    height: 100%;
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 8px;
+    color: #1a1a1a;
+    font-family: inherit;
+    font-size: 0.9rem;
+    outline: none;
+    text-align: left;
+    display: block; /* Removed flex/align-items to fix centering */
+
+    &:focus { border-color: var(--accent); background: white; }
+  }
+
+  textarea {
+    resize: none;
+    padding: 12px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-y: auto;
+    word-break: break-word;
+  }
+}
+
+.notes-field, .inventory-field {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  display: flex;
+}
+
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  
+  input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    margin: 0;
+    flex-shrink: 0;
+  }
+
+  span {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #333;
+  }
+}
+
+.attr-field {
+  flex: 1;
+  input {
+    text-align: center !important;
+    font-size: 1.8rem;
+    font-weight: 800;
+    display: block;
+    line-height: 1.2;
+    padding: 0;
+  }
+}
+
+.num-field {
+  flex: 1;
+  input {
+    text-align: center;
+    font-weight: 700;
+  }
+}
+
+.dropdown-field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  select {
+    width: 120px !important;
+    height: 36px !important;
+    padding: 0 8px !important;
+    font-size: 0.85rem !important;
+    cursor: pointer;
+  }
+  span { font-weight: 600; color: #444; }
+}
+
+.photo-field {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  background: #f4f4f4;
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover { border-color: var(--accent); background: #eee; }
+
+  img { width: 100%; height: 100%; object-fit: cover; }
+  
+  .photo-placeholder {
+    text-align: center;
+    color: #999;
+    span { font-size: 2rem; margin-bottom: 8px; display: block; }
+    p { font-size: 0.75rem; font-weight: 600; }
+  }
+}
+
+.health-field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  .health-meta {
+    display: flex;
+    gap: 4px;
+    input { padding: 2px; text-align: center; font-size: 0.8rem; }
+  }
+
+  .health-bar-bg {
+    height: 10px;
+    background: #eee;
+    border-radius: 5px;
+    overflow: hidden;
+    .health-bar-fill {
+      height: 100%;
+      background: #e05a5a;
+    }
+  }
+}
+
+.no-template {
+  text-align: center;
+  padding: 60px;
+  color: var(--text-secondary);
+}

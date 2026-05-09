@@ -1,9 +1,28 @@
-<div class="app-shell" [class.sidebar-collapsed]="isSidebarCollapsed()">
+<div class="app-shell" [class.sidebar-collapsed]="isSidebarCollapsed()" [class.mobile-open]="isMobileMenuOpen()">
+  
+  <!-- Mobile Header -->
+  <header class="mobile-header">
+    <button class="menu-toggle" (click)="toggleMobileMenu()">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <div class="mobile-logo">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2L3 7v10l9 5 9-5V7L12 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+      </svg>
+      <span>MythMaker</span>
+    </div>
+    <div class="mobile-spacer"></div>
+  </header>
+
+  <!-- Mobile Backdrop -->
+  <div class="mobile-backdrop" (click)="closeMobileMenu()"></div>
 
   <!-- Sidebar -->
-  <aside class="sidebar" [class.collapsed]="isSidebarCollapsed()">
+  <aside class="sidebar" [class.collapsed]="isSidebarCollapsed()" [class.mobile-visible]="isMobileMenuOpen()">
     <div class="sidebar-header">
-      <a routerLink="/" class="sidebar-logo">
+      <a routerLink="/" class="sidebar-logo" (click)="closeMobileMenu()">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
           <path d="M12 2L3 7v10l9 5 9-5V7L12 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
           <path d="M12 2v20M3 7l9 5 9-5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
@@ -19,7 +38,7 @@
 
     <nav class="sidebar-nav">
       @for (item of navItems; track item.route) {
-        <a [routerLink]="item.route" routerLinkActive="active" class="nav-item">
+        <a [routerLink]="item.route" routerLinkActive="active" class="nav-item" (click)="closeMobileMenu()">
           <span class="nav-icon">
             @switch (item.icon) {
               @case ('dashboard') {

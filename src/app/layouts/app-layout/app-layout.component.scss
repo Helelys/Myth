@@ -3,6 +3,10 @@
   height: 100vh;
   overflow: hidden;
   background: var(--bg);
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+  }
 }
 
 /* ── Sidebar ── */
@@ -16,7 +20,8 @@
   flex-direction: column;
   overflow-y: auto;
   overflow-x: hidden;
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1000;
 
   &.collapsed {
     width: 64px;
@@ -35,6 +40,31 @@
     .sidebar-user {
       justify-content: center;
     }
+  }
+
+  @media (max-width: 768px) {
+    position: fixed;
+    left: -280px;
+    top: 0;
+    bottom: 0;
+    width: 280px;
+    height: 100vh;
+    box-shadow: 20px 0 50px rgba(0, 0, 0, 0.5);
+
+    &.mobile-visible {
+      left: 0;
+    }
+
+    &.collapsed {
+      left: -280px; // Always hide full sidebar on mobile if not active
+      &.mobile-visible {
+        left: 0;
+        width: 280px; // Reset width on mobile visible
+        .sidebar-logo span, .nav-item span:not(.nav-icon), .user-info { display: flex; }
+      }
+    }
+    
+    .toggle-btn { display: none; } // Hide collapse btn on mobile
   }
 }
 
@@ -169,7 +199,65 @@
 .app-main {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   min-width: 0;
+  height: 100%;
 }
+
+/* ── Mobile Elements ── */
+.mobile-header {
+  display: none;
+  height: 60px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  align-items: center;
+  padding: 0 16px;
+  gap: 16px;
+  z-index: 900;
+  flex-shrink: 0;
+
+  .menu-toggle {
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    padding: 8px;
+    margin-left: -8px;
+    cursor: pointer;
+  }
+
+  .mobile-logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    color: var(--text-primary);
+    svg { color: var(--accent); }
+  }
+
+  @media (max-width: 768px) {
+    display: flex;
+  }
+}
+
+.mobile-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 950;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+
+  @media (max-width: 768px) {
+    display: block;
+    .mobile-open & {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  }
+}
+

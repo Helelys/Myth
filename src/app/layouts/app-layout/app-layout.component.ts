@@ -11,9 +11,18 @@ import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 })
 export class AppLayoutComponent {
   isSidebarCollapsed = signal(false);
+  isMobileMenuOpen = signal(false);
 
   toggleSidebar() {
     this.isSidebarCollapsed.update(v => !v);
+  }
+
+  toggleMobileMenu() {
+    this.isMobileMenuOpen.update(v => !v);
+  }
+
+  closeMobileMenu() {
+    this.isMobileMenuOpen.set(false);
   }
 
   navItems = [

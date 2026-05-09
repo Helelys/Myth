@@ -26,6 +26,7 @@ export const routes: Routes = [
       { path: 'anotacoes', component: AnotacoesComponent },
       { path: 'itens', component: ItensComponent },
       { path: 'dados', component: DadosComponent },
+      { path: 'campanhas/:id/gerador-missao', loadComponent: () => import('./pages/campanhas/mission-generator/mission-generator.component').then(m => m.MissionGeneratorComponent) },
     ]
   },
 ];

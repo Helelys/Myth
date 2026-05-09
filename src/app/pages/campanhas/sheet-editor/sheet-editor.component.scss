@@ -392,3 +392,41 @@
     }
   }
 }
+@media (max-width: 1024px) {
+  .editor-shell {
+    grid-template-columns: 200px 1fr;
+    .properties-panel {
+      position: fixed;
+      right: -320px;
+      top: 0; bottom: 0;
+      z-index: 1100;
+      box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+      &.open { right: 0; }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .editor-shell {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 80vh;
+    overflow: visible;
+
+    .components-panel {
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+      max-height: 300px;
+    }
+
+    .canvas-area {
+      padding: 20px 10px;
+      overflow-x: auto;
+      align-items: flex-start;
+      
+      .canvas-tabs, .canvas {
+        width: 800px; // Keep fixed width but allow horizontal scroll of the parent
+      }
+    }
+  }
+}

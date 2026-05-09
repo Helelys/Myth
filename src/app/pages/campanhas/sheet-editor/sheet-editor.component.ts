@@ -57,6 +57,9 @@ export class SheetEditorComponent {
   initialCompX = 0;
   initialCompY = 0;
 
+  private lastClickTime = 0;
+  private lastClickId: string | null = null;
+
   activeTabComponents = computed(() => 
     this.canvasComponents().filter(c => c.tabId === this.activeTabId())
   );
@@ -144,24 +147,47 @@ export class SheetEditorComponent {
     this.selectedId.set(newComp.id);
   }
 
-  startDragging(event: MouseEvent, comp: SheetComponent) {
+  onElementClick(event: MouseEvent, id: string) {
+    event.stopPropagation();
+    const now = Date.now();
+    const isDoubleClick = id === this.lastClickId && (now - this.lastClickTime) < 400;
+    this.lastClickTime = now;
+    this.lastClickId = id;
+    if (isDoubleClick) {
+      this.selectedId.set(id);
+    }
+  }
+
+  // Helper to get clientX/Y from mouse or touch event
+  private getClientCoords(event: MouseEvent | TouchEvent): { clientX: number; clientY: number } {
+    if ('touches' in event) {
+      // TouchEvent - changedTouches has the final position
+      const touch = event.touches[0] || event.changedTouches[0];
+      return { clientX: touch.clientX, clientY: touch.clientY };
+    }
+    return { clientX: event.clientX, clientY: event.clientY };
+  }
+
+  startDragging(event: MouseEvent | TouchEvent, comp: SheetComponent) {
     event.preventDefault();
     event.stopPropagation();
-    this.selectedId.set(comp.id);
+    const { clientX, clientY } = this.getClientCoords(event);
     this.draggingId.set(comp.id);
-    this.dragStartX = event.clientX;
-    this.dragStartY = event.clientY;
+    this.dragStartX = clientX;
+    this.dragStartY = clientY;
     this.initialCompX = comp.x;
     this.initialCompY = comp.y;
   }
 
   @HostListener('window:mousemove', ['$event'])
-  onMouseMove(event: MouseEvent) {
+  @HostListener('window:touchmove', ['$event'])
+  onMouseMove(event: MouseEvent | TouchEvent) {
     const id = this.draggingId();
     if (!id) return;
 
-    const deltaX = event.clientX - this.dragStartX;
-    const deltaY = event.clientY - this.dragStartY;
+    const { clientX, clientY } = this.getClientCoords(event);
+    const deltaX = clientX - this.dragStartX;
+    const deltaY = clientY - this.dragStartY;
 
     // Snap to Grid logic
     let rawX = this.initialCompX + deltaX;
@@ -185,6 +211,7 @@ export class SheetEditorComponent {
   }
 
   @HostListener('window:mouseup')
+  @HostListener('window:touchend')
   onMouseUp() {
     this.draggingId.set(null);
   }

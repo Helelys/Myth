@@ -52,7 +52,10 @@
           [style.width.px]="comp.w"
           [style.height.px]="comp.h"
           (mousedown)="startDragging($event, comp)"
-          (click)="$event.stopPropagation()"
+          (touchstart)="startDragging($event, comp)"
+          (click)="onElementClick($event, comp.id)"
+
+
         >
           <div class="element-label" [style.color]="sheetSettings().accentColor">{{ comp.label }}</div>
           

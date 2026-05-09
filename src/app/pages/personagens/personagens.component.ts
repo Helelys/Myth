@@ -1,7 +1,6 @@
 import { Component, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
 import { SheetEditorComponent } from '../campanhas/sheet-editor/sheet-editor.component';
 
 export interface SheetTemplate {
@@ -24,7 +23,7 @@ export interface GlobalCharacter {
 @Component({
   selector: 'app-personagens',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SheetEditorComponent],
+  imports: [CommonModule, FormsModule, SheetEditorComponent],
   templateUrl: './personagens.component.html',
   styleUrl: './personagens.component.scss'
 })

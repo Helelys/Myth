@@ -1,7 +1,6 @@
 import { Component, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
 
 export interface GlobalItem {
   id: string;
@@ -29,7 +28,7 @@ export interface GlobalItem {
 @Component({
   selector: 'app-itens',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule],
   templateUrl: './itens.component.html',
   styleUrl: './itens.component.scss'
 })

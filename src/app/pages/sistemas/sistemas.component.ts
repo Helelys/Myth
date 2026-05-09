@@ -1,7 +1,6 @@
 import { Component, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
 
 export interface System {
   id: string;
@@ -13,7 +12,7 @@ export interface System {
 @Component({
   selector: 'app-sistemas',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule],
   templateUrl: './sistemas.component.html',
   styleUrl: './sistemas.component.scss'
 })

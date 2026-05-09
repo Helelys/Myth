@@ -1,7 +1,6 @@
 import { Component, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
 
 export interface GlobalNote {
   id: string;
@@ -13,7 +12,7 @@ export interface GlobalNote {
 @Component({
   selector: 'app-anotacoes',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule],
   templateUrl: './anotacoes.component.html',
   styleUrl: './anotacoes.component.scss'
 })

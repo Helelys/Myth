@@ -106,10 +106,11 @@
           </button>
         </div>
         
-        <app-sheet-editor 
-          [campaignId]="campaignId()" 
-          [templateType]="activeSystemView() === 'ficha' ? 'player' : 'monster'">
-        </app-sheet-editor>
+        <app-sheet-builder
+          [campaignId]="campaignId()"
+          [templateType]="activeSystemView() === 'ficha' ? 'player' : 'monster'"
+          [editMode]="true"
+        ></app-sheet-builder>
       </div>
 
       <!-- Sub-view: Regras -->
@@ -243,11 +244,10 @@
           <h2>{{ getSelectedChar()?.name }}</h2>
         </div>
         
-        <app-player-sheet 
-          [campaignId]="campaignId()" 
-          [characterId]="selectedCharId()"
-          [templateType]="getSelectedChar()?.isMonster ? 'monster' : 'player'">
-        </app-player-sheet>
+        <app-player-sheet-view
+          [campaignId]="campaignId()"
+          [templateType]="getSelectedChar()?.isMonster ? 'monster' : 'player'"
+        ></app-player-sheet-view>
       </div>
 
     </section>

@@ -1,0 +1,519 @@
+<div class="builder-shell">
+  <!-- Top Toolbar -->
+  <header class="builder-toolbar">
+    <div class="toolbar-left">
+      <div class="sheet-name">
+        <input
+          type="text"
+          [ngModel]="sheet().name"
+          (ngModelChange)="updateSheetName($event)"
+          placeholder="Nome da Ficha"
+          [readonly]="!editMode"
+        />
+      </div>
+      <div class="template-type-badge" [class.is-monster]="templateType === 'monster'">
+        {{ templateType === 'player' ? '🛡️ Jogador' : '👿 Monstro' }}
+      </div>
+    </div>
+    <div class="toolbar-right">
+      @if (editMode) {
+        <button class="btn-toolbar" (click)="openAddSectionModal()">
+          <span class="icon">+</span> Seção
+        </button>
+        <div class="toolbar-divider"></div>
+        <button class="btn-toolbar" (click)="saveTemplate()">
+          💾 Salvar
+        </button>
+        <button class="btn-toolbar" (click)="exportJson()">
+          📤 Exportar
+        </button>
+        <label class="btn-toolbar">
+          📥 Importar
+          <input type="file" hidden accept=".json" (change)="importJson($event)" />
+        </label>
+      }
+      <div class="toolbar-divider"></div>
+      <button class="btn-toolbar btn-accent" (click)="editMode = !editMode">
+        {{ editMode ? '👁️ Visualizar' : '✏️ Editar' }}
+      </button>
+    </div>
+  </header>
+
+  <!-- Tab Bar -->
+  <nav class="tab-bar">
+    @for (tab of sheet().tabs; track tab.id) {
+      <div
+        class="tab-item"
+        [class.active]="activeTabId() === tab.id"
+        (click)="activeTabId.set(tab.id)"
+      >
+        @if (editMode) {
+          <input
+            type="text"
+            [ngModel]="tab.name"
+            (ngModelChange)="updateTabName(tab.id, $event)"
+            (click)="$event.stopPropagation()"
+            class="tab-input"
+          />
+        } @else {
+          <span>{{ tab.name }}</span>
+        }
+        @if (editMode && sheet().tabs.length > 1) {
+          <button class="tab-del" (click)="deleteTab(tab.id); $event.stopPropagation()">×</button>
+        }
+      </div>
+    }
+    @if (editMode) {
+      <button class="tab-add" (click)="addTab()">+ Aba</button>
+    }
+  </nav>
+
+  <!-- Canvas / Sheet Preview -->
+  <main
+    class="sheet-canvas"
+    [style.--accent-color]="sheet().settings.accentColor"
+    [style.--bg-color]="sheet().settings.backgroundColor"
+    [style.--font-color]="sheet().settings.fontColor"
+    [style.--border-radius]="getBorderRadius(sheet().settings.borderRadius)"
+    [style.--gap]="getGap(sheet().settings.gap)"
+  >
+    <!-- Empty state -->
+    @if (activeSections().length === 0) {
+      <div class="empty-sheet">
+        <div class="empty-icon">📋</div>
+        <h3>Nenhuma seção ainda</h3>
+        <p>Adicione seções para começar a montar sua ficha.</p>
+        @if (editMode) {
+          <button class="btn-primary" (click)="openAddSectionModal()">+ Adicionar Primeira Seção</button>
+        }
+      </div>
+    }
+
+    <!-- Sections -->
+    @for (section of activeSections(); track section.id) {
+      <div class="section-wrapper">
+        <!-- Section Header -->
+        <div class="section-header-row">
+          <div class="section-title-area">
+            <h3 class="section-title">{{ section.title }}</h3>
+            <span class="section-meta">{{ section.layout }} · {{ section.columns }} col</span>
+          </div>
+          @if (editMode) {
+            <div class="section-actions">
+              <button class="btn-section-action" (click)="openSectionSettings(section)" title="Configurar seção">⚙️</button>
+              <button class="btn-section-action" (click)="moveSection(section.id, -1)" title="Mover para cima">↑</button>
+              <button class="btn-section-action" (click)="moveSection(section.id, 1)" title="Mover para baixo">↓</button>
+              <button class="btn-section-action" (click)="openAddFieldModal(section.id)" title="Adicionar campo">+ Campo</button>
+              <button class="btn-section-action btn-danger" (click)="deleteSection(section.id)" title="Remover seção">×</button>
+            </div>
+          }
+        </div>
+
+        <!-- Fields Grid -->
+        <div
+          class="section-fields"
+          [class.layout-grid]="section.layout === 'grid'"
+          [class.layout-stack]="section.layout === 'stack'"
+          [class.layout-cards]="section.layout === 'cards'"
+          [style.grid-template-columns]="section.layout === 'grid' ? getGridColumns(section.columns) : '1fr'"
+        >
+          @for (field of section.fields; track field.id) {
+            <div
+              class="field-wrapper"
+              [style.grid-column]="section.layout === 'grid' ? getFieldWidth(field.width) : '1fr'"
+            >
+              <app-field-renderer
+                [field]="field"
+                [editMode]="editMode"
+                [allowValueEdit]="editMode"
+                [accentColor]="sheet().settings.accentColor"
+                [availableAttributes]="availableAttributes()"
+                (valueChange)="onValueChange($event)"
+                (deleteField)="deleteField(section.id, $event)"
+                (openAttrConfig)="openAttrConfig($event)"
+                (openSkillConfig)="openSkillConfig($event)"
+              />
+              @if (editMode) {
+                <div class="field-actions-bar">
+                  <button class="btn-field-move" (click)="moveField(section.id, field.id, -1)" title="Mover esquerda">←</button>
+                  <button class="btn-field-move" (click)="moveField(section.id, field.id, 1)" title="Mover direita">→</button>
+                  <button class="btn-field-config" (click)="openFieldSettings(field)" title="Configurar campo">⚙️</button>
+                </div>
+              }
+            </div>
+          }
+
+          <!-- Empty section state -->
+          @if (section.fields.length === 0 && editMode) {
+            <div class="empty-section-fields">
+              <p>Nenhum campo ainda.</p>
+              <button class="btn-add-field-inline" (click)="openAddFieldModal(section.id)">+ Adicionar Campo</button>
+            </div>
+          }
+        </div>
+      </div>
+    }
+  </main>
+
+  <!-- Bottom Bar for Settings -->
+  @if (editMode) {
+    <footer class="builder-settings-bar">
+      <div class="settings-group">
+        <label>Fundo</label>
+        <input type="color" [ngModel]="sheet().settings.backgroundColor" (ngModelChange)="updateSetting('backgroundColor', $event)" />
+      </div>
+      <div class="settings-group">
+        <label>Destaque</label>
+        <input type="color" [ngModel]="sheet().settings.accentColor" (ngModelChange)="updateSetting('accentColor', $event)" />
+      </div>
+      <div class="settings-group">
+        <label>Texto</label>
+        <input type="color" [ngModel]="sheet().settings.fontColor" (ngModelChange)="updateSetting('fontColor', $event)" />
+      </div>
+      <div class="settings-group">
+        <label>Borda</label>
+        <select [ngModel]="sheet().settings.borderRadius" (ngModelChange)="updateSetting('borderRadius', $event)">
+          <option value="none">Reto</option>
+          <option value="sm">Suave</option>
+          <option value="md">Médio</option>
+          <option value="lg">Arredondado</option>
+        </select>
+      </div>
+      <div class="settings-group">
+        <label>Espaçamento</label>
+        <select [ngModel]="sheet().settings.gap" (ngModelChange)="updateSetting('gap', $event)">
+          <option value="sm">Pequeno</option>
+          <option value="md">Médio</option>
+          <option value="lg">Grande</option>
+        </select>
+      </div>
+    </footer>
+  }
+</div>
+
+<!-- ── Modal: Add Section ── -->
+@if (showAddSectionModal()) {
+  <div class="modal-overlay" (click)="showAddSectionModal.set(false)">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Nova Seção</h3>
+        <button class="modal-close" (click)="showAddSectionModal.set(false)">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-field">
+          <label>Nome da Seção</label>
+          <input type="text" [(ngModel)]="newSectionTitle" placeholder="Ex: Atributos, Habilidades..." />
+        </div>
+        <div class="form-field">
+          <label>Layout</label>
+          <div class="layout-options">
+            <label class="layout-option" [class.selected]="newSectionLayout === 'grid'">
+              <input type="radio" [(ngModel)]="newSectionLayout" value="grid" />
+              <span class="layout-icon">⊞</span>
+              <span>Grid</span>
+            </label>
+            <label class="layout-option" [class.selected]="newSectionLayout === 'stack'">
+              <input type="radio" [(ngModel)]="newSectionLayout" value="stack" />
+              <span class="layout-icon">≡</span>
+              <span>Empilhado</span>
+            </label>
+            <label class="layout-option" [class.selected]="newSectionLayout === 'cards'">
+              <input type="radio" [(ngModel)]="newSectionLayout" value="cards" />
+              <span class="layout-icon">▦</span>
+              <span>Cards</span>
+            </label>
+          </div>
+        </div>
+        @if (newSectionLayout === 'grid') {
+          <div class="form-field">
+            <label>Colunas (1-6)</label>
+            <div class="column-selector">
+              @for (n of [1,2,3,4,6]; track n) {
+                <button
+                  class="col-btn"
+                  [class.active]="newSectionColumns === n"
+                  (click)="newSectionColumns = n"
+                >{{ n }}</button>
+              }
+            </div>
+          </div>
+        }
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" (click)="showAddSectionModal.set(false)">Cancelar</button>
+        <button class="btn-primary" (click)="confirmAddSection()">Criar Seção</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ── Modal: Add Field ── -->
+@if (showAddFieldModal()) {
+  <div class="modal-overlay" (click)="showAddFieldModal.set(false)">
+    <div class="modal-content modal-lg" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Adicionar Campo</h3>
+        <button class="modal-close" (click)="showAddFieldModal.set(false)">×</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">Escolha o tipo de campo que deseja adicionar à seção:</p>
+        <div class="field-presets-grid">
+          @for (preset of fieldPresets; track preset.type) {
+            <div class="preset-card" (click)="addField(preset)">
+              <span class="preset-icon">{{ preset.icon }}</span>
+              <span class="preset-label">{{ preset.label }}</span>
+              <span class="preset-desc">{{ preset.description }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ── Modal: Field Settings ── -->
+@if (showFieldSettingsModal() && editingField()) {
+  <div class="modal-overlay" (click)="showFieldSettingsModal.set(false)">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Configurar: {{ editingField()?.label }}</h3>
+        <button class="modal-close" (click)="showFieldSettingsModal.set(false)">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-field">
+          <label>Nome do Campo</label>
+          <input type="text" [(ngModel)]="editingField()!.label" />
+        </div>
+        <div class="form-field">
+          <label>Largura (1-12 colunas)</label>
+          <div class="column-selector">
+            @for (n of [1,2,3,4,6,8,12]; track n) {
+              <button
+                class="col-btn"
+                [class.active]="editingField()!.width === n"
+                (click)="editingField()!.width = n"
+              >{{ n }}</button>
+            }
+          </div>
+        </div>
+
+        <!-- Resource Settings -->
+        @if (editingField()?.type === 'resource') {
+          <div class="form-field">
+            <label>Valor Máximo</label>
+            <input type="number" [(ngModel)]="editingField()!.settings!.maxValue" />
+          </div>
+          <div class="form-field">
+            <label>Cor da Barra</label>
+            <input type="color" [(ngModel)]="editingField()!.settings!.color" />
+          </div>
+        }
+
+        <!-- Select Settings -->
+        @if (editingField()?.type === 'select') {
+          <div class="form-field">
+            <label>Opções (uma por linha)</label>
+          <textarea
+            [ngModel]="fieldSettingsOptions"
+            (ngModelChange)="fieldSettingsOptions = $event"
+            rows="4"
+          ></textarea>
+          </div>
+        }
+
+        <!-- Table Settings -->
+        @if (editingField()?.type === 'table') {
+          <div class="form-row">
+            <div class="form-field">
+              <label>Linhas</label>
+              <input type="number" [(ngModel)]="editingField()!.settings!.rows" min="1" max="20" />
+            </div>
+            <div class="form-field">
+              <label>Colunas</label>
+              <input type="number" [(ngModel)]="editingField()!.settings!.cols" min="1" max="12" />
+            </div>
+          </div>
+        }
+
+        <!-- Repeater Schema -->
+        @if (editingField()?.type === 'repeater') {
+          <div class="form-field">
+            <label>Schema dos Itens (campos internos)</label>
+            <p class="form-hint">Os itens dentro deste repetidor seguem o schema definido ao criar.</p>
+          </div>
+        }
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" (click)="showFieldSettingsModal.set(false)">Cancelar</button>
+        <button class="btn-primary" (click)="saveFieldSettings()">Salvar</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ── Modal: Attribute Group Config ── -->
+@if (showAttrConfigModal() && editingAttrField()) {
+  <div class="modal-overlay" (click)="showAttrConfigModal.set(false)">
+    <div class="modal-content modal-lg" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Configurar Atributos</h3>
+        <button class="modal-close" (click)="showAttrConfigModal.set(false)">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-field">
+          <label>Nome do Grupo</label>
+          <input type="text" [(ngModel)]="attrConfigName" />
+        </div>
+        <div class="form-field">
+          <label>Quantidade de Atributos</label>
+          <select [(ngModel)]="attrConfigCount" (ngModelChange)="onAttrCountChange()">
+            @for (n of getAttrCountRange(); track n) {
+              <option [value]="n">{{ n }} atributos</option>
+            }
+          </select>
+        </div>
+        <div class="form-section">
+          <label>Nomes e Valores</label>
+          <div class="attr-list-edit">
+            @for (name of attrConfigNames; track $index; let i = $index) {
+              <div class="attr-list-row">
+                <input type="text" [ngModel]="attrConfigNames[i]" (ngModelChange)="updateAttrName(i, $event)" placeholder="Nome" />
+                <input type="number" [ngModel]="attrConfigValues[i]" (ngModelChange)="updateAttrValue(i, $event)" placeholder="Valor" min="0" max="30" />
+              </div>
+            }
+          </div>
+        </div>
+        <div class="form-divider"></div>
+        <div class="form-field">
+          <label>Modo de Modificador</label>
+          <div class="layout-options">
+            <label class="layout-option" [class.selected]="attrConfigModMode === 'none'">
+              <input type="radio" [(ngModel)]="attrConfigModMode" value="none" />
+              <span>Nenhum</span>
+            </label>
+            <label class="layout-option" [class.selected]="attrConfigModMode === 'dnd'">
+              <input type="radio" [(ngModel)]="attrConfigModMode" value="dnd" />
+              <span>D&D (valor-10)/2</span>
+            </label>
+            <label class="layout-option" [class.selected]="attrConfigModMode === 'custom'">
+              <input type="radio" [(ngModel)]="attrConfigModMode" value="custom" />
+              <span>Customizado</span>
+            </label>
+          </div>
+        </div>
+        @if (attrConfigModMode === 'custom') {
+          <div class="form-row">
+            <div class="form-field">
+              <label>Base</label>
+              <input type="number" [(ngModel)]="attrConfigBase" />
+            </div>
+            <div class="form-field">
+              <label>Intervalo</label>
+              <input type="number" [(ngModel)]="attrConfigInterval" min="1" />
+            </div>
+            <div class="form-field">
+              <label>Incremento</label>
+              <input type="number" [(ngModel)]="attrConfigIncrement" />
+            </div>
+          </div>
+        }
+        <div class="form-field">
+          <label>Alinhamento dos Cards</label>
+          <select [(ngModel)]="attrConfigAlign">
+            <option value="left">Esquerda</option>
+            <option value="center">Centro</option>
+            <option value="right">Direita</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" (click)="showAttrConfigModal.set(false)">Cancelar</button>
+        <button class="btn-primary" (click)="saveAttrConfig()">Salvar</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ── Modal: Skill Table Config ── -->
+@if (showSkillConfigModal() && editingSkillField()) {
+  <div class="modal-overlay" (click)="showSkillConfigModal.set(false)">
+    <div class="modal-content modal-lg" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Configurar Tabela de Perícias</h3>
+        <button class="modal-close" (click)="showSkillConfigModal.set(false)">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-field">
+          <label>Colunas da Tabela</label>
+          <p class="form-hint">Configure as colunas da tabela. A ordem pode ser ajustada.</p>
+          <div class="skill-columns-edit">
+            <div class="skill-col-header">
+              <span>Nome</span>
+              <span>Tipo</span>
+              <span></span>
+            </div>
+            @for (col of skillColumns; track col.id; let i = $index) {
+              <div class="skill-col-row">
+                <input type="text" [(ngModel)]="col.label" placeholder="Nome da coluna" />
+                <select [(ngModel)]="col.type">
+                  <option value="text">Texto</option>
+                  <option value="number">Número</option>
+                  <option value="checkbox">Checkbox</option>
+                  <option value="select">Seleção</option>
+                  <option value="total">Total (soma)</option>
+                  <option value="bonus">Bônus</option>
+                  <option value="modifier">Modificador</option>
+                  <option value="related_attr">Atributo Relac.</option>
+                </select>
+                <div class="skill-col-actions">
+                  <button class="btn-col-move" (click)="moveSkillColumn(i, -1)" [disabled]="i === 0">↑</button>
+                  <button class="btn-col-move" (click)="moveSkillColumn(i, 1)" [disabled]="i === skillColumns.length - 1">↓</button>
+                  <button class="btn-col-remove" (click)="removeSkillColumn(i)">×</button>
+                </div>
+              </div>
+            }
+          </div>
+          <button class="btn-add-col" (click)="addSkillColumn()">+ Adicionar Coluna</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" (click)="showSkillConfigModal.set(false)">Cancelar</button>
+        <button class="btn-primary" (click)="saveSkillConfig()">Salvar</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ── Modal: Section Settings ── -->
+@if (showSectionSettingsModal() && editingSection()) {
+  <div class="modal-overlay" (click)="showSectionSettingsModal.set(false)">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Configurar Seção</h3>
+        <button class="modal-close" (click)="showSectionSettingsModal.set(false)">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-field">
+          <label>Título</label>
+          <input type="text" [(ngModel)]="editingSection()!.title" />
+        </div>
+        <div class="form-field">
+          <label>Layout</label>
+          <select [(ngModel)]="editingSection()!.layout">
+            <option value="grid">Grid</option>
+            <option value="stack">Empilhado</option>
+            <option value="cards">Cards</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label>Colunas</label>
+          <input type="number" [(ngModel)]="editingSection()!.columns" min="1" max="12" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" (click)="showSectionSettingsModal.set(false)">Cancelar</button>
+        <button class="btn-primary" (click)="saveSectionSettings()">Salvar</button>
+      </div>
+    </div>
+  </div>
+}

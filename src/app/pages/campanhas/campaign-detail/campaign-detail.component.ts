@@ -3,8 +3,9 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { Campaign } from '../criar-campanha/criar-campanha.component';
-import { SheetEditorComponent } from '../sheet-editor/sheet-editor.component';
-import { PlayerSheetComponent, Character } from '../player-sheet/player-sheet.component';
+import { SheetBuilderComponent } from '../sheet-builder/sheet-builder';
+import { PlayerSheetViewComponent } from '../sheet-builder/player-sheet-view/player-sheet-view';
+import { Character } from '../player-sheet/player-sheet.component';
 
 type Tab = 'sistema' | 'personagens' | 'combates' | 'escudo';
 type SystemView = 'overview' | 'ficha' | 'ficha-monstro' | 'regras' | 'anotacoes';
@@ -35,7 +36,7 @@ export interface DMTracker {
 @Component({
   selector: 'app-campaign-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SheetEditorComponent, PlayerSheetComponent],
+  imports: [CommonModule, FormsModule, RouterLink, SheetBuilderComponent, PlayerSheetViewComponent],
   templateUrl: './campaign-detail.component.html',
   styleUrl: './campaign-detail.component.scss'
 })

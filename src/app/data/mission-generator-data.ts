@@ -1,0 +1,176 @@
+export const MISSION_DATA = {
+  nivel_dificuldade: [
+    "Fácil", "Médio", "Difícil", "Insano"
+  ],
+  tipo_missao: [
+    "Investigação", "Combate", "Exploração", "Escolta", "Sobrevivência",
+    "Infiltração", "Roubo", "Resgate", "Caçada", "Diplomacia",
+    "Proteção", "Reconhecimento", "Sabotagem", "Fuga", "Defesa",
+    "Exorcismo", "Captura", "Recuperação", "Entrega", "Patrulha"
+  ],
+  localizacao: [
+    "Floresta antiga", "Cidade abandonada", "Laboratório subterrâneo",
+    "Castelo em ruínas", "Vilarejo isolado", "Mansão amaldiçoada",
+    "Templo esquecido", "Hospital desativado", "Navio naufragado",
+    "Montanha congelada", "Base militar", "Deserto infinito",
+    "Cemitério", "Metrô subterrâneo", "Prisão", "Biblioteca proibida",
+    "Fortaleza", "Pântano", "Dimensão paralela", "Complexo industrial"
+  ],
+  gancho_inicial: [
+    "Um desaparecimento misterioso", "Uma carta anônima", "Um pedido de socorro",
+    "Uma recompensa valiosa", "Um assassinato estranho", "Uma visão profética",
+    "Uma criatura avistada", "Um artefato roubado", "Uma explosão inexplicável",
+    "Um ritual interrompido", "Um aliado desapareceu", "Uma transmissão estranha",
+    "Uma guerra iminente", "Um contrato oficial", "Um mapa perdido",
+    "Uma infestação crescente", "Uma praga misteriosa", "Um experimento falhou",
+    "Um culto foi descoberto", "Um sobrevivente apareceu"
+  ],
+  objetivo_principal: [
+    "Resgatar um refém", "Eliminar a ameaça", "Descobrir a verdade",
+    "Escoltar um NPC", "Recuperar um artefato", "Sobreviver até o amanhecer",
+    "Investigar um local", "Fechar um portal", "Capturar um alvo",
+    "Impedir um ritual", "Destruir uma instalação", "Proteger inocentes",
+    "Encontrar uma cura", "Roubar informações", "Negociar uma aliança",
+    "Explorar território desconhecido", "Escapar de uma prisão", "Sabotar inimigos",
+    "Localizar um desaparecido", "Defender uma posição"
+  ],
+  objetivos_secundarios: [
+    "Salvar sobreviventes", "Evitar alarmes", "Coletar provas",
+    "Encontrar tesouros", "Manter todos vivos", "Descobrir segredos",
+    "Evitar danos colaterais", "Capturar inimigos vivos", "Resgatar documentos",
+    "Desativar armadilhas", "Ajudar moradores", "Encontrar passagens secretas",
+    "Proteger recursos", "Interrogar suspeitos", "Destruir suprimentos inimigos",
+    "Descobrir um traidor", "Mapear a área", "Recuperar equipamentos",
+    "Purificar o local", "Evitar mortes"
+  ],
+  npcs_aliados: [
+    "Mercador suspeito", "Velho sábio", "Soldado ferido",
+    "Detetive experiente", "Cientista paranoico", "Sacerdote",
+    "Sobrevivente traumatizado", "Mago estudioso", "Caçador local",
+    "Nobre influente", "Ladrão arrependido", "Guarda corrupto",
+    "Médico", "Inventor", "Criança misteriosa", "Espião infiltrado",
+    "Explorador veterano", "Bibliotecário", "Ex-membro do culto",
+    "Capitão mercenário"
+  ],
+  npcs_antagonistas: [
+    "Cultista fanático", "Necromante", "General inimigo",
+    "Criatura paranormal", "Assassino profissional", "Líder de gangue",
+    "Entidade antiga", "IA descontrolada", "Nobre corrupto",
+    "Monstro mutante", "Alienígena hostil", "Traidor infiltrado",
+    "Demônio", "Mercenário cruel", "Serial killer", "Feiticeiro sombrio",
+    "Mutação viva", "Cientista insano", "Rei tirano", "Parasita consciente"
+  ],
+  faccoes_envolvidas: [
+    "Ordem religiosa", "Guilda de ladrões", "Exército imperial",
+    "Culto secreto", "Corporação tecnológica", "Mercenários",
+    "Resistência rebelde", "Caçadores", "Máfia local", "Conselho arcano",
+    "Agência paranormal", "Piratas", "Nobreza", "Sobreviventes",
+    "Bandidos", "Tribo isolada", "Sociedade secreta", "Pesquisadores",
+    "Fanáticos", "Exploradores"
+  ],
+  principal_ameaca: [
+    "Dragão", "Fantasma", "Parasita", "Exército inimigo",
+    "Entidade cósmica", "Maldição", "Praga", "Ritual sombrio",
+    "Monstro subterrâneo", "Tempestade sobrenatural", "Demônio",
+    "Mutantes", "Serial killer", "IA rebelde", "Vampiro",
+    "Lobisomem", "Culto", "Arma experimental", "Portal dimensional",
+    "Colapso da realidade"
+  ],
+  perigos_armadilhas: [
+    "Armadilhas explosivas", "Gás tóxico", "Corredores instáveis",
+    "Criaturas ocultas", "Escuridão total", "Alucinações",
+    "Campos minados", "Runas mágicas", "Doença contagiosa",
+    "Radiação", "Incêndios", "Enxames", "Nevasca", "Envenenamento",
+    "Desabamentos", "Corrupção mental", "Portas seladas",
+    "Inundações", "Areia movediça", "Energia paranormal"
+  ],
+  pistas_informacoes: [
+    "Diário rasgado", "Mapa incompleto", "Símbolos estranhos",
+    "Mensagem codificada", "Pegadas", "Áudio distorcido",
+    "Filmagem antiga", "Objeto ritualístico", "Documento secreto",
+    "Sangue no chão", "Marcas nas paredes", "Testemunha assustada",
+    "Computador bloqueado", "Fotografia suspeita", "Relatório médico",
+    "Carta escondida", "Transmissão de rádio", "Livro proibido",
+    "Fragmento tecnológico", "Corpo desaparecido"
+  ],
+  eventos_aleatorios: [
+    "Uma emboscada", "Queda de energia", "Tempestade intensa",
+    "Traição inesperada", "Chegada de reforços", "Criatura aparece",
+    "Explosão próxima", "NPC desaparece", "Portal se abre",
+    "Equipamentos falham", "Incêndio começa", "Estrutura desaba",
+    "Ritual inicia", "Alarme dispara", "Mudança climática",
+    "Motim", "Visões estranhas", "Ataque surpresa", "Perseguição",
+    "Interferência sobrenatural"
+  ],
+  climax_evento_final: [
+    "Batalha contra o líder", "Ritual final", "Fuga desesperada",
+    "Escolha moral difícil", "Explosão iminente", "Revelação chocante",
+    "Sacrifício necessário", "Confronto político", "Caçada final",
+    "Combate em massa", "Fechamento do portal", "Sobrevivência extrema",
+    "Traidor revelado", "Colapso do local", "Negociação decisiva",
+    "Execução pública", "Purificação do mal", "Corrida contra o tempo",
+    "Invasão inimiga", "Transformação monstruosa"
+  ],
+  consequencias: [
+    "Cidade salva", "Morte de inocentes", "Ameaça retorna",
+    "Nova guerra começa", "Grupo ganha fama", "Corrupção se espalha",
+    "NPC importante morre", "Facção assume poder", "Portal permanece aberto",
+    "Artefato é destruído", "Segredo vem à tona", "Criatura escapa",
+    "Aliança é formada", "Trauma coletivo", "Maldição continua",
+    "Reino entra em crise", "Sobreviventes desaparecem", "Organização cai",
+    "Nova ameaça surge", "Paz temporária"
+  ],
+  recompensas: [
+    "Dinheiro", "Artefato raro", "Item mágico", "Equipamento avançado",
+    "Influência política", "Favor importante", "Informação secreta",
+    "Território", "Aliado poderoso", "Acesso restrito", "Veículo",
+    "Arma lendária", "Conhecimento proibido", "Tecnologia experimental",
+    "Proteção oficial", "Título honorário", "Mapa raro", "Relíquia antiga",
+    "Recurso estratégico", "Base de operações"
+  ],
+  tempo_limite_urgencia: [
+    "Algumas horas", "Até o amanhecer", "24 horas", "3 dias", "1 semana",
+    "Antes do ritual", "Antes da execução", "Antes da invasão",
+    "Tempo indefinido", "Antes do eclipse", "Até a tempestade chegar",
+    "Antes do alvo fugir", "Antes da explosão", "Durante a noite",
+    "Antes da guerra", "Antes da corrupção se espalhar",
+    "Até os recursos acabarem", "Antes da lua cheia", "Antes do colapso",
+    "Corrida contra o relógio"
+  ],
+  segredos_reviravoltas: [
+    "O aliado é o vilão", "A ameaça era falsa", "O alvo é inocente",
+    "Tudo fazia parte de um ritual", "O contratante mentiu",
+    "Existe um traidor no grupo", "O inimigo quer ajudar",
+    "A cidade já está condenada", "A missão era uma armadilha",
+    "O artefato está vivo", "A entidade controla memórias",
+    "O verdadeiro vilão fugiu", "Os jogadores foram observados",
+    "O local está em outra dimensão", "O tempo está distorcido",
+    "A ameaça é um dos aliados", "Nada era sobrenatural",
+    "A missão já falhou antes", "Os mortos ainda observam",
+    "A realidade foi alterada"
+  ],
+  condicoes_ambiente: [
+    "Chuva intensa", "Nevasca", "Calor extremo", "Neblina densa",
+    "Escuridão constante", "Tempestade elétrica", "Área inundada",
+    "Baixa gravidade", "Ruínas instáveis", "Silêncio absoluto",
+    "Floresta viva", "Poluição tóxica", "Zona radioativa",
+    "Ambiente claustrofóbico", "Campo paranormal", "Areia movediça",
+    "Ventania violenta", "Ambiente congelado", "Estrutura incendiada",
+    "Terremotos constantes"
+  ],
+  possiveis_desfechos: [
+    "Vitória total", "Vitória parcial", "Fracasso completo",
+    "Fuga necessária", "Ameaça contida", "Ameaça destruída",
+    "Inimigo escapa", "Sacrifício de um aliado", "Cidade destruída",
+    "Nova aliança", "Corrupção iniciada", "Grupo é perseguido",
+    "Missão encoberta", "Portal fechado", "Portal ampliado",
+    "Verdade revelada", "Conspiração continua", "Vilão capturado",
+    "Vilão morto", "Final em aberto"
+  ],
+  tom_missao: [
+    "Terror", "Mistério", "Aventura", "Suspense", "Ação", "Drama",
+    "Investigativo", "Sombrio", "Épico", "Militar", "Sobrenatural",
+    "Psicológico", "Sci-fi", "Fantasia", "Pós-apocalíptico",
+    "Steampunk", "Cyberpunk", "Trágico", "Heroico", "Caótico"
+  ]
+};

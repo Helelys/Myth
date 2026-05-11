@@ -254,31 +254,313 @@
 
     <!-- Tab: Combates -->
     <section *ngIf="activeTab() === 'combates'" class="view-section">
-      <div class="section-header">
-        <h2>Gerenciador de Combates</h2>
-        <p>Prepare encontros épicos e controle a iniciativa.</p>
+      <div class="section-header combat-header-flex">
+        <div>
+          <h2>Gerenciador de Combates</h2>
+          <p>Prepare encontros épicos e controle a iniciativa.</p>
+        </div>
+        <div class="header-actions combat-actions-gap">
+          <button class="btn-outline btn-sm" (click)="openCombatModal()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Rolar Iniciativa
+          </button>
+          <button class="btn-outline btn-sm" (click)="addManualParticipant()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Anotar Turno
+          </button>
+        </div>
       </div>
-      <div class="empty-view">
+
+      <!-- Combat Order List -->
+      <div class="combat-order-container" *ngIf="combatParticipants().length > 0">
+        <div class="combat-list-header">
+          <div class="list-title-group">
+            <h3>Ordem de Iniciativa</h3>
+            <button class="btn-text-accent" (click)="sortCombatOrder()">Reordenar</button>
+          </div>
+          <div class="header-list-actions">
+            <div class="turn-controls">
+              <button class="btn-icon-sm" (click)="prevTurn()" title="Turno Anterior">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <span class="turn-label">Turno</span>
+              <button class="btn-icon-sm" (click)="nextTurn()" title="Próximo Turno">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </div>
+            <div class="divider-v"></div>
+            <button class="btn-text-accent" (click)="addManualParticipant()">+ Adicionar</button>
+            <button class="btn-text-danger" (click)="clearCombatOrder()">Limpar Tudo</button>
+          </div>
+        </div>
+        <div class="combat-list">
+          @for (p of combatParticipants(); track $index) {
+            <div class="combat-row" [class.is-first]="$first" [class.is-active]="currentTurnIndex() === $index">
+              <div class="row-rank">
+                <span *ngIf="currentTurnIndex() !== $index">{{ $index + 1 }}º</span>
+                <span *ngIf="currentTurnIndex() === $index">⚔️</span>
+              </div>
+              <div class="row-info">
+                <input class="edit-p-name" [(ngModel)]="p.name" (change)="saveCombatOrder()" placeholder="Nome...">
+                <span class="p-details" *ngIf="p.diceCount > 0">{{ p.diceCount }}d{{ p.diceSides }}{{ p.modifier !== 0 ? ' + ' + p.modifier : '' }} ({{ p.rollMode }})</span>
+                <span class="p-details" *ngIf="p.diceCount === 0">Entrada Manual</span>
+              </div>
+              <div class="row-result-edit">
+                <input type="number" [(ngModel)]="p.result" (change)="saveCombatOrder()" class="edit-p-result">
+              </div>
+              <button class="btn-remove-p" (click)="removeFromCombatOrder($index)" title="Remover participante">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="empty-view" *ngIf="combatParticipants().length === 0">
         <div class="empty-icon">⚔️</div>
-        <p>Nenhum combate agendado ou ativo.</p>
-        <button class="btn-primary">Novo Encontro</button>
+        <p>Nenhuma ordem de combate ativa no momento.</p>
+        <button class="btn-primary" (click)="openCombatModal()">Criar Nova Ordem</button>
       </div>
     </section>
 
     <!-- Tab: Escudo -->
-    <section *ngIf="activeTab() === 'escudo'" class="view-section">
-      <div class="section-header">
-        <h2>Escudo do Mestre</h2>
-        <p>Visão rápida de todos os dados cruciais para a sua narrativa.</p>
+    <section *ngIf="activeTab() === 'escudo'" class="view-section" [class.full-width]="true">
+      <div class="section-header combat-header-flex">
+        <div>
+          <h2>Escudo do Mestre</h2>
+          <p>Acompanhe os status vitais de todos em tempo real.</p>
+        </div>
+        <div class="header-actions combat-actions-gap">
+          <button class="btn-outline btn-sm" (click)="openImportModal()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0-13l-4 4m4-4l4 4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Exportar Personagem
+          </button>
+          <button class="btn-primary btn-sm" (click)="openNewDMTracker()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Novo Rastreador
+          </button>
+        </div>
       </div>
-      <div class="empty-view">
+
+      <!-- DM Tracker Grid -->
+      <div class="dm-grid" *ngIf="dmTrackers().length > 0">
+        @for (tracker of dmTrackers(); track tracker.id) {
+          <div class="dm-card" (click)="editDMTracker(tracker)">
+            <button class="card-del-btn" (click)="removeDMTracker(tracker.id, $event)">×</button>
+            
+            <div class="tracker-header">
+              <div class="tracker-avatar">
+                <img *ngIf="tracker.image" [src]="tracker.image" alt="Avatar">
+                <span *ngIf="!tracker.image">👤</span>
+              </div>
+              <h3>{{ tracker.name || 'Sem nome' }}</h3>
+            </div>
+
+            <div class="tracker-bars">
+              @for (bar of tracker.bars; track $index) {
+                <div class="dm-bar-container">
+                  <div class="bar-info">
+                    <span class="bar-label">{{ bar.label }}</span>
+                    <span class="bar-values">{{ bar.current }}/{{ bar.max }}</span>
+                  </div>
+                  <div class="bar-track">
+                    <div class="bar-fill" [style.width.%]="(bar.current / bar.max) * 100" [style.background-color]="bar.color"></div>
+                  </div>
+                  <div class="bar-actions" (click)="$event.stopPropagation()">
+                    <button (click)="adjustBar(tracker.id, $index, -1)">-</button>
+                    <button (click)="adjustBar(tracker.id, $index, 1)">+</button>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="empty-view" *ngIf="dmTrackers().length === 0">
         <div class="empty-icon">🛡️</div>
-        <p>Configure o seu escudo para ver os dados dos jogadores em tempo real.</p>
-        <button class="btn-primary">Configurar Painel</button>
+        <p>Seu escudo está vazio. Adicione rastreadores ou importe personagens.</p>
+        <div class="empty-actions">
+          <button class="btn-primary" (click)="openNewDMTracker()">Criar Primeiro Rastreador</button>
+          <button class="btn-outline" (click)="openImportModal()">Exportar da Campanha</button>
+        </div>
       </div>
     </section>
 
   </main>
+</div>
+
+<!-- Combat Order Modal -->
+<div class="modal-overlay" *ngIf="showCombatModal()">
+  <div class="modal-content combat-order-modal">
+    <div class="modal-header">
+      <h3>Configurar Ordem de Combate</h3>
+      <button class="close-modal" (click)="closeCombatModal()">×</button>
+    </div>
+    
+    <div class="modal-body">
+      <p class="modal-desc">Adicione os jogadores e NPCs para rolar a iniciativa de todos simultaneamente.</p>
+      
+      <div class="participants-setup-list">
+        @for (p of modalParticipants(); track $index) {
+          <div class="setup-row">
+            <div class="field name-field">
+              <label>Nome</label>
+              <input type="text" [(ngModel)]="p.name" (change)="saveCombatOrder()" placeholder="Ex: Guerreiro, Goblin 1...">
+            </div>
+            
+            <div class="field dice-field">
+              <label>Dados</label>
+              <div class="dice-input-group">
+                <input type="number" [(ngModel)]="p.diceCount" (change)="saveCombatOrder()" min="1" max="100">
+                <select [(ngModel)]="p.diceSides" (change)="saveCombatOrder()">
+                  @for (s of dieSidesOptions; track s) {
+                    <option [value]="s">d{{ s }}</option>
+                  }
+                </select>
+              </div>
+            </div>
+            
+            <div class="field mod-field">
+              <label>Mod.</label>
+              <input type="number" [(ngModel)]="p.modifier" (change)="saveCombatOrder()">
+            </div>
+
+            <div class="field mode-field">
+              <label>Modo</label>
+              <select [(ngModel)]="p.rollMode" (change)="saveCombatOrder()">
+                <option value="sum">Somar</option>
+                <option value="highest">Maior</option>
+                <option value="lowest">Menor</option>
+              </select>
+            </div>
+
+            <button class="btn-remove-row" (click)="removeModalRow($index)">×</button>
+          </div>
+        }
+      </div>
+
+      <button class="btn-add-row" (click)="addModalRow()">
+        <span>+</span> Adicionar Personagem
+      </button>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-outline" (click)="closeCombatModal()">Cancelar</button>
+      <button class="btn-primary roll-btn" (click)="rollInitiative()" [disabled]="isRollingInitiative()">
+        <span *ngIf="!isRollingInitiative()">⚔️ Rolar Iniciativa</span>
+        <span *ngIf="isRollingInitiative()">Rolando Dados...</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- DM Tracker Modal -->
+<div class="modal-overlay" *ngIf="showDMModal()">
+  <div class="modal-content dm-tracker-modal">
+    <div class="modal-header">
+      <h3>Configurar Rastreador</h3>
+      <button class="close-modal" (click)="showDMModal.set(false)">×</button>
+    </div>
+    <div class="modal-body" *ngIf="editingTracker() as tracker">
+      <div class="setup-grid">
+        <div class="setup-left">
+          <div class="photo-upload" (click)="photoInput.click()">
+            <img *ngIf="tracker.image" [src]="tracker.image" alt="Avatar">
+            <div *ngIf="!tracker.image" class="photo-placeholder">
+              <span>📸</span>
+              <p>Adicionar Foto</p>
+            </div>
+            <input #photoInput type="file" (change)="handleTrackerPhoto($event)" hidden accept="image/*">
+          </div>
+        </div>
+        <div class="setup-right">
+          <div class="field">
+            <label>Nome do Personagem</label>
+            <input type="text" [(ngModel)]="tracker.name" placeholder="Ex: Arthur Morgan...">
+          </div>
+        </div>
+      </div>
+
+      <div class="bars-setup-section">
+        <div class="section-title">
+          <h4>Barras de Status (Máx 3)</h4>
+          <button class="btn-text-accent" (click)="addBarToEditing()" *ngIf="tracker.bars.length < 3">+ Adicionar Barra</button>
+        </div>
+        
+        <div class="bars-list">
+          @for (bar of tracker.bars; track $index) {
+            <div class="bar-setup-row">
+              <div class="field">
+                <label>Rótulo</label>
+                <input type="text" [(ngModel)]="bar.label" placeholder="HP, Mana...">
+              </div>
+              <div class="field">
+                <label>Atual</label>
+                <input type="number" [(ngModel)]="bar.current">
+              </div>
+              <div class="field">
+                <label>Máx</label>
+                <input type="number" [(ngModel)]="bar.max">
+              </div>
+              <div class="field">
+                <label>Cor</label>
+                <input type="color" [(ngModel)]="bar.color" class="color-picker">
+              </div>
+              <button class="btn-remove-row" (click)="removeBarFromEditing($index)">×</button>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-outline" (click)="showDMModal.set(false)">Cancelar</button>
+      <button class="btn-primary" (click)="saveDMTracker()">Salvar no Escudo</button>
+    </div>
+  </div>
+</div>
+
+<!-- Import Modal -->
+<div class="modal-overlay" *ngIf="showImportModal()">
+  <div class="modal-content import-modal">
+    <div class="modal-header">
+      <h3>Exportar para o Escudo</h3>
+      <button class="close-modal" (click)="showImportModal.set(false)">×</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-desc">Selecione quais personagens da campanha você deseja exportar para visualização rápida.</p>
+      
+      <div class="import-list">
+        <div class="import-group" *ngIf="characters().length > 0">
+          <h4>Heróis</h4>
+          <div class="import-grid">
+            @for (char of characters(); track char.id) {
+              <div class="import-item" (click)="importCharacter(char)">
+                <div class="item-avatar">👤</div>
+                <div class="item-info">
+                  <span class="name">{{ char.name }}</span>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+
+        <div class="import-group" *ngIf="monsters().length > 0">
+          <h4>Bestiário</h4>
+          <div class="import-grid">
+            @for (monster of monsters(); track monster.id) {
+              <div class="import-item monster-item" (click)="importCharacter(monster)">
+                <div class="item-avatar">💀</div>
+                <div class="item-info">
+                  <span class="name">{{ monster.name }}</span>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- 404 Case -->

@@ -6,216 +6,280 @@
       </a>
       <div class="title-group">
         <h1>Gerador</h1>
-        <p>Nova Missão</p>
+        <p>Missões e Aventuras</p>
       </div>
     </div>
+
+    <!-- View Switcher Tabs -->
+    <div class="view-tabs">
+      <button class="view-tab" [class.active]="activeView() === 'model'" (click)="activeView.set('model')">
+        <span>⚙️</span> Modelo
+      </button>
+      <button class="view-tab" [class.active]="activeView() === 'missions'" (click)="activeView.set('missions')">
+        <span>📜</span> Missões
+      </button>
+    </div>
+
     <div class="header-right">
-      <button class="btn-save" (click)="saveTemplate()">
+      <button class="btn-save" (click)="saveTemplate()" *ngIf="activeView() === 'model'">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <span>Salvar</span>
+        <span>Salvar Modelo</span>
+      </button>
+      <button class="btn-primary" (click)="generateRandomMission()" *ngIf="activeView() === 'missions'">
+        <span>🎲</span> Gerar Missão
       </button>
     </div>
   </header>
 
   <main class="gen-content">
-    <!-- Mobile Tab Switcher -->
-    <div class="mobile-tabs">
-      <button [class.active]="mobileView() === 'fields'" (click)="mobileView.set('fields')">📝 Campos</button>
-      <button [class.active]="mobileView() === 'preview'" (click)="mobileView.set('preview')">👁️ Prévia</button>
-    </div>
-
-    <!-- Sidebar: Selection -->
-    <aside class="selection-panel" [class.mobile-hidden]="mobileView() !== 'fields'">
-      <div class="panel-section">
-        <h3>📂 Campos Disponíveis</h3>
-        <p>Selecione os elementos que farão parte da sua missão.</p>
+    
+    <!-- VIEW: MODEL (Template Configuration) -->
+    <div class="view-container" *ngIf="activeView() === 'model'">
+      <!-- Mobile Tab Switcher -->
+      <div class="mobile-tabs">
+        <button [class.active]="mobileView() === 'fields'" (click)="mobileView.set('fields')">📝 Campos</button>
+        <button [class.active]="mobileView() === 'preview'" (click)="mobileView.set('preview')">👁️ Prévia</button>
       </div>
 
-      <div class="fields-list">
-        <!-- Category: Basic -->
-        <div class="field-category">
-          <span class="cat-label">Essenciais</span>
-          <div class="category-grid">
-            @for (field of fields(); track field.id) {
-              @if (field.category === 'basic') {
-                <div class="field-item" [class.active]="field.selected" (click)="toggleField(field.id)">
-                  <div class="field-icon">{{ field.icon }}</div>
-                  <div class="field-info">
-                    <span class="label">{{ field.label }}</span>
-                    <span class="desc">{{ field.description }}</span>
-                  </div>
-                  <div class="field-check">
-                    <div class="custom-check">
-                      <div class="check-dot"></div>
-                    </div>
-                  </div>
+      <div class="model-view-layout">
+        <!-- Sidebar: Selection -->
+        <aside class="selection-panel" [class.mobile-hidden]="mobileView() !== 'fields'">
+          <div class="panel-section">
+            <h3>📂 Campos Disponíveis</h3>
+            <p>Selecione os elementos que farão parte da sua missão.</p>
+          </div>
+
+          <div class="fields-list">
+            @for (cat of ['basic', 'narrative', 'mechanics', 'rewards']; track cat) {
+              <div class="field-category">
+                <span class="cat-label">{{ cat === 'basic' ? 'Essenciais' : cat === 'narrative' ? 'Narrativa' : cat === 'mechanics' ? 'Mecânicas' : 'Recompensas' }}</span>
+                <div class="category-grid">
+                  @for (field of fields(); track field.id) {
+                    @if (field.category === cat) {
+                      <div class="field-item" [class.active]="field.selected" (click)="toggleField(field.id)">
+                        <div class="field-icon">{{ field.icon }}</div>
+                        <div class="field-info">
+                          <span class="label">{{ field.label }}</span>
+                        </div>
+                        <div class="field-check">
+                          <div class="custom-check"><div class="check-dot"></div></div>
+                        </div>
+                      </div>
+                    }
+                  }
                 </div>
-              }
+              </div>
             }
           </div>
-        </div>
+        </aside>
 
-        <!-- Category: Narrative -->
-        <div class="field-category">
-          <span class="cat-label">Narrativa</span>
-          <div class="category-grid">
-            @for (field of fields(); track field.id) {
-              @if (field.category === 'narrative') {
-                <div class="field-item" [class.active]="field.selected" (click)="toggleField(field.id)">
-                  <div class="field-icon">{{ field.icon }}</div>
-                  <div class="field-info">
-                    <span class="label">{{ field.label }}</span>
-                    <span class="desc">{{ field.description }}</span>
-                  </div>
-                  <div class="field-check">
-                    <div class="custom-check">
-                      <div class="check-dot"></div>
+        <!-- Preview Area -->
+        <section class="preview-panel" [class.mobile-hidden]="mobileView() !== 'preview'">
+          <div class="preview-header">
+            <h3>👀 Prévia da Estrutura</h3>
+            <p>Os campos selecionados aparecerão nas missões geradas.</p>
+          </div>
+
+          <div class="preview-card-container">
+            <div class="mission-sheet-preview">
+              <div class="sheet-inner">
+                <div class="sheet-watermark">MYTH MAKER</div>
+                <header class="sheet-header">
+                  <div class="sheet-title-area">
+                    <div class="title-mock" *ngIf="isFieldSelected('mission_type')">[Tipo de Missão]</div>
+                    <div class="subtitle-mock">
+                      <span *ngIf="isFieldSelected('location')">📍 [Localização]</span>
+                      <span *ngIf="isFieldSelected('tone')">🎭 [Tom]</span>
                     </div>
                   </div>
-                </div>
-              }
-            }
-          </div>
-        </div>
-
-        <!-- Category: Mechanics -->
-        <div class="field-category">
-          <span class="cat-label">Mecânicas</span>
-          <div class="category-grid">
-            @for (field of fields(); track field.id) {
-              @if (field.category === 'mechanics') {
-                <div class="field-item" [class.active]="field.selected" (click)="toggleField(field.id)">
-                  <div class="field-icon">{{ field.icon }}</div>
-                  <div class="field-info">
-                    <span class="label">{{ field.label }}</span>
-                    <span class="desc">{{ field.description }}</span>
-                  </div>
-                  <div class="field-check">
-                    <div class="custom-check">
-                      <div class="check-dot"></div>
+                  <div class="sheet-meta-area" *ngIf="isFieldSelected('level')">
+                    <div class="meta-item">
+                      <span class="meta-label">Dificuldade</span>
+                      <span class="meta-value">--</span>
                     </div>
                   </div>
-                </div>
-              }
-            }
-          </div>
-        </div>
+                </header>
 
-        <!-- Category: Rewards -->
-        <div class="field-category">
-          <span class="cat-label">Recompensas</span>
-          <div class="category-grid">
-            @for (field of fields(); track field.id) {
-              @if (field.category === 'rewards') {
-                <div class="field-item" [class.active]="field.selected" (click)="toggleField(field.id)">
-                  <div class="field-icon">{{ field.icon }}</div>
-                  <div class="field-info">
-                    <span class="label">{{ field.label }}</span>
-                    <span class="desc">{{ field.description }}</span>
-                  </div>
-                  <div class="field-check">
-                    <div class="custom-check">
-                      <div class="check-dot"></div>
+                <div class="sheet-body">
+                  <div class="sheet-row" *ngIf="isFieldSelected('initial_hook')">
+                    <div class="sheet-field full">
+                      <label>🪝 Gancho Inicial</label>
+                      <div class="text-mock">...</div>
                     </div>
                   </div>
-                </div>
-              }
-            }
-          </div>
-        </div>
-      </div>
-    </aside>
-
-    <!-- Preview Area -->
-    <section class="preview-panel" [class.mobile-hidden]="mobileView() !== 'preview'">
-      <div class="preview-header">
-        <h3>👀 Prévia da Missão</h3>
-        <p>Como o mestre verá a ficha de missão.</p>
-      </div>
-
-      <div class="preview-card-container">
-        <div class="mission-sheet-preview">
-          <!-- Glassmorphism card -->
-          <div class="sheet-inner">
-            <div class="sheet-watermark">MYTH MAKER</div>
-            
-            <header class="sheet-header">
-              <div class="sheet-title-area">
-                <div class="title-mock" *ngIf="isFieldSelected('title')">
-                  [Nome da Missão]
-                </div>
-                <div class="subtitle-mock" *ngIf="isFieldSelected('location')">
-                  <span>📍</span> [Localização]
-                </div>
-              </div>
-              <div class="sheet-meta-area" *ngIf="isFieldSelected('level')">
-                <div class="meta-item">
-                  <span class="meta-label">Dificuldade</span>
-                  <span class="meta-value">Nível --</span>
-                </div>
-              </div>
-            </header>
-
-            <div class="sheet-body">
-              <div class="sheet-row" *ngIf="isFieldSelected('description')">
-                <div class="sheet-field full">
-                  <label>Descrição Narrativa</label>
-                  <div class="text-mock">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut enim ad minim veniam...</div>
-                </div>
-              </div>
-
-              <div class="sheet-row" *ngIf="isFieldSelected('objective')">
-                <div class="sheet-field full">
-                  <label>🎯 Objetivo Principal</label>
-                  <div class="text-mock">Defina o que os heróis devem conquistar para completar a aventura.</div>
-                </div>
-              </div>
-
-              <div class="sheet-row split">
-                <div class="sheet-field" *ngIf="isFieldSelected('allies')">
-                  <label>🤝 Aliados</label>
-                  <div class="list-mock"><span></span><span></span></div>
-                </div>
-                <div class="sheet-field" *ngIf="isFieldSelected('enemies')">
-                  <label>👹 Antagonistas</label>
-                  <div class="list-mock"><span></span><span></span></div>
-                </div>
-              </div>
-
-              <div class="sheet-row" *ngIf="isFieldSelected('climax')">
-                <div class="sheet-field full highlight">
-                  <label>⚡ Clímax</label>
-                  <div class="text-mock">O momento de maior tensão da missão.</div>
-                </div>
-              </div>
-
-              <div class="sheet-row split">
-                <div class="sheet-field" *ngIf="isFieldSelected('hazards')">
-                  <label>🪤 Perigos</label>
-                  <div class="text-mock small">Armadilhas, terrenos ou eventos.</div>
-                </div>
-                <div class="sheet-field" *ngIf="isFieldSelected('combat')">
-                  <label>⚔️ Combates</label>
-                  <div class="text-mock small">Encontros planejados.</div>
-                </div>
-              </div>
-
-              <footer class="sheet-footer" *ngIf="isCategorySelected('rewards')">
-                <div class="reward-group">
-                  <div class="reward-item" *ngIf="isFieldSelected('rewards_xp')">
-                    <span class="reward-icon">📈</span>
-                    <span>-- XP</span>
+                  <div class="sheet-row" *ngIf="isFieldSelected('objective')">
+                    <div class="sheet-field full">
+                      <label>🎯 Objetivo Principal</label>
+                      <div class="text-mock">...</div>
+                    </div>
                   </div>
-                  <div class="reward-item" *ngIf="isFieldSelected('rewards_loot')">
-                    <span class="reward-icon">💰</span>
-                    <span>Tesouros</span>
+                  <div class="sheet-row split">
+                    <div class="sheet-field" *ngIf="isFieldSelected('allies')"><label>🤝 Aliados</label><div class="list-mock"><span></span></div></div>
+                    <div class="sheet-field" *ngIf="isFieldSelected('enemies')"><label>👹 Antagonistas</label><div class="list-mock"><span></span></div></div>
                   </div>
+                  <footer class="sheet-footer" *ngIf="isCategorySelected('rewards')">
+                    <div class="reward-group">
+                      <div class="reward-item" *ngIf="isFieldSelected('rewards')"><span class="reward-icon">💰</span><span>Recompensas</span></div>
+                    </div>
+                  </footer>
                 </div>
-              </footer>
+              </div>
             </div>
           </div>
-        </div>
+        </section>
       </div>
-    </section>
+    </div>
+
+    <!-- VIEW: MISSIONS (Generated Missions) -->
+    <div class="missions-view-container" *ngIf="activeView() === 'missions'">
+      <div class="missions-header">
+        <div class="header-info">
+          <h3>Missões Geradas</h3>
+          <p>{{ generatedMissions().length }} missões salvas nesta campanha.</p>
+        </div>
+        <button class="btn-primary" (click)="generateRandomMission()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2a10 10 0 1 0 10 10M12 2v4M12 2l3 3M12 2 9 5"/>
+            <path d="M2 12h4M22 12h4" transform="rotate(45 12 12)"/>
+          </svg>
+          Gerar Nova Missão
+        </button>
+      </div>
+
+      <div class="missions-grid">
+        @for (mission of generatedMissions(); track mission.id) {
+          <div class="mission-card">
+            <button class="card-delete-btn" (click)="deleteMission(mission.id)" title="Excluir missão">×</button>
+            
+            <div class="card-header">
+              <div class="card-title-group">
+                <div class="card-type" *ngIf="mission.data['mission_type']">
+                  {{ mission.data['mission_type'] }}
+                </div>
+                <div class="card-level" *ngIf="mission.data['level']">
+                  {{ mission.data['level'] }}
+                </div>
+              </div>
+              <div class="card-date">{{ mission.date }}</div>
+            </div>
+
+            <div class="card-body">
+              <div class="card-info-line" *ngIf="mission.data['location'] || mission.data['tone']">
+                <span class="info-location" *ngIf="mission.data['location']">{{ mission.data['location'] }}</span>
+                <span class="info-separator" *ngIf="mission.data['location'] && mission.data['tone']"></span>
+                <span class="info-tone" *ngIf="mission.data['tone']">{{ mission.data['tone'] }}</span>
+              </div>
+
+              <div class="card-fields">
+                <div class="card-field" *ngIf="mission.data['initial_hook']">
+                  <span class="field-label">Gancho Inicial</span>
+                  <p class="field-value">{{ mission.data['initial_hook'] }}</p>
+                </div>
+
+                <div class="card-field" *ngIf="mission.data['objective']">
+                  <span class="field-label">Objetivo Principal</span>
+                  <p class="field-value">{{ mission.data['objective'] }}</p>
+                </div>
+
+                <div class="card-field-group" *ngIf="mission.data['allies'] || mission.data['enemies']">
+                  <div class="card-field half" *ngIf="mission.data['allies']">
+                    <span class="field-label">Aliados</span>
+                    <p class="field-value">{{ mission.data['allies'] }}</p>
+                  </div>
+                  <div class="card-field half" *ngIf="mission.data['enemies']">
+                    <span class="field-label">Antagonistas</span>
+                    <p class="field-value">{{ mission.data['enemies'] }}</p>
+                  </div>
+                </div>
+
+                <div class="card-field" *ngIf="mission.data['secondary_objectives']">
+                  <span class="field-label">Objetivos Secundários</span>
+                  <p class="field-value">{{ mission.data['secondary_objectives'] }}</p>
+                </div>
+
+                <div class="card-field" *ngIf="mission.data['climax']">
+                  <span class="field-label">Clímax</span>
+                  <p class="field-value">{{ mission.data['climax'] }}</p>
+                </div>
+
+                <div class="card-field" *ngIf="mission.data['threat']">
+                  <span class="field-label">Principal Ameaça</span>
+                  <p class="field-value">{{ mission.data['threat'] }}</p>
+                </div>
+
+                <div class="card-field" *ngIf="mission.data['hazards']">
+                  <span class="field-label">Perigos e Armadilhas</span>
+                  <p class="field-value">{{ mission.data['hazards'] }}</p>
+                </div>
+
+                <div class="card-field" *ngIf="mission.data['clues']">
+                  <span class="field-label">Pistas e Informações</span>
+                  <p class="field-value">{{ mission.data['clues'] }}</p>
+                </div>
+
+                <div class="card-field" *ngIf="mission.data['events']">
+                  <span class="field-label">Eventos Aleatórios</span>
+                  <p class="field-value">{{ mission.data['events'] }}</p>
+                </div>
+
+                <div class="card-field" *ngIf="mission.data['factions']">
+                  <span class="field-label">Facções Envolvidas</span>
+                  <p class="field-value">{{ mission.data['factions'] }}</p>
+                </div>
+
+                <div class="card-field" *ngIf="mission.data['consequences']">
+                  <span class="field-label">Consequências</span>
+                  <p class="field-value">{{ mission.data['consequences'] }}</p>
+                </div>
+
+                <div class="card-field" *ngIf="mission.data['time_limit']">
+                  <span class="field-label">Tempo Limite</span>
+                  <p class="field-value">{{ mission.data['time_limit'] }}</p>
+                </div>
+
+                <div class="card-field" *ngIf="mission.data['twists']">
+                  <span class="field-label">Segredos e Reviravoltas</span>
+                  <p class="field-value">{{ mission.data['twists'] }}</p>
+                </div>
+
+                <div class="card-field" *ngIf="mission.data['environment']">
+                  <span class="field-label">Condições do Ambiente</span>
+                  <p class="field-value">{{ mission.data['environment'] }}</p>
+                </div>
+
+                <div class="card-field" *ngIf="mission.data['outcomes']">
+                  <span class="field-label">Possíveis Desfechos</span>
+                  <p class="field-value">{{ mission.data['outcomes'] }}</p>
+                </div>
+              </div>
+
+              <div class="card-rewards" *ngIf="mission.data['rewards']">
+                <span class="field-label">Recompensas</span>
+                <div class="rewards-content">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="8" r="6"/>
+                    <path d="M12 2v2M12 14v2M4 8H2M22 8h-2M6.34 3.34l1.42 1.42M16.24 13.24l1.42 1.42M17.66 3.34l-1.42 1.42M7.76 13.24l-1.42 1.42"/>
+                    <path d="M8 21h8a2 2 0 0 0 2-2v-1H6v1a2 2 0 0 0 2 2z"/>
+                    <path d="M12 17v4"/>
+                  </svg>
+                  <span>{{ mission.data['rewards'] }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="empty-missions" *ngIf="generatedMissions().length === 0">
+        <div class="empty-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2a10 10 0 1 0 10 10M12 2v4M12 2l3 3M12 2 9 5"/>
+            <path d="M2 12h4M22 12h4" transform="rotate(45 12 12)"/>
+          </svg>
+        </div>
+        <p>Nenhuma missão gerada ainda.</p>
+        <button class="btn-primary" (click)="generateRandomMission()">Gerar Minha Primeira Missão</button>
+      </div>
+    </div>
   </main>
 </div>

@@ -117,6 +117,7 @@ export interface TableColumnDef {
 
 export interface TableSettings {
   columns: TableColumnDef[];
+  itemDescription?: boolean; // Whether to show a description textarea in the accordion
 }
 
 export interface SheetSection {
@@ -253,11 +254,20 @@ export const FIELD_PRESETS: FieldPreset[] = [
   },
   {
     type: 'table',
-    label: 'Tabela',
-    icon: '田',
-    description: 'Tabela customizável',
+    label: 'Tabela (Mochila)',
+    icon: '🎒',
+    description: 'Mochila com colunas configuráveis',
     defaultWidth: 12,
-    defaultSettings: { rows: 3, cols: 3 }
+    defaultSettings: {
+      tableSettings: {
+        columns: [
+          { id: crypto.randomUUID(), label: 'Nome', type: 'text' },
+          { id: crypto.randomUUID(), label: 'Qtd', type: 'number' },
+          { id: crypto.randomUUID(), label: 'Peso', type: 'number' },
+        ],
+        itemDescription: true
+      }
+    }
   },
   {
     type: 'image',

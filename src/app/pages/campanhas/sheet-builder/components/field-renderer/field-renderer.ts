@@ -1,7 +1,7 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { SheetField, AttributeGroupSettings, SkillTableSettings, SkillColumnDef, AttributeDef } from '../../models/sheet-types';
+import { SheetField, AttributeGroupSettings, SkillTableSettings, SkillColumnDef, AttributeDef, TableSettings, TableColumnDef } from '../../models/sheet-types';
 
 @Component({
   selector: 'app-field-renderer',
@@ -20,6 +20,7 @@ export class FieldRendererComponent {
   @Output() deleteField = new EventEmitter<string>();
   @Output() openAttrConfig = new EventEmitter<SheetField>();
   @Output() openSkillConfig = new EventEmitter<SheetField>();
+  @Output() openTableConfig = new EventEmitter<SheetField>();
 
   lastDiceResult: number | null = null;
 
@@ -370,4 +371,67 @@ export class FieldRendererComponent {
   openSkillConfigModal() {
     this.openSkillConfig.emit(this.field);
   }
+
+  // ================================================================
+  // TABLE / BACKPACK (Accordion with configurable columns)
+  // ================================================================
+
+  getTableSettings(): TableSettings {
+    return this.field.settings?.tableSettings || { columns: [], itemDescription: true };
+  }
+
+  getTableColumns(): TableColumnDef[] {
+    return this.getTableSettings().columns;
+  }
+
+  getTableItems(): any[] {
+    return Array.isArray(this.field.value) ? this.field.value : [];
+  }
+
+  addTableItem() {
+    const columns = this.getTableColumns();
+    const newItem: any = { _uid: crypto.randomUUID(), _descricao: '' };
+    for (const col of columns) {
+      if (col.type === 'number') newItem[col.id] = 0;
+      else newItem[col.id] = '';
+    }
+    this.field.value = [...this.getTableItems(), newItem];
+    this.onValueChange(this.field.value);
+  }
+
+  removeTableItem(index: number) {
+    this.field.value = this.getTableItems().filter((_: any, i: number) => i !== index);
+    this.onValueChange(this.field.value);
+  }
+
+  updateTableItem(index: number, colId: string, value: any) {
+    this.field.value = this.getTableItems().map((item: any, i: number) =>
+      i === index ? { ...item, [colId]: value } : item
+    );
+    this.onValueChange(this.field.value);
+  }
+
+  updateTableItemDescription(index: number, value: string) {
+    this.field.value = this.getTableItems().map((item: any, i: number) =>
+      i === index ? { ...item, _descricao: value } : item
+    );
+    this.onValueChange(this.field.value);
+  }
+
+  // Accordion for table items
+  expandedTableItems: Set<number> = new Set();
+
+  toggleTableItem(index: number) {
+    if (this.expandedTableItems.has(index)) {
+      this.expandedTableItems.delete(index);
+    } else {
+      this.expandedTableItems.add(index);
+    }
+  }
+
+  isTableItemExpanded(index: number): boolean {
+    return this.expandedTableItems.has(index);
+  }
 }
+
+

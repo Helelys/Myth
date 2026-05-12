@@ -62,6 +62,12 @@ export class SheetBuilderComponent implements OnInit {
   editingSelectColumnIndex = signal<number | null>(null);
   selectColumnOptionsText = '';
 
+  // Table / Backpack Config Modal
+  showTableConfigModal = signal(false);
+  editingTableField = signal<SheetField | null>(null);
+  tableColumns: { id: string; label: string; type: 'text' | 'number' }[] = [];
+  tableItemDescription = signal(true);
+
   // New section form
   newSectionTitle = '';
   newSectionLayout: 'grid' | 'stack' | 'cards' = 'grid';
@@ -451,51 +457,66 @@ export class SheetBuilderComponent implements OnInit {
     }));
   }
 
-  // ── Attribute Group Config Modal ──
+  // ── Attribute Group Config ──
   openAttrConfig(field: SheetField) {
     const group = field.settings?.attributeGroup;
-    if (!group) return;
-    this.editingAttrField.set(field);
+    this.editingAttrField.set({ ...field });
     this.attrConfigName = field.label;
-    this.attrConfigModMode = group.modifierMode;
-    this.attrConfigAlign = group.alignment;
-    this.attrConfigBase = group.modifierFormula.baseValue;
-    this.attrConfigInterval = group.modifierFormula.interval;
-    this.attrConfigIncrement = group.modifierFormula.increment;
-    this.attrConfigCount = group.attributes.length;
-    this.attrConfigNames = group.attributes.map(a => a.name);
-    this.attrConfigValues = group.attributes.map(a => a.value);
+    this.attrConfigModMode = group?.modifierMode || 'dnd';
+    this.attrConfigBase = group?.modifierFormula?.baseValue ?? 10;
+    this.attrConfigInterval = group?.modifierFormula?.interval ?? 2;
+    this.attrConfigIncrement = group?.modifierFormula?.increment ?? 1;
+    this.attrConfigAlign = group?.alignment || 'center';
+    this.attrConfigCount = group?.attributes?.length || 4;
+    this.attrConfigNames = (group?.attributes || []).map((a: AttributeDef) => a.name);
+    this.attrConfigValues = (group?.attributes || []).map((a: AttributeDef) => a.value);
     this.showAttrConfigModal.set(true);
+  }
+
+  getAttrCountRange(): number[] {
+    return [1, 2, 3, 4, 5, 6, 7, 8];
+  }
+
+  onAttrCountChange() {
+    while (this.attrConfigNames.length < this.attrConfigCount) {
+      this.attrConfigNames.push('Novo');
+      this.attrConfigValues.push(10);
+    }
+    while (this.attrConfigNames.length > this.attrConfigCount) {
+      this.attrConfigNames.pop();
+      this.attrConfigValues.pop();
+    }
+  }
+
+  updateAttrName(index: number, value: string) {
+    this.attrConfigNames[index] = value;
+  }
+
+  updateAttrValue(index: number, value: number) {
+    this.attrConfigValues[index] = value;
   }
 
   saveAttrConfig() {
     const field = this.editingAttrField();
     if (!field) return;
-    if (!field.settings) field.settings = {};
-
-    const attributes: AttributeDef[] = [];
-    for (let i = 0; i < this.attrConfigCount; i++) {
-      const existing = field.settings.attributeGroup?.attributes[i];
-      attributes.push({
-        id: existing?.id || crypto.randomUUID(),
-        name: this.attrConfigNames[i] || `Atributo ${i + 1}`,
-        value: this.attrConfigValues[i] ?? 10
-      });
-    }
-
-    field.settings.attributeGroup = {
-      attributes,
-      modifierMode: this.attrConfigModMode,
-      modifierFormula: {
-        baseValue: this.attrConfigBase,
-        interval: this.attrConfigInterval,
-        increment: this.attrConfigIncrement
-      },
-      alignment: this.attrConfigAlign
+    const attrs: AttributeDef[] = this.attrConfigNames.map((name: string, i: number) => ({
+      id: field.id + '_' + i,
+      name,
+      value: this.attrConfigValues[i] ?? 10
+    }));
+    field.settings = {
+      ...field.settings,
+      attributeGroup: {
+        attributes: attrs,
+        modifierMode: this.attrConfigModMode,
+        modifierFormula: {
+          baseValue: this.attrConfigBase,
+          interval: this.attrConfigInterval,
+          increment: this.attrConfigIncrement
+        },
+        alignment: this.attrConfigAlign
+      } as AttributeGroupSettings
     };
-
-    field.label = this.attrConfigName;
-
     this.sheet.update((s: CharacterSheet) => ({
       ...s,
       tabs: s.tabs.map((t: SheetTab) => ({
@@ -503,143 +524,47 @@ export class SheetBuilderComponent implements OnInit {
         sections: t.sections.map((sec: SheetSection) => ({
           ...sec,
           fields: sec.fields.map((f: SheetField) =>
-            f.id === field.id ? { ...f, label: field.label, settings: { ...field.settings } } : f
+            f.id === field.id ? field : f
           )
         }))
       }))
     }));
-
     this.showAttrConfigModal.set(false);
   }
 
-  updateAttrName(index: number, name: string) {
-    if (index >= 0 && index < this.attrConfigNames.length) {
-      this.attrConfigNames[index] = name;
-    }
-  }
-
-  updateAttrValue(index: number, value: number) {
-    if (index >= 0 && index < this.attrConfigValues.length) {
-      this.attrConfigValues[index] = value;
-    }
-  }
-
-  getAttrCountRange(): number[] {
-    return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12];
-  }
-
-  onAttrCountChange() {
-    while (this.attrConfigNames.length < this.attrConfigCount) {
-      this.attrConfigNames.push(`Atributo ${this.attrConfigNames.length + 1}`);
-    }
-    while (this.attrConfigValues.length < this.attrConfigCount) {
-      this.attrConfigValues.push(10);
-    }
-    this.attrConfigNames = this.attrConfigNames.slice(0, this.attrConfigCount);
-    this.attrConfigValues = this.attrConfigValues.slice(0, this.attrConfigCount);
-  }
-
-  // ── Skill Table Config Modal ──
+  // ── Skill Table Config ──
   openSkillConfig(field: SheetField) {
-    const skill = field.settings?.skillTable;
-    if (!skill) return;
-    this.editingSkillField.set(field);
-
-    this.skillColumns = skill.columns.map(c => ({
+    const st = field.settings?.skillTable;
+    this.editingSkillField.set({ ...field });
+    this.skillColumns = (st?.columns || []).map((c: SkillColumnDef) => ({
       id: c.id,
       label: c.label,
       type: c.type,
       options: c.options ? [...c.options] : undefined
     }));
-
     this.showSkillConfigModal.set(true);
   }
 
-  saveSkillConfig() {
-    const field = this.editingSkillField();
-    if (!field) return;
-    if (!field.settings) field.settings = {};
-
-    const columns: SkillColumnDef[] = this.skillColumns.map(c => ({
-      id: c.id,
-      label: c.label,
-      type: c.type as any,
-      options: c.options && c.options.length > 0 ? [...c.options] : undefined
-    }));
-
-    field.settings.skillTable = { columns };
-
-    if (Array.isArray(field.value)) {
-      const newRows = field.value.map((row: any) => {
-        const newRow: any = {};
-        for (const col of columns) {
-          if (col.type === 'checkbox') newRow[col.id] = row[col.id] ?? false;
-          else if (col.type === 'number' || col.type === 'bonus') newRow[col.id] = row[col.id] ?? 0;
-          else if (col.type === 'total') newRow[col.id] = 0;
-          else newRow[col.id] = row[col.id] ?? '';
-        }
-        return newRow;
-      });
-      field.value = newRows;
-    }
-
-    this.sheet.update((s: CharacterSheet) => ({
-      ...s,
-      tabs: s.tabs.map((t: SheetTab) => ({
-        ...t,
-        sections: t.sections.map((sec: SheetSection) => ({
-          ...sec,
-          fields: sec.fields.map((f: SheetField) =>
-            f.id === field.id ? { ...f, settings: { ...field.settings }, value: field.value } : f
-          )
-        }))
-      }))
-    }));
-
-    this.showSkillConfigModal.set(false);
-  }
-
   addSkillColumn() {
-    this.skillColumns = [
-      ...this.skillColumns,
-      { id: crypto.randomUUID(), label: 'Nova Coluna', type: 'text' }
-    ];
+    this.skillColumns.push({ id: crypto.randomUUID(), label: 'Novo', type: 'text' });
   }
 
   removeSkillColumn(index: number) {
-    this.skillColumns = this.skillColumns.filter((_, i) => i !== index);
+    this.skillColumns.splice(index, 1);
   }
 
   moveSkillColumn(index: number, direction: -1 | 1) {
     const newIdx = index + direction;
     if (newIdx < 0 || newIdx >= this.skillColumns.length) return;
-    const cols = [...this.skillColumns];
-    const temp = cols[index];
-    cols[index] = cols[newIdx];
-    cols[newIdx] = temp;
-    this.skillColumns = cols;
+    const temp = this.skillColumns[index];
+    this.skillColumns[index] = this.skillColumns[newIdx];
+    this.skillColumns[newIdx] = temp;
   }
 
-  // ── Skill Table Select Column Options ──
   openSelectOptions(index: number) {
     const col = this.skillColumns[index];
-    if (!col) return;
     this.editingSelectColumnIndex.set(index);
     this.selectColumnOptionsText = (col.options || []).join('\n');
-  }
-
-  saveSelectOptions() {
-    const index = this.editingSelectColumnIndex();
-    if (index === null || index < 0 || index >= this.skillColumns.length) return;
-    const opts = this.selectColumnOptionsText
-      .split('\n')
-      .map((o: string) => o.trim())
-      .filter((o: string) => o.length > 0);
-    this.skillColumns = this.skillColumns.map((c, i) =>
-      i === index ? { ...c, options: opts.length > 0 ? opts : undefined } : c
-    );
-    this.editingSelectColumnIndex.set(null);
-    this.selectColumnOptionsText = '';
   }
 
   cancelSelectOptions() {
@@ -647,54 +572,119 @@ export class SheetBuilderComponent implements OnInit {
     this.selectColumnOptionsText = '';
   }
 
-  // ── Settings ──
-  updateSetting(key: keyof SheetSettings, value: any) {
+  saveSelectOptions() {
+    const idx = this.editingSelectColumnIndex();
+    if (idx === null) return;
+    const opts = this.selectColumnOptionsText.split('\n').map((o: string) => o.trim()).filter((o: string) => o.length > 0);
+    this.skillColumns[idx].options = opts;
+    this.editingSelectColumnIndex.set(null);
+    this.selectColumnOptionsText = '';
+  }
+
+  saveSkillConfig() {
+    const field = this.editingSkillField();
+    if (!field) return;
+    field.settings = {
+      ...field.settings,
+      skillTable: {
+        columns: this.skillColumns.map((c: any) => ({
+          id: c.id,
+          label: c.label,
+          type: c.type,
+          options: c.options && c.options.length > 0 ? [...c.options] : undefined
+        }))
+      } as SkillTableSettings
+    };
     this.sheet.update((s: CharacterSheet) => ({
       ...s,
-      settings: { ...s.settings, [key]: value }
+      tabs: s.tabs.map((t: SheetTab) => ({
+        ...t,
+        sections: t.sections.map((sec: SheetSection) => ({
+          ...sec,
+          fields: sec.fields.map((f: SheetField) =>
+            f.id === field.id ? field : f
+          )
+        }))
+      }))
     }));
+    this.showSkillConfigModal.set(false);
   }
 
-  getBorderRadius(value: string): string {
-    switch (value) {
-      case 'none': return '0px';
-      case 'sm': return '4px';
-      case 'md': return '8px';
-      case 'lg': return '16px';
-      default: return '8px';
-    }
+  // ── Table / Backpack Config ──
+  openTableConfig(field: SheetField) {
+    const ts = field.settings?.tableSettings;
+    this.editingTableField.set({ ...field });
+    this.tableColumns = (ts?.columns || []).map((c: TableColumnDef) => ({
+      id: c.id,
+      label: c.label,
+      type: c.type
+    }));
+    this.tableItemDescription.set(ts?.itemDescription ?? true);
+    this.showTableConfigModal.set(true);
   }
 
-  getGap(value: string): string {
-    switch (value) {
-      case 'sm': return '6px';
-      case 'md': return '12px';
-      case 'lg': return '20px';
-      default: return '12px';
-    }
+  addTableColumn() {
+    this.tableColumns.push({ id: crypto.randomUUID(), label: 'Novo Campo', type: 'text' });
   }
 
-  // ── Persistence ──
+  removeTableColumn(index: number) {
+    this.tableColumns.splice(index, 1);
+  }
+
+  moveTableColumn(index: number, direction: -1 | 1) {
+    const newIdx = index + direction;
+    if (newIdx < 0 || newIdx >= this.tableColumns.length) return;
+    const temp = this.tableColumns[index];
+    this.tableColumns[index] = this.tableColumns[newIdx];
+    this.tableColumns[newIdx] = temp;
+  }
+
+  saveTableConfig() {
+    const field = this.editingTableField();
+    if (!field) return;
+    field.settings = {
+      ...field.settings,
+      tableSettings: {
+        columns: this.tableColumns.map((c: any) => ({
+          id: c.id,
+          label: c.label,
+          type: c.type
+        })),
+        itemDescription: this.tableItemDescription()
+      } as TableSettings
+    };
+    this.sheet.update((s: CharacterSheet) => ({
+      ...s,
+      tabs: s.tabs.map((t: SheetTab) => ({
+        ...t,
+        sections: t.sections.map((sec: SheetSection) => ({
+          ...sec,
+          fields: sec.fields.map((f: SheetField) =>
+            f.id === field.id ? field : f
+          )
+        }))
+      }))
+    }));
+    this.showTableConfigModal.set(false);
+  }
+
+  // ── Save / Load ──
   saveTemplate() {
-    const data = this.sheet();
+    const useId = this.globalTemplateId || this.campaignId;
+    if (!useId) return;
 
     if (this.globalTemplateId) {
-      // Save to global templates storage
       const globalTemplates = JSON.parse(localStorage.getItem('mythmaker_global_templates') ?? '[]');
-      const index = globalTemplates.findIndex((t: any) => t.id === this.globalTemplateId);
-      if (index !== -1) {
-        globalTemplates[index].schema = data;
+      const idx = globalTemplates.findIndex((t: any) => t.id === this.globalTemplateId);
+      if (idx >= 0) {
+        globalTemplates[idx].schema = JSON.parse(JSON.stringify(this.sheet()));
         localStorage.setItem('mythmaker_global_templates', JSON.stringify(globalTemplates));
-        this.showToast('Modelo global salvo com sucesso!');
-        return;
       }
     }
 
     if (this.campaignId) {
       const key = `mythmaker_sheet2_${this.templateType}_${this.campaignId}`;
-      localStorage.setItem(key, JSON.stringify(data));
-      this.showToast('Ficha salva com sucesso!');
-      return;
+      localStorage.setItem(key, JSON.stringify(this.sheet()));
     }
 
     this.showToast('Ficha salva!');
@@ -764,6 +754,33 @@ export class SheetBuilderComponent implements OnInit {
 
   trackById(_index: number, item: any): string {
     return item.id;
+  }
+
+  // ── Settings Helpers ──
+  getBorderRadius(radius: string): string {
+    switch (radius) {
+      case 'none': return '0';
+      case 'sm': return '4px';
+      case 'md': return '8px';
+      case 'lg': return '16px';
+      default: return '8px';
+    }
+  }
+
+  getGap(gap: string): string {
+    switch (gap) {
+      case 'sm': return '8px';
+      case 'md': return '16px';
+      case 'lg': return '24px';
+      default: return '16px';
+    }
+  }
+
+  updateSetting(key: string, value: any) {
+    this.sheet.update((s: CharacterSheet) => ({
+      ...s,
+      settings: { ...s.settings, [key]: value }
+    }));
   }
 
   // ── Toast / Confirm ──

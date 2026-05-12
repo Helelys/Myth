@@ -474,40 +474,96 @@
 }
 
 
-<!-- ── TABLE ── -->
+<!-- ── TABLE (Mochila com colunas configuráveis) ── -->
 @if (field.type === 'table') {
-  <div class="field-table">
-    <span class="field-label">{{ field.label }}</span>
-    <div class="table-wrapper">
-      <table>
-        @if (getTableHeaders().length > 0) {
-          <thead>
-            <tr>
-              @for (header of getTableHeaders(); track $index) {
-                <th>{{ header }}</th>
-              }
-            </tr>
-          </thead>
-        }
-        <tbody>
-          @for (row of getTableData(); track $rowIdx; let $rowIdx = $index) {
-            <tr>
-              @for (cell of row; track $colIdx; let $colIdx = $index) {
-                <td>
-                  <input
-                    type="text"
-                    [ngModel]="cell"
-                    (ngModelChange)="updateTableCell($rowIdx, $colIdx, $event)"
-                    [disabled]="!allowValueEdit"
-                  />
-                </td>
-              }
-            </tr>
-          }
-        </tbody>
-      </table>
+  @if (editMode) {
+    <!-- Builder mode: static placeholder only -->
+    <div class="field-table field-table-builder">
+      <span class="field-label">{{ field.label }}</span>
+      <p class="table-builder-hint">Itens são preenchidos pelo jogador na ficha.</p>
     </div>
-  </div>
+  } @else {
+    <!-- Player view: backpack with accordion items -->
+    <div class="field-table field-table-backpack">
+      <div class="table-header">
+        <span class="field-label">{{ field.label }}</span>
+        @if (allowValueEdit) {
+          <button class="btn-add-item" (click)="addTableItem()">+ Adicionar Item</button>
+        }
+      </div>
+      @if (getTableItems().length > 0) {
+        <div class="table-items">
+          @for (item of getTableItems(); track item._uid; let i = $index) {
+            <div class="table-item" [class.is-expanded]="isTableItemExpanded(i)">
+              <div class="table-item-header" (click)="toggleTableItem(i)">
+                <span class="table-expand-icon">{{ isTableItemExpanded(i) ? '▼' : '▶' }}</span>
+                <div class="table-item-summary">
+                  @for (col of getTableColumns(); track col.id) {
+                    <span class="table-item-col" [class.col-number]="col.type === 'number'">
+                      @if (col.type === 'number') {
+                        {{ item[col.id] || 0 }}
+                      } @else {
+                        {{ item[col.id] || '—' }}
+                      }
+                    </span>
+                    @if (!$last) {
+                      <span class="table-col-sep">·</span>
+                    }
+                  }
+                </div>
+                <button class="table-item-remove" (click)="removeTableItem(i); $event.stopPropagation()">×</button>
+              </div>
+              <div class="table-item-body" [class.is-open]="isTableItemExpanded(i)">
+                <div class="table-item-fields">
+                  @for (col of getTableColumns(); track col.id) {
+                    <div class="table-field-row">
+                      <label>{{ col.label }}</label>
+                      @if (col.type === 'number') {
+                        <input
+                          type="number"
+                          [ngModel]="item[col.id]"
+                          (ngModelChange)="updateTableItem(i, col.id, $event)"
+                          [disabled]="!allowValueEdit"
+                          min="0"
+                          (click)="$event.stopPropagation()"
+                        />
+                      } @else {
+                        <input
+                          type="text"
+                          [ngModel]="item[col.id]"
+                          (ngModelChange)="updateTableItem(i, col.id, $event)"
+                          [disabled]="!allowValueEdit"
+                          (click)="$event.stopPropagation()"
+                        />
+                      }
+                    </div>
+                  }
+                  <!-- Description textarea (if enabled) -->
+                  @if (getTableSettings().itemDescription) {
+                    <div class="table-field-row table-field-desc">
+                      <label>Descrição</label>
+                      <textarea
+                        [ngModel]="item._descricao"
+                        (ngModelChange)="updateTableItemDescription(i, $event)"
+                        [disabled]="!allowValueEdit"
+                        placeholder="Descrição do item..."
+                        rows="3"
+                        (click)="$event.stopPropagation()"
+                      ></textarea>
+                    </div>
+                  }
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="table-empty">
+          Nenhum item. Clique em "+ Adicionar Item" para começar.
+        </div>
+      }
+    </div>
+  }
 }
 
 <!-- ── IMAGE ── -->

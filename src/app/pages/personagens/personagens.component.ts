@@ -1,7 +1,7 @@
 import { Component, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { SheetEditorComponent } from '../campanhas/sheet-editor/sheet-editor.component';
+import { SheetBuilderComponent } from '../campanhas/sheet-builder/sheet-builder';
 
 export interface SheetTemplate {
   id: string;
@@ -16,14 +16,14 @@ export interface GlobalCharacter {
   name: string;
   data: Record<string, any>;
   isMonster: boolean;
-  templateId?: string; // Optional reference
+  templateId?: string;
   createdAt: number;
 }
 
 @Component({
   selector: 'app-personagens',
   standalone: true,
-  imports: [CommonModule, FormsModule, SheetEditorComponent],
+  imports: [CommonModule, FormsModule, SheetBuilderComponent],
   templateUrl: './personagens.component.html',
   styleUrl: './personagens.component.scss'
 })
@@ -33,8 +33,8 @@ export class PersonagensComponent implements OnInit {
   campaigns = signal<any[]>([]);
 
   activeView = signal<'templates' | 'characters' | 'template-editor'>('templates');
-  
-  // Modals
+
+  // Export/Import modals
   showImportTemplateModal = signal(false);
   showExportTemplateModal = signal(false);
   showImportCharModal = signal(false);
@@ -42,6 +42,24 @@ export class PersonagensComponent implements OnInit {
 
   selectedTemplate = signal<SheetTemplate | null>(null);
   selectedChar = signal<GlobalCharacter | null>(null);
+
+  // Notification toast
+  notificationMessage = signal<string | null>(null);
+  private notifTimeout: any = null;
+
+  // New template modal
+  showNewTemplateModal = signal(false);
+  newTemplateType: 'player' | 'monster' = 'player';
+  newTemplateName = '';
+
+  // Confirmation modal
+  showConfirmModal = signal(false);
+  confirmMessage = '';
+  private confirmAction: (() => void) | null = null;
+
+  // Import char modal - step 2 (pick character)
+  showCharPickerModal = signal(false);
+  campaignCharsForImport: any[] = [];
 
   ngOnInit() {
     this.loadData();
@@ -53,23 +71,67 @@ export class PersonagensComponent implements OnInit {
     this.campaigns.set(JSON.parse(localStorage.getItem('mythmaker_campaigns') ?? '[]'));
   }
 
-  // --- TEMPLATES ---
+  // ── Toast ──
 
-  createNewTemplate(type: 'player' | 'monster' = 'player') {
-    const name = prompt('Nome do novo modelo de ficha:', 'Novo Modelo');
-    if (!name) return;
+  private showToast(message: string) {
+    if (this.notifTimeout) clearTimeout(this.notifTimeout);
+    this.notificationMessage.set(message);
+    this.notifTimeout = setTimeout(() => this.notificationMessage.set(null), 3000);
+  }
+
+  dismissToast() {
+    this.notificationMessage.set(null);
+    if (this.notifTimeout) clearTimeout(this.notifTimeout);
+  }
+
+  // ── Confirmation ──
+
+  private askConfirm(message: string, onConfirm: () => void) {
+    this.confirmMessage = message;
+    this.confirmAction = onConfirm;
+    this.showConfirmModal.set(true);
+  }
+
+  confirmYes() {
+    this.showConfirmModal.set(false);
+    if (this.confirmAction) this.confirmAction();
+    this.confirmAction = null;
+  }
+
+  confirmNo() {
+    this.showConfirmModal.set(false);
+    this.confirmAction = null;
+  }
+
+  // ── TEMPLATES ──
+
+  openNewTemplateModal(type: 'player' | 'monster') {
+    if (this.templates().length >= 5) {
+      this.showToast('Limite de 5 modelos atingido. Exclua um antes de criar outro.');
+      return;
+    }
+    this.newTemplateType = type;
+    this.newTemplateName = '';
+    this.showNewTemplateModal.set(true);
+  }
+
+  confirmNewTemplate() {
+    const name = this.newTemplateName.trim();
+    if (!name) { this.showToast('Insira um nome para o modelo.'); return; }
 
     const newTemplate: SheetTemplate = {
       id: crypto.randomUUID(),
       name: name,
-      type: type,
-      schema: { tabs: [{ id: 'tab-1', label: 'Principal' }], components: [], settings: { backgroundColor: '#1c1c24', accentColor: '#ffffff' } },
+      type: this.newTemplateType,
+      schema: null,
       createdAt: Date.now()
     };
 
     const all = [...this.templates(), newTemplate];
     localStorage.setItem('mythmaker_global_templates', JSON.stringify(all));
     this.templates.set(all);
+    this.showNewTemplateModal.set(false);
+    this.showToast('Modelo criado com sucesso!');
     this.editTemplate(newTemplate);
   }
 
@@ -80,18 +142,26 @@ export class PersonagensComponent implements OnInit {
 
   deleteTemplate(id: string, event: MouseEvent) {
     event.stopPropagation();
-    if (!confirm('Excluir este modelo de ficha?')) return;
-    const filtered = this.templates().filter(t => t.id !== id);
-    localStorage.setItem('mythmaker_global_templates', JSON.stringify(filtered));
-    this.templates.set(filtered);
+    this.askConfirm('Excluir este modelo de ficha?', () => {
+      const filtered = this.templates().filter(t => t.id !== id);
+      localStorage.setItem('mythmaker_global_templates', JSON.stringify(filtered));
+      this.templates.set(filtered);
+      this.showToast('Modelo excluído.');
+    });
   }
 
   importTemplateFromCampaign(campaignId: string, type: 'player' | 'monster') {
+    if (this.templates().length >= 5) {
+      this.showToast('Limite de 5 modelos atingido. Exclua um antes de importar.');
+      return;
+    }
+
     const campaign = this.campaigns().find(c => c.id === campaignId);
-    const templateData = localStorage.getItem(`mythmaker_template_${type}_${campaignId}`);
-    
+    const key = `mythmaker_sheet2_${type}_${campaignId}`;
+    const templateData = localStorage.getItem(key);
+
     if (!templateData) {
-      alert(`Nenhum modelo de ${type === 'player' ? 'jogador' : 'monstro'} encontrado nesta campanha.`);
+      this.showToast(`Nenhum modelo de ${type === 'player' ? 'jogador' : 'monstro'} encontrado nesta campanha.`);
       return;
     }
 
@@ -107,58 +177,61 @@ export class PersonagensComponent implements OnInit {
     localStorage.setItem('mythmaker_global_templates', JSON.stringify(all));
     this.templates.set(all);
     this.showImportTemplateModal.set(false);
-    alert('Modelo importado com sucesso!');
+    this.showToast('Modelo importado com sucesso!');
   }
 
   exportTemplateToCampaign(campaignId: string) {
     const template = this.selectedTemplate();
     if (!template) return;
 
-    localStorage.setItem(`mythmaker_template_${template.type}_${campaignId}`, JSON.stringify(template.schema));
+    if (template.schema) {
+      const key = `mythmaker_sheet2_${template.type}_${campaignId}`;
+      localStorage.setItem(key, JSON.stringify(template.schema));
+    }
     this.showExportTemplateModal.set(false);
-    alert('Modelo exportado para a campanha com sucesso!');
+    this.showToast('Modelo exportado para a campanha com sucesso!');
   }
 
-  // --- CHARACTERS ---
+  // ── CHARACTERS ──
 
   deleteCharacter(id: string, event: MouseEvent) {
     event.stopPropagation();
-    if (!confirm('Excluir este personagem global?')) return;
-    const filtered = this.characters().filter(c => c.id !== id);
-    localStorage.setItem('mythmaker_global_characters', JSON.stringify(filtered));
-    this.characters.set(filtered);
+    this.askConfirm('Excluir este personagem global?', () => {
+      const filtered = this.characters().filter(c => c.id !== id);
+      localStorage.setItem('mythmaker_global_characters', JSON.stringify(filtered));
+      this.characters.set(filtered);
+      this.showToast('Personagem excluído.');
+    });
   }
 
-  importCharFromCampaign(campaignId: string) {
+  openCharPickerForCampaign(campaignId: string) {
     const allChars = JSON.parse(localStorage.getItem('mythmaker_characters') ?? '[]');
     const campaignChars = allChars.filter((c: any) => c.campaignId === campaignId);
 
     if (campaignChars.length === 0) {
-      alert('Nenhum personagem encontrado nesta campanha.');
+      this.showToast('Nenhum personagem encontrado nesta campanha.');
       return;
     }
 
-    const names = campaignChars.map((c: any, i: number) => `${i + 1}. ${c.name}`).join('\n');
-    const choice = prompt(`Selecione o personagem para importar:\n\n${names}`);
+    this.campaignCharsForImport = campaignChars;
+    this.showCharPickerModal.set(true);
+  }
 
-    if (choice) {
-      const index = parseInt(choice) - 1;
-      const char = campaignChars[index];
-      if (char) {
-        const newChar: GlobalCharacter = {
-          id: crypto.randomUUID(),
-          name: char.name,
-          data: char.data,
-          isMonster: !!char.isMonster,
-          createdAt: Date.now()
-        };
-        const all = [...this.characters(), newChar];
-        localStorage.setItem('mythmaker_global_characters', JSON.stringify(all));
-        this.characters.set(all);
-        this.showImportCharModal.set(false);
-        alert('Personagem importado para a biblioteca global!');
-      }
-    }
+  importChar(campaignChar: any) {
+    const newChar: GlobalCharacter = {
+      id: crypto.randomUUID(),
+      name: campaignChar.name,
+      data: campaignChar.data,
+      isMonster: !!campaignChar.isMonster,
+      createdAt: Date.now()
+    };
+
+    const all = [...this.characters(), newChar];
+    localStorage.setItem('mythmaker_global_characters', JSON.stringify(all));
+    this.characters.set(all);
+    this.showCharPickerModal.set(false);
+    this.showImportCharModal.set(false);
+    this.showToast('Personagem importado para a biblioteca global!');
   }
 
   exportCharToCampaign(campaignId: string) {
@@ -177,6 +250,6 @@ export class PersonagensComponent implements OnInit {
     allChars.push(newChar);
     localStorage.setItem('mythmaker_characters', JSON.stringify(allChars));
     this.showExportCharModal.set(false);
-    alert('Personagem exportado para a campanha!');
+    this.showToast('Personagem exportado para a campanha!');
   }
 }

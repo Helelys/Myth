@@ -1,13 +1,15 @@
-import { Component, signal, OnInit, computed } from '@angular/core';
+import { Component, signal, OnInit, computed, ViewChild, ElementRef, AfterViewInit, OnDestroy } from '@angular/core';
+
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { Campaign } from '../criar-campanha/criar-campanha.component';
-import { SheetEditorComponent } from '../sheet-editor/sheet-editor.component';
-import { PlayerSheetComponent, Character } from '../player-sheet/player-sheet.component';
+import { SheetBuilderComponent } from '../sheet-builder/sheet-builder';
+import { PlayerSheetViewComponent } from '../sheet-builder/player-sheet-view/player-sheet-view';
+import { Character } from '../player-sheet/player-sheet.component';
 
 type Tab = 'sistema' | 'personagens' | 'combates' | 'escudo';
-type SystemView = 'overview' | 'ficha' | 'ficha-monstro' | 'regras' | 'anotacoes';
+type SystemView = 'regras' | 'ficha' | 'ficha-monstro' | 'itens' | 'anotacoes';
 
 export interface CombatParticipant {
   name: string;
@@ -35,15 +37,16 @@ export interface DMTracker {
 @Component({
   selector: 'app-campaign-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SheetEditorComponent, PlayerSheetComponent],
+  imports: [CommonModule, FormsModule, RouterLink, SheetBuilderComponent, PlayerSheetViewComponent],
   templateUrl: './campaign-detail.component.html',
   styleUrl: './campaign-detail.component.scss'
 })
-export class CampaignDetailComponent implements OnInit {
+export class CampaignDetailComponent implements OnInit, AfterViewInit, OnDestroy {
+
   campaignId = signal<string | null>(null);
   campaign = signal<Campaign | null>(null);
   activeTab = signal<Tab>('sistema');
-  activeSystemView = signal<SystemView>('overview');
+  activeSystemView = signal<SystemView>('regras');
 
   // Character management
   characters = signal<Character[]>([]);
@@ -54,6 +57,19 @@ export class CampaignDetailComponent implements OnInit {
   // System & Notes
   systemRules = signal<string>('');
   gmNotes = signal<string>('');
+
+  // Toast + Confirm
+  notificationMessage = signal<string | null>(null);
+  private notifTimeout: any = null;
+  showConfirmModal = signal(false);
+  confirmMessage = '';
+  private confirmAction: (() => void) | null = null;
+
+  // Import/Export modals with selection
+  showImportGlobalModal = signal(false);
+  importableItems = signal<any[]>([]);
+  importTitle = signal('');
+  importCallback: ((index: number) => void) | null = null;
 
   // Combat Order
   combatParticipants = signal<CombatParticipant[]>([]);
@@ -68,6 +84,8 @@ export class CampaignDetailComponent implements OnInit {
   showDMModal = signal(false);
   editingTracker = signal<DMTracker | null>(null);
   showImportModal = signal(false);
+
+  @ViewChild('editorRef', { static: false }) editorRef!: ElementRef<HTMLElement>;
 
   constructor(private route: ActivatedRoute) {}
 
@@ -85,6 +103,25 @@ export class CampaignDetailComponent implements OnInit {
         this.loadCombatOrder(id);
         this.loadDMData(id);
       }
+    }
+
+    document.addEventListener('selectionchange', this.onSystemSelectionChange);
+  }
+
+  ngOnDestroy() {
+    document.removeEventListener('selectionchange', this.onSystemSelectionChange);
+  }
+
+  ngAfterViewInit() {
+    // Re-populate the contenteditable with saved data after view renders
+    setTimeout(() => this.populateEditorContent(), 0);
+  }
+
+
+  private populateEditorContent() {
+    const el = this.editorRef?.nativeElement;
+    if (el && this.systemRules()) {
+      el.innerHTML = this.systemRules();
     }
   }
 
@@ -124,34 +161,88 @@ export class CampaignDetailComponent implements OnInit {
     this.gmNotes.set(saved.notes || '');
   }
 
+  private showToast(message: string) {
+    if (this.notifTimeout) clearTimeout(this.notifTimeout);
+    this.notificationMessage.set(message);
+    this.notifTimeout = setTimeout(() => this.notificationMessage.set(null), 3000);
+  }
+
+  dismissToast() {
+    this.notificationMessage.set(null);
+    if (this.notifTimeout) clearTimeout(this.notifTimeout);
+  }
+
+  private askConfirm(message: string, onConfirm: () => void) {
+    this.confirmMessage = message;
+    this.confirmAction = onConfirm;
+    this.showConfirmModal.set(true);
+  }
+
+  confirmYes() {
+    this.showConfirmModal.set(false);
+    if (this.confirmAction) this.confirmAction();
+    this.confirmAction = null;
+  }
+
+  confirmNo() {
+    this.showConfirmModal.set(false);
+    this.confirmAction = null;
+  }
+
+  private openGlobalImportModal(title: string, items: any[], nameLabel: string, callback: (index: number) => void) {
+    if (items.length === 0) return;
+    this.importTitle.set(title);
+    this.importableItems.set(items.map((item: any, i: number) => ({ index: i, label: item[nameLabel] || item.name || item.title || `Item ${i + 1}` })));
+    this.importCallback = callback;
+    this.showImportGlobalModal.set(true);
+  }
+
+  confirmGlobalImport(index: number) {
+    if (this.importCallback) {
+      this.importCallback(index);
+    }
+    this.showImportGlobalModal.set(false);
+    this.importCallback = null;
+  }
+
+  cancelGlobalImport() {
+    this.showImportGlobalModal.set(false);
+    this.importCallback = null;
+  }
+
   saveSystemData() {
+    // Save the contenteditable content to systemRules
+    if (this.editorRef?.nativeElement) {
+      this.systemRules.set(this.editorRef.nativeElement.innerHTML);
+    }
+
     const data = {
       rules: this.systemRules(),
       notes: this.gmNotes()
     };
     localStorage.setItem(`mythmaker_system_${this.campaignId()}`, JSON.stringify(data));
-    alert('Dados salvos com sucesso!');
+    this.showToast('Dados salvos com sucesso!');
   }
 
   importGlobalSystem() {
     const globalSystems = JSON.parse(localStorage.getItem('mythmaker_global_systems') ?? '[]');
     if (globalSystems.length === 0) {
-      alert('Nenhum sistema global encontrado para importar. Crie um na página "Sistemas".');
+      this.showToast('Nenhum sistema global encontrado. Crie um na página "Sistemas".');
       return;
     }
 
-    const titles = globalSystems.map((s: any, i: number) => `${i + 1}. ${s.title}`).join('\n');
-    const choice = prompt(`Selecione o sistema para importar (digite o número):\n\n${titles}`);
-    
-    if (choice) {
-      const index = parseInt(choice) - 1;
-      if (globalSystems[index]) {
-        this.systemRules.set(globalSystems[index].content);
-        alert(`Sistema "${globalSystems[index].title}" importado! Não esqueça de salvar.`);
-      } else {
-        alert('Opção inválida.');
+    this.openGlobalImportModal(
+      'Selecione o sistema para importar',
+      globalSystems,
+      'title',
+      (index: number) => {
+        const system = globalSystems[index];
+        this.systemRules.set(system.content);
+        const el = this.editorRef?.nativeElement;
+        if (el) el.innerHTML = system.content;
+        this.showToast(`Sistema "${system.title}" importado! Não esqueça de salvar.`);
       }
-    }
+    );
   }
 
   importGlobalTemplate(type: 'player' | 'monster') {
@@ -159,37 +250,37 @@ export class CampaignDetailComponent implements OnInit {
     const filtered = globalTemplates.filter((t: any) => t.type === type);
 
     if (filtered.length === 0) {
-      alert(`Nenhum modelo de ${type === 'player' ? 'jogador' : 'monstro'} encontrado na biblioteca global.`);
+      this.showToast(`Nenhum modelo de ${type === 'player' ? 'jogador' : 'monstro'} encontrado na biblioteca global.`);
       return;
     }
 
-    const titles = filtered.map((t: any, i: number) => `${i + 1}. ${t.name}`).join('\n');
-    const choice = prompt(`Selecione o modelo para importar:\n\n${titles}`);
-
-    if (choice) {
-      const index = parseInt(choice) - 1;
-      if (filtered[index]) {
-        localStorage.setItem(`mythmaker_template_${type}_${this.campaignId()}`, JSON.stringify(filtered[index].schema));
-        alert(`Modelo "${filtered[index].name}" importado! Recarregando...`);
+    this.openGlobalImportModal(
+      `Selecione o modelo de ${type === 'player' ? 'jogador' : 'monstro'} para importar`,
+      filtered,
+      'name',
+      (index: number) => {
+        // Save using the same key that SheetBuilderComponent.loadTemplate() uses
+        const key = `mythmaker_sheet2_${type}_${this.campaignId()}`;
+        localStorage.setItem(key, JSON.stringify(filtered[index].schema));
+        this.showToast(`Modelo "${filtered[index].name}" importado! Recarregando...`);
         window.location.reload();
       }
-    }
+    );
   }
 
   importGlobalCharacter() {
     const globalChars = JSON.parse(localStorage.getItem('mythmaker_global_characters') ?? '[]');
     if (globalChars.length === 0) {
-      alert('Nenhum personagem encontrado na biblioteca global.');
+      this.showToast('Nenhum personagem encontrado na biblioteca global.');
       return;
     }
 
-    const titles = globalChars.map((c: any, i: number) => `${i + 1}. ${c.name}`).join('\n');
-    const choice = prompt(`Selecione o personagem para importar:\n\n${titles}`);
-
-    if (choice) {
-      const index = parseInt(choice) - 1;
-      const char = globalChars[index];
-      if (char) {
+    this.openGlobalImportModal(
+      'Selecione o personagem para importar',
+      globalChars,
+      'name',
+      (index: number) => {
+        const char = globalChars[index];
         const newChar: Character = {
           id: crypto.randomUUID(),
           campaignId: this.campaignId()!,
@@ -201,39 +292,45 @@ export class CampaignDetailComponent implements OnInit {
         all.push(newChar);
         localStorage.setItem('mythmaker_characters', JSON.stringify(all));
         this.loadCharacters(this.campaignId()!);
-        alert(`Personagem "${char.name}" importado com sucesso!`);
+        this.showToast(`Personagem "${char.name}" importado com sucesso!`);
       }
-    }
+    );
   }
 
   importGlobalNote() {
     const globalNotes = JSON.parse(localStorage.getItem('mythmaker_global_notes') ?? '[]');
     if (globalNotes.length === 0) {
-      alert('Nenhuma anotação global encontrada.');
+      this.showToast('Nenhuma anotação global encontrada.');
       return;
     }
 
-    const titles = globalNotes.map((n: any, i: number) => `${i + 1}. ${n.title}`).join('\n');
-    const choice = prompt(`Selecione a anotação para importar:\n\n${titles}`);
-
-    if (choice) {
-      const index = parseInt(choice) - 1;
-      if (globalNotes[index]) {
+    this.openGlobalImportModal(
+      'Selecione a anotação para importar',
+      globalNotes,
+      'title',
+      (index: number) => {
         this.gmNotes.set(globalNotes[index].content);
-        alert(`Anotação "${globalNotes[index].title}" importada! Não esqueça de salvar.`);
+        this.showToast(`Anotação "${globalNotes[index].title}" importada! Não esqueça de salvar.`);
       }
-    }
+    );
   }
 
   importGlobalItem() {
     const globalItems = JSON.parse(localStorage.getItem('mythmaker_global_items') ?? '[]');
     if (globalItems.length === 0) {
-      alert('Nenhum item global encontrado.');
+      this.showToast('Nenhum item global encontrado.');
       return;
     }
 
-    const titles = globalItems.map((i: any, idx: number) => `${idx + 1}. ${i.name} (${i.category})`).join('\n');
-    alert(`Compêndio de Itens Globais:\n\n${titles}\n\nPara usar um item, copie suas propriedades para a ficha do personagem. Integração automática de inventário em breve!`);
+    // For items, show a list of names using the modal
+    this.openGlobalImportModal(
+      'Compêndio de Itens Globais (selecione para visualizar)',
+      globalItems,
+      'name',
+      () => {
+        this.showToast('Copie as propriedades do item para a ficha do personagem.');
+      }
+    );
   }
 
   loadCharacters(campaignId: string) {
@@ -265,14 +362,14 @@ export class CampaignDetailComponent implements OnInit {
 
   deleteCharacter(id: string, event: MouseEvent) {
     event.stopPropagation();
-    if (!confirm('Tem certeza que deseja excluir?')) return;
-    
-    const all: Character[] = JSON.parse(localStorage.getItem('mythmaker_characters') ?? '[]');
-    const filtered = all.filter(c => c.id !== id);
-    localStorage.setItem('mythmaker_characters', JSON.stringify(filtered));
-    
-    this.loadCharacters(this.campaignId()!);
-    if (this.selectedCharId() === id) this.closeCharacter();
+    this.askConfirm('Tem certeza que deseja excluir?', () => {
+      const all: Character[] = JSON.parse(localStorage.getItem('mythmaker_characters') ?? '[]');
+      const filtered = all.filter(c => c.id !== id);
+      localStorage.setItem('mythmaker_characters', JSON.stringify(filtered));
+      this.loadCharacters(this.campaignId()!);
+      if (this.selectedCharId() === id) this.closeCharacter();
+      this.showToast('Personagem excluído.');
+    });
   }
 
   openCharacter(id: string) {
@@ -287,9 +384,6 @@ export class CampaignDetailComponent implements OnInit {
 
   setActiveTab(tab: Tab) {
     this.activeTab.set(tab);
-    if (tab === 'sistema') {
-      this.activeSystemView.set('overview');
-    }
   }
 
   setSystemView(view: SystemView) {
@@ -448,9 +542,11 @@ export class CampaignDetailComponent implements OnInit {
 
   removeDMTracker(id: string, event: MouseEvent) {
     event.stopPropagation();
-    if (!confirm('Excluir este rastreador?')) return;
-    this.dmTrackers.update(prev => prev.filter(t => t.id !== id));
-    this.saveDMData();
+    this.askConfirm('Excluir este rastreador?', () => {
+      this.dmTrackers.update(prev => prev.filter(t => t.id !== id));
+      this.saveDMData();
+      this.showToast('Rastreador excluído.');
+    });
   }
 
   addBarToEditing() {
@@ -505,7 +601,7 @@ export class CampaignDetailComponent implements OnInit {
     const newTracker: DMTracker = {
       id: crypto.randomUUID(),
       name: char.name,
-      image: char.data['photo'] || char.data['foto'] || '', // Try to find common photo keys
+      image: char.data['photo'] || char.data['foto'] || '',
       bars: [
         { label: 'Vida', current: 20, max: 20, color: '#e05a5a' }
       ]
@@ -513,6 +609,116 @@ export class CampaignDetailComponent implements OnInit {
     this.dmTrackers.update(prev => [...prev, newTracker]);
     this.saveDMData();
     this.showImportModal.set(false);
-    alert(`${char.name} exportado para o Escudo!`);
+    this.showToast(`${char.name} exportado para o Escudo!`);
+  }
+
+  /* ── Rich Text Formatting for Sistema Editor ── */
+
+  /** Save the current editor selection so toolbar buttons can restore it */
+  private savedEditorRange: Range | null = null;
+
+  private onSystemSelectionChange = () => {
+    const el = this.editorRef?.nativeElement;
+    if (!el) return;
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && el.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+      this.savedEditorRange = sel.getRangeAt(0).cloneRange();
+    }
+  };
+
+  /** Restore or create a valid selection inside the editor */
+  private ensureEditorSelection(): boolean {
+    const el = this.editorRef?.nativeElement;
+    if (!el) return false;
+
+    const sel = window.getSelection();
+
+    // If there's already a valid selection inside the editor, keep it
+    if (sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      if (el.contains(range.commonAncestorContainer)) {
+        el.focus();
+        return true;
+      }
+    }
+
+    // Try restoring saved selection
+    if (this.savedEditorRange) {
+      try {
+        sel?.removeAllRanges();
+        sel?.addRange(this.savedEditorRange);
+        el.focus();
+        return true;
+      } catch {
+        this.savedEditorRange = null;
+      }
+    }
+
+    // Place cursor inside editor
+    el.focus();
+    const range = document.createRange();
+    const lastChild = el.lastChild || el;
+    if (lastChild.nodeType === Node.ELEMENT_NODE && (lastChild as HTMLElement).tagName === 'BR') {
+      range.setStartBefore(lastChild);
+    } else if (lastChild === el) {
+      range.selectNodeContents(el);
+    } else {
+      range.setStartAfter(lastChild);
+    }
+    range.collapse(true);
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+    return true;
+  }
+
+  onToolMouseDown(command: string, event: Event) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.formatSystemText(command);
+  }
+
+  formatSystemText(command: string) {
+    const el = this.editorRef?.nativeElement;
+    if (!el) return;
+
+    // Restore selection inside the editor before running execCommand
+    if (!this.ensureEditorSelection()) return;
+
+    // Enable inline CSS for styling
+    document.execCommand('styleWithCSS', false, 'true');
+
+    switch (command) {
+      case 'bold':
+        document.execCommand('bold', false);
+        break;
+      case 'italic':
+        document.execCommand('italic', false);
+        break;
+      case 'underline':
+        document.execCommand('underline', false);
+        break;
+      case 'h1':
+        document.execCommand('formatBlock', false, '<h1>');
+        break;
+      case 'h2':
+        document.execCommand('formatBlock', false, '<h2>');
+        break;
+    }
+
+    el.focus();
+    this.systemRules.set(el.innerHTML);
+  }
+
+
+  onSystemInput(event: Event) {
+    const el = event.target as HTMLElement;
+    this.systemRules.set(el.innerHTML);
+  }
+
+  onSystemBlur() {
+    const el = this.editorRef?.nativeElement;
+    if (el) {
+      this.systemRules.set(el.innerHTML);
+    }
   }
 }

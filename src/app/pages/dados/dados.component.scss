@@ -263,13 +263,8 @@
           label { display: block; font-size: 0.8rem; color: var(--text-muted); font-weight: 700; margin-bottom: 8px; }
           input {
             width: 100%;
-            background: #1a1a24;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-            padding: 12px;
-            color: #fff;
-            &:focus { outline: none; border-color: #7c4dff; }
           }
+
           
           .segmented-control {
             display: flex;

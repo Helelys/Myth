@@ -36,6 +36,13 @@ export class MissionGeneratorComponent implements OnInit {
 
   generatedMissions = signal<GeneratedMission[]>([]);
 
+  // Toast + Confirm
+  notificationMessage = signal<string | null>(null);
+  private notifTimeout: any = null;
+  showConfirmModal = signal(false);
+  confirmMessage = '';
+  private confirmAction: (() => void) | null = null;
+
   fields = signal<MissionField[]>([
     { id: 'level', label: 'Nível / Dificuldade', description: 'O quão perigoso é o desafio.', icon: '💀', category: 'basic', selected: true },
     { id: 'mission_type', label: 'Tipo de Missão', description: 'A natureza da aventura.', icon: '📜', category: 'basic', selected: true },
@@ -108,6 +115,34 @@ export class MissionGeneratorComponent implements OnInit {
     return this.fields().some((f: MissionField) => f.category === category && f.selected);
   }
 
+  private showToast(message: string) {
+    if (this.notifTimeout) clearTimeout(this.notifTimeout);
+    this.notificationMessage.set(message);
+    this.notifTimeout = setTimeout(() => this.notificationMessage.set(null), 3000);
+  }
+
+  dismissToast() {
+    this.notificationMessage.set(null);
+    if (this.notifTimeout) clearTimeout(this.notifTimeout);
+  }
+
+  private askConfirm(message: string, onConfirm: () => void) {
+    this.confirmMessage = message;
+    this.confirmAction = onConfirm;
+    this.showConfirmModal.set(true);
+  }
+
+  confirmYes() {
+    this.showConfirmModal.set(false);
+    if (this.confirmAction) this.confirmAction();
+    this.confirmAction = null;
+  }
+
+  confirmNo() {
+    this.showConfirmModal.set(false);
+    this.confirmAction = null;
+  }
+
   saveTemplate() {
     if (this.campaignId()) {
       const template = {
@@ -115,7 +150,7 @@ export class MissionGeneratorComponent implements OnInit {
         updatedAt: new Date().toISOString()
       };
       localStorage.setItem(`mythmaker_mission_template_${this.campaignId()}`, JSON.stringify(template));
-      alert('Estrutura da missão salva com sucesso!');
+      this.showToast('Estrutura da missão salva com sucesso!');
     }
     this.router.navigate(['/campanhas', this.campaignId()]);
   }
@@ -124,7 +159,7 @@ export class MissionGeneratorComponent implements OnInit {
   generateRandomMission() {
     const selected = this.selectedFields();
     if (selected.length === 0) {
-      alert('Selecione pelo menos um campo no modelo primeiro!');
+      this.showToast('Selecione pelo menos um campo no modelo primeiro!');
       this.activeView.set('model');
       return;
     }
@@ -178,9 +213,9 @@ export class MissionGeneratorComponent implements OnInit {
   }
 
   deleteMission(id: string) {
-    if (confirm('Deseja excluir esta missão gerada?')) {
+    this.askConfirm('Deseja excluir esta missão gerada?', () => {
       this.generatedMissions.update((prev: GeneratedMission[]) => prev.filter((m: GeneratedMission) => m.id !== id));
       this.saveGeneratedMissions();
-    }
+    });
   }
 }

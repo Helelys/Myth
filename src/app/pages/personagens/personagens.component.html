@@ -19,11 +19,11 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0-13l-4 4m4-4l4 4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           Importar
         </button>
-        <button class="btn-primary" (click)="createNewTemplate('player')">
+        <button class="btn-primary" (click)="openNewTemplateModal('player')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           Novo Jogador
         </button>
-        <button class="btn-primary monster" (click)="createNewTemplate('monster')">
+        <button class="btn-primary monster" (click)="openNewTemplateModal('monster')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           Novo Monstro
         </button>
@@ -36,7 +36,7 @@
           <div class="card-type" [class.monster]="tmpl.type === 'monster'">{{ tmpl.type === 'player' ? 'Jogador' : 'Monstro' }}</div>
           <div class="card-info">
             <h3>{{ tmpl.name }}</h3>
-            <p>{{ tmpl.schema.components?.length || 0 }} componentes</p>
+            <p>{{ tmpl.schema?.tabs?.length || 0 }} abas</p>
           </div>
           <div class="card-footer-actions">
             <button class="action-btn" (click)="selectedTemplate.set(tmpl); showExportTemplateModal.set(true); $event.stopPropagation()">Exportar</button>
@@ -52,17 +52,17 @@
     </div>
   </main>
 
-  <!-- View: Template Editor -->
+  <!-- View: Template Editor (SheetBuilder 2.0) -->
   <main class="editor-full-view" *ngIf="activeView() === 'template-editor'">
     <div class="editor-header-bar">
       <button class="btn-text-back" (click)="activeView.set('templates'); loadData()">← Voltar aos Modelos</button>
       <h2>Editando Modelo: {{ selectedTemplate()?.name }}</h2>
     </div>
     
-    <app-sheet-editor 
+    <app-sheet-builder 
       [globalTemplateId]="selectedTemplate()?.id || null"
       [templateType]="selectedTemplate()?.type || 'player'">
-    </app-sheet-editor>
+    </app-sheet-builder>
   </main>
 
   <!-- View: Characters -->
@@ -147,13 +147,74 @@
       </div>
       <div class="campaign-list">
         @for (camp of campaigns(); track camp.id) {
-          <div class="campaign-item" (click)="importCharFromCampaign(camp.id)">
+          <div class="campaign-item" (click)="openCharPickerForCampaign(camp.id)">
             <span>{{ camp.nome }}</span>
             <button class="btn-import-sm">Selecionar Personagem</button>
           </div>
         }
       </div>
     </div>
+  </div>
+
+  <!-- Char Picker Modal -->
+  <div class="modal-overlay" *ngIf="showCharPickerModal()" (click)="showCharPickerModal.set(false)">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Selecione um Personagem</h2>
+        <button class="close-btn" (click)="showCharPickerModal.set(false)">×</button>
+      </div>
+      <div class="campaign-list">
+        @for (c of campaignCharsForImport; track c.id) {
+          <div class="campaign-item" (click)="importChar(c)">
+            <span>{{ c.name }}</span>
+            <button class="btn-import-sm">
+              {{ c.isMonster ? 'Monstro' : 'Jogador' }}
+            </button>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- New Template Modal -->
+  <div class="modal-overlay" *ngIf="showNewTemplateModal()" (click)="showNewTemplateModal.set(false)">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Novo Modelo de Ficha</h2>
+        <button class="close-btn" (click)="showNewTemplateModal.set(false)">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Nome do modelo ({{ newTemplateType === 'player' ? 'Jogador' : 'Monstro' }})</label>
+          <input type="text" class="modal-input" [(ngModel)]="newTemplateName" placeholder="Ex: Ficha Padrão D&D" (keydown.enter)="confirmNewTemplate()" autofocus />
+        </div>
+        <div class="modal-actions">
+          <button class="btn-outline" (click)="showNewTemplateModal.set(false)">Cancelar</button>
+          <button class="btn-primary" (click)="confirmNewTemplate()">Criar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm Modal -->
+  <div class="modal-overlay" *ngIf="showConfirmModal()" (click)="confirmNo()">
+    <div class="modal-content confirm-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Confirmação</h2>
+      </div>
+      <div class="modal-body">
+        <p>{{ confirmMessage }}</p>
+        <div class="modal-actions">
+          <button class="btn-outline" (click)="confirmNo()">Não</button>
+          <button class="btn-primary delete-confirm" (click)="confirmYes()">Sim, excluir</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast" *ngIf="notificationMessage()" (click)="dismissToast()">
+    {{ notificationMessage() }}
   </div>
 
   <!-- Export Char Modal -->

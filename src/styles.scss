@@ -52,6 +52,54 @@ body {
   line-height: 1.6;
 }
 
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+// ── Form Inputs (Standardized Globally) ──
+// All basic text inputs, number inputs, textareas, and selects
+// follow the same base style. Override per-component only when
+// absolutely necessary (e.g., inline/title inputs, modal form fields).
+input:where([type="text"], [type="number"], [type="search"], [type="email"], [type="password"], [type="url"]),
+textarea,
+select {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  width: 100%;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.2s;
+
+  &:focus {
+    border-color: var(--accent);
+  }
+
+  &:disabled {
+    opacity: 0.8;
+    cursor: default;
+  }
+}
+
+textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+
+select {
+  cursor: pointer;
+}
+
 a {
   text-decoration: none;
   color: inherit;

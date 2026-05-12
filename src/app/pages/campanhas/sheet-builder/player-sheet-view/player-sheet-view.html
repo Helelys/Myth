@@ -1,0 +1,60 @@
+<div class="player-sheet-container" *ngIf="template() as tmpl">
+  <!-- Tab Navigation -->
+  <nav class="ps-tab-bar" *ngIf="tmpl.tabs.length > 1">
+    @for (tab of tmpl.tabs; track tab.id) {
+      <button
+        class="ps-tab"
+        [class.active]="activeTabId() === tab.id"
+        (click)="activeTabId.set(tab.id)"
+      >
+        {{ tab.name }}
+      </button>
+    }
+  </nav>
+
+  <!-- Sheet Content -->
+  <main
+    class="ps-canvas"
+    [style.--accent-color]="tmpl.settings.accentColor"
+    [style.--bg-color]="tmpl.settings.backgroundColor"
+    [style.--font-color]="tmpl.settings.fontColor"
+    [style.--border-radius]="getBorderRadius(tmpl.settings.borderRadius)"
+    [style.--gap]="getGap(tmpl.settings.gap)"
+  >
+    @if (activeSections().length === 0) {
+      <div class="ps-empty">
+        <p>Nenhuma seção configurada para esta aba.</p>
+      </div>
+    }
+
+    @for (section of activeSections(); track section.id) {
+      <div class="ps-section">
+        <h3 class="ps-section-title">{{ section.title }}</h3>
+
+        <div
+          class="ps-section-fields"
+          [class.ps-layout-grid]="section.layout === 'grid'"
+          [class.ps-layout-stack]="section.layout === 'stack'"
+          [class.ps-layout-cards]="section.layout === 'cards'"
+          [style.grid-template-columns]="section.layout === 'grid' ? getGridColumns(section.columns) : '1fr'"
+        >
+          @for (field of section.fields; track field.id) {
+            <div
+              class="ps-field-wrapper"
+              [style.grid-column]="section.layout === 'grid' ? getFieldWidth(field.width) : '1fr'"
+            >
+              <app-field-renderer
+                [field]="field"
+                [editMode]="false"
+                [allowValueEdit]="true"
+                [accentColor]="tmpl.settings.accentColor"
+                [availableAttributes]="availableAttributes()"
+                (valueChange)="onValueChange($event)"
+              />
+            </div>
+          }
+        </div>
+      </div>
+    }
+  </main>
+</div>

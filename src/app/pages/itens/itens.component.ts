@@ -60,6 +60,13 @@ export class ItensComponent implements OnInit {
   showImportModal = signal(false);
   showExportModal = signal(false);
 
+  // Toast + Confirm
+  notificationMessage = signal<string | null>(null);
+  private notifTimeout: any = null;
+  showConfirmModal = signal(false);
+  confirmMessage = '';
+  private confirmAction: (() => void) | null = null;
+
   ngOnInit() {
     this.loadData();
   }
@@ -67,6 +74,34 @@ export class ItensComponent implements OnInit {
   loadData() {
     this.items.set(JSON.parse(localStorage.getItem('mythmaker_global_items') ?? '[]'));
     this.campaigns.set(JSON.parse(localStorage.getItem('mythmaker_campaigns') ?? '[]'));
+  }
+
+  private showToast(message: string) {
+    if (this.notifTimeout) clearTimeout(this.notifTimeout);
+    this.notificationMessage.set(message);
+    this.notifTimeout = setTimeout(() => this.notificationMessage.set(null), 3000);
+  }
+
+  dismissToast() {
+    this.notificationMessage.set(null);
+    if (this.notifTimeout) clearTimeout(this.notifTimeout);
+  }
+
+  private askConfirm(message: string, onConfirm: () => void) {
+    this.confirmMessage = message;
+    this.confirmAction = onConfirm;
+    this.showConfirmModal.set(true);
+  }
+
+  confirmYes() {
+    this.showConfirmModal.set(false);
+    if (this.confirmAction) this.confirmAction();
+    this.confirmAction = null;
+  }
+
+  confirmNo() {
+    this.showConfirmModal.set(false);
+    this.confirmAction = null;
   }
 
   openTypeSelection() {
@@ -167,10 +202,12 @@ export class ItensComponent implements OnInit {
 
   deleteItem(id: string, event: MouseEvent) {
     event.stopPropagation();
-    if (!confirm('Excluir este item?')) return;
-    const filtered = this.items().filter(i => i.id !== id);
-    localStorage.setItem('mythmaker_global_items', JSON.stringify(filtered));
-    this.items.set(filtered);
+    this.askConfirm('Excluir este item?', () => {
+      const filtered = this.items().filter(i => i.id !== id);
+      localStorage.setItem('mythmaker_global_items', JSON.stringify(filtered));
+      this.items.set(filtered);
+      this.showToast('Item excluído.');
+    });
   }
 
   cancelEdit() {
@@ -179,14 +216,12 @@ export class ItensComponent implements OnInit {
   }
 
   importFromCampaign(campaignId: string) {
-    alert('Funcionalidade de importar itens individuais de personagens da campanha será implementada em breve. Por enquanto, crie itens globais manualmente ou via exportação.');
+    this.showToast('Funcionalidade de importar itens de campanha será implementada em breve.');
     this.showImportModal.set(false);
   }
 
   exportToCampaign(campaignId: string) {
-    // Logic to add item to a global item list for that campaign
-    // Or maybe just a notification for now since campaigns don't have a global "item bank" yet
-    alert('Item exportado! Ele estará disponível para seleção em personagens da campanha.');
+    this.showToast('Item exportado! Ele estará disponível para seleção em personagens da campanha.');
     this.showExportModal.set(false);
   }
 }

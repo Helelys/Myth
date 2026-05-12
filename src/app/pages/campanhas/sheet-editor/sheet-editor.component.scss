@@ -345,16 +345,10 @@
   gap: 6px;
   label { font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; }
   input {
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 8px;
-    color: var(--text-primary);
-    font-size: 0.85rem;
     width: 100%;
-    min-width: 0; /* Allow shrinking but handle it with grid */
-    &:focus { border-color: var(--accent); outline: none; }
+    min-width: 0;
   }
+
 }
 
 .prop-row {

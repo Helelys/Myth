@@ -46,7 +46,9 @@
               <app-field-renderer
                 [field]="field"
                 [editMode]="false"
+                [allowValueEdit]="true"
                 [accentColor]="tmpl.settings.accentColor"
+                [availableAttributes]="availableAttributes()"
                 (valueChange)="onValueChange($event)"
               />
             </div>

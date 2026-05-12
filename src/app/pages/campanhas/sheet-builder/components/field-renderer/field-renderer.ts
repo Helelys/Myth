@@ -88,7 +88,7 @@ export class FieldRendererComponent {
     if (!this.field.items) this.field.items = [];
     if (!this.field.itemSchema) return;
 
-    const newItem: any = {};
+    const newItem: any = { _uid: crypto.randomUUID() };
     for (const schemaField of this.field.itemSchema) {
       newItem[schemaField.id] = schemaField.value ?? '';
     }
@@ -111,7 +111,23 @@ export class FieldRendererComponent {
     this.onValueChange(this.field.items);
   }
 
+  // ── Power Accordion ──
+  expandedPowers: Set<number> = new Set();
+
+  togglePower(index: number) {
+    if (this.expandedPowers.has(index)) {
+      this.expandedPowers.delete(index);
+    } else {
+      this.expandedPowers.add(index);
+    }
+  }
+
+  isPowerExpanded(index: number): boolean {
+    return this.expandedPowers.has(index);
+  }
+
   // ── Inventory ──
+
   getInventoryItems(): any[] {
     return Array.isArray(this.field.value) ? this.field.value : [];
   }

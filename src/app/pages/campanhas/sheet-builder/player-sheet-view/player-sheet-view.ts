@@ -2,7 +2,7 @@ import { Component, Input, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FieldRendererComponent } from '../components/field-renderer/field-renderer';
-import { CharacterSheet, SheetTab, SheetSection, SheetField } from '../models/sheet-types';
+import { CharacterSheet, SheetTab, SheetSection, SheetField, AttributeDef } from '../models/sheet-types';
 
 @Component({
   selector: 'app-player-sheet-view',
@@ -26,6 +26,26 @@ export class PlayerSheetViewComponent implements OnInit {
     this.activeTab()?.sections || []
   );
 
+  availableAttributes = computed<AttributeDef[]>(() => {
+    const tmpl = this.template();
+    if (!tmpl) return [];
+    const attrs: AttributeDef[] = [];
+    for (const tab of tmpl.tabs) {
+      for (const section of tab.sections) {
+        for (const field of section.fields) {
+          if (field.type === 'attribute_group' && field.settings?.attributeGroup) {
+            for (const a of field.settings.attributeGroup.attributes) {
+              if (!attrs.find(x => x.id === a.id)) {
+                attrs.push(a);
+              }
+            }
+          }
+        }
+      }
+    }
+    return attrs;
+  });
+
   ngOnInit() {
     this.loadTemplate();
   }
@@ -44,7 +64,27 @@ export class PlayerSheetViewComponent implements OnInit {
   }
 
   onValueChange(event: { id: string; value: any }) {
-    // Value changes are local; nothing special needed for view-mode
+    const tmpl = this.template();
+    if (!tmpl || !this.campaignId) return;
+
+    // Update the field value within the template
+    const updated: CharacterSheet = {
+      ...tmpl,
+      tabs: tmpl.tabs.map((t: SheetTab) => ({
+        ...t,
+        sections: t.sections.map((sec: SheetSection) => ({
+          ...sec,
+          fields: sec.fields.map((f: SheetField) =>
+            f.id === event.id ? { ...f, value: event.value } : f
+          )
+        }))
+      }))
+    };
+    this.template.set(updated);
+
+    // Persist to localStorage
+    const key = `mythmaker_sheet2_${this.templateType}_${this.campaignId}`;
+    localStorage.setItem(key, JSON.stringify(updated));
   }
 
   getGridColumns(columns: number): string {

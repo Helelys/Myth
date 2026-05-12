@@ -259,39 +259,124 @@
     background: rgba(0, 0, 0, 0.15);
     border: 1px solid var(--border);
     border-radius: 6px;
-    padding: 10px;
+    overflow: hidden;
     position: relative;
 
+    .power-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.04);
+      }
+    }
+
+    .power-card-title-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .power-expand-icon {
+      font-size: 10px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+      width: 14px;
+      text-align: center;
+    }
+
+    .power-name-text {
+      font-size: 0.85rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .power-cost-badge {
+      font-size: 0.75rem;
+      color: var(--accent, #7c6fff);
+      background: rgba(124, 111, 255, 0.12);
+      padding: 2px 8px;
+      border-radius: 10px;
+      flex-shrink: 0;
+    }
+
     .power-remove {
-      position: absolute;
-      top: 6px;
-      right: 6px;
-      width: 18px;
-      height: 18px;
+      width: 20px;
+      height: 20px;
       border-radius: 50%;
-      background: rgba(224, 90, 90, 0.3);
+      background: rgba(224, 90, 90, 0.2);
       color: #e05a5a;
       border: none;
       cursor: pointer;
-      font-size: 12px;
-    }
-
-    .power-name-row {
+      font-size: 13px;
+      flex-shrink: 0;
       display: flex;
-      gap: 8px;
-      margin-bottom: 6px;
+      align-items: center;
+      justify-content: center;
+      margin-left: 6px;
 
-      input:first-child {
-        flex: 1;
-      }
-
-      .power-cost {
-        width: 60px;
+      &:hover {
+        background: rgba(224, 90, 90, 0.4);
       }
     }
 
-    textarea {
-      font-size: 0.8rem;
+    .power-card-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.2s ease;
+
+      &.is-open {
+        max-height: 300px;
+      }
+    }
+
+    .power-card-content {
+      padding: 0 12px 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      padding-top: 10px;
+    }
+
+    .power-field-row {
+      margin-bottom: 8px;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+
+      label {
+        display: block;
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        margin-bottom: 3px;
+      }
+
+      input, textarea {
+        width: 100%;
+        background: rgba(0, 0, 0, 0.25);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 6px 8px;
+        color: var(--text, #f0f0f5);
+        font-size: 0.8rem;
+        outline: none;
+
+        &:focus {
+          border-color: var(--accent, #7c6fff);
+        }
+      }
+
+      textarea {
+        resize: vertical;
+        min-height: 50px;
+      }
     }
   }
 
@@ -302,6 +387,16 @@
     font-size: 0.8rem;
     border: 1px dashed var(--border);
     border-radius: 6px;
+  }
+}
+
+.field-power-builder {
+  .power-builder-hint {
+    margin: 6px 0 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-style: italic;
+    opacity: 0.7;
   }
 }
 
@@ -475,6 +570,13 @@
 /* ── SELECT ── */
 .field-select select {
   cursor: pointer;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 6px 8px;
+  border-radius: 4px;
+  width: 100%;
+  color-scheme: dark;
 }
 
 /* ============================================================
@@ -676,7 +778,7 @@
       }
 
       select {
-        background: transparent;
+        background: rgba(0, 0, 0, 0.25);
         border: none;
         padding: 4px 6px;
         width: 100%;
@@ -684,9 +786,10 @@
         font-size: 0.8rem;
         outline: none;
         cursor: pointer;
+        color-scheme: dark;
 
         &:focus {
-          background: rgba(0, 0, 0, 0.1);
+          background: rgba(0, 0, 0, 0.35);
         }
 
         &:disabled {

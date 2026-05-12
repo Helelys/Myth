@@ -5,8 +5,10 @@ import { FieldRendererComponent } from './components/field-renderer/field-render
 import {
   CharacterSheet, SheetTab, SheetSection, SheetField, FieldType,
   FIELD_PRESETS, FieldPreset, SheetSettings,
-  AttributeGroupSettings, AttributeDef, SkillTableSettings, SkillColumnDef
+  AttributeGroupSettings, AttributeDef, SkillTableSettings, SkillColumnDef,
+  TableColumnDef, TableSettings
 } from './models/sheet-types';
+
 
 @Component({
   selector: 'app-sheet-builder',
@@ -56,7 +58,9 @@ export class SheetBuilderComponent implements OnInit {
   // Skill Table Config Modal
   showSkillConfigModal = signal(false);
   editingSkillField = signal<SheetField | null>(null);
-  skillColumns: { id: string; label: string; type: string }[] = [];
+  skillColumns: { id: string; label: string; type: string; options?: string[] }[] = [];
+  editingSelectColumnIndex = signal<number | null>(null);
+  selectColumnOptionsText = '';
 
   // New section form
   newSectionTitle = '';
@@ -544,7 +548,8 @@ export class SheetBuilderComponent implements OnInit {
     this.skillColumns = skill.columns.map(c => ({
       id: c.id,
       label: c.label,
-      type: c.type
+      type: c.type,
+      options: c.options ? [...c.options] : undefined
     }));
 
     this.showSkillConfigModal.set(true);
@@ -558,7 +563,8 @@ export class SheetBuilderComponent implements OnInit {
     const columns: SkillColumnDef[] = this.skillColumns.map(c => ({
       id: c.id,
       label: c.label,
-      type: c.type as any
+      type: c.type as any,
+      options: c.options && c.options.length > 0 ? [...c.options] : undefined
     }));
 
     field.settings.skillTable = { columns };
@@ -612,6 +618,33 @@ export class SheetBuilderComponent implements OnInit {
     cols[index] = cols[newIdx];
     cols[newIdx] = temp;
     this.skillColumns = cols;
+  }
+
+  // ── Skill Table Select Column Options ──
+  openSelectOptions(index: number) {
+    const col = this.skillColumns[index];
+    if (!col) return;
+    this.editingSelectColumnIndex.set(index);
+    this.selectColumnOptionsText = (col.options || []).join('\n');
+  }
+
+  saveSelectOptions() {
+    const index = this.editingSelectColumnIndex();
+    if (index === null || index < 0 || index >= this.skillColumns.length) return;
+    const opts = this.selectColumnOptionsText
+      .split('\n')
+      .map((o: string) => o.trim())
+      .filter((o: string) => o.length > 0);
+    this.skillColumns = this.skillColumns.map((c, i) =>
+      i === index ? { ...c, options: opts.length > 0 ? opts : undefined } : c
+    );
+    this.editingSelectColumnIndex.set(null);
+    this.selectColumnOptionsText = '';
+  }
+
+  cancelSelectOptions() {
+    this.editingSelectColumnIndex.set(null);
+    this.selectColumnOptionsText = '';
   }
 
   // ── Settings ──

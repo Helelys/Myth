@@ -60,7 +60,11 @@ export interface FieldSettings {
 
   // Skill Table
   skillTable?: SkillTableSettings;
+
+  // Dynamic Table
+  tableSettings?: TableSettings;
 }
+
 
 // ============================================================
 // Attribute Group (Block Cards)
@@ -101,7 +105,22 @@ export interface SkillTableSettings {
   columns: SkillColumnDef[];
 }
 
+// ============================================================
+// Dynamic Table (Custom Columns, like Skill Table)
+// ============================================================
+export interface TableColumnDef {
+  id: string;
+  label: string;
+  type: 'text' | 'number';
+  width?: number;
+}
+
+export interface TableSettings {
+  columns: TableColumnDef[];
+}
+
 export interface SheetSection {
+
   id: string;
   title: string;
   layout: 'grid' | 'stack' | 'cards';

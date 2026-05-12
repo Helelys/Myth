@@ -406,54 +406,73 @@
   </div>
 }
 
-<!-- ── POWER ── -->
+<!-- ── POWER / HABILIDADE (Accordion) ── -->
 @if (field.type === 'power') {
-  <div class="field-power">
-    <div class="power-header">
+  @if (editMode) {
+    <!-- Builder mode: static placeholder only -->
+    <div class="field-power field-power-builder">
       <span class="field-label">{{ field.label }}</span>
-      @if (allowValueEdit) {
-        <button class="btn-add-item" (click)="addRepeaterItem()">+ Adicionar Poder</button>
-      }
+      <p class="power-builder-hint">Habilidades são preenchidas pelo jogador na ficha.</p>
     </div>
-    <div class="power-list">
-      @for (item of getRepeaterItems(); track $index) {
-        <div class="power-card">
-          @if (allowValueEdit) {
-            <button class="power-remove" (click)="removeRepeaterItem($index)">×</button>
-          }
-          <div class="power-name-row">
-            <input
-              type="text"
-              [ngModel]="item?.nome"
-              (ngModelChange)="updateRepeaterItem($index, 'nome', $event)"
-              [disabled]="!allowValueEdit"
-              placeholder="Nome do poder"
-            />
-            <input
-              type="number"
-              class="power-cost"
-              [ngModel]="item?.custo"
-              (ngModelChange)="updateRepeaterItem($index, 'custo', $event)"
-              [disabled]="!allowValueEdit"
-              placeholder="Custo"
-              min="0"
-            />
+  } @else {
+    <!-- Player view: accordion cards -->
+    <div class="field-power">
+      <div class="power-header">
+        <span class="field-label">{{ field.label }}</span>
+        @if (allowValueEdit) {
+          <button class="btn-add-item" (click)="addRepeaterItem()">+ Adicionar Habilidade</button>
+        }
+      </div>
+      <div class="power-list">
+        @for (item of getRepeaterItems(); track item._uid) {
+          <div class="power-card" [class.is-expanded]="isPowerExpanded($index)">
+            <div class="power-card-header" (click)="togglePower($index)">
+              <div class="power-card-title-row">
+                <span class="power-expand-icon">{{ isPowerExpanded($index) ? '▼' : '▶' }}</span>
+                <strong class="power-name-text">{{ item?.nome || '(sem nome)' }}</strong>
+                <span class="power-cost-badge" *ngIf="item?.custo">
+                  {{ item.custo }} PM
+                </span>
+              </div>
+              <button class="power-remove" (click)="removeRepeaterItem($index); $event.stopPropagation()">×</button>
+            </div>
+            <div class="power-card-body" [class.is-open]="isPowerExpanded($index)">
+              <div class="power-card-content">
+                <div class="power-field-row">
+                  <label>Título</label>
+                  <input
+                    type="text"
+                    class="power-name-input"
+                    [ngModel]="item?.nome"
+                    (ngModelChange)="updateRepeaterItem($index, 'nome', $event)"
+                    [disabled]="!allowValueEdit"
+                    placeholder="Título da habilidade"
+                    (click)="$event.stopPropagation()"
+                  />
+                </div>
+                <div class="power-field-row">
+                  <label>Descrição</label>
+                  <textarea
+                    [ngModel]="item?.descricao"
+                    (ngModelChange)="updateRepeaterItem($index, 'descricao', $event)"
+                    [disabled]="!allowValueEdit"
+                    placeholder="Descrição..."
+                    rows="3"
+                    (click)="$event.stopPropagation()"
+                  ></textarea>
+                </div>
+              </div>
+            </div>
           </div>
-          <textarea
-            [ngModel]="item?.descricao"
-            (ngModelChange)="updateRepeaterItem($index, 'descricao', $event)"
-            [disabled]="!allowValueEdit"
-            placeholder="Descrição do poder..."
-            rows="2"
-          ></textarea>
-        </div>
+        }
+      </div>
+      @if (getRepeaterItems().length === 0) {
+        <div class="power-empty">Nenhuma habilidade adicionada. Clique em "+ Adicionar Habilidade" para criar.</div>
       }
     </div>
-    @if (getRepeaterItems().length === 0) {
-      <div class="power-empty">Nenhum poder. Clique em "+ Adicionar Poder" para criar.</div>
-    }
-  </div>
+  }
 }
+
 
 <!-- ── TABLE ── -->
 @if (field.type === 'table') {

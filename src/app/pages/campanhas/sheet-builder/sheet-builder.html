@@ -466,6 +466,9 @@
                   <option value="related_attr">Atributo Relac.</option>
                 </select>
                 <div class="skill-col-actions">
+                  @if (col.type === 'select') {
+                    <button class="btn-col-options" (click)="openSelectOptions(i)" title="Editar opções">📋</button>
+                  }
                   <button class="btn-col-move" (click)="moveSkillColumn(i, -1)" [disabled]="i === 0">↑</button>
                   <button class="btn-col-move" (click)="moveSkillColumn(i, 1)" [disabled]="i === skillColumns.length - 1">↓</button>
                   <button class="btn-col-remove" (click)="removeSkillColumn(i)">×</button>
@@ -479,6 +482,33 @@
       <div class="modal-footer">
         <button class="btn-ghost" (click)="showSkillConfigModal.set(false)">Cancelar</button>
         <button class="btn-primary" (click)="saveSkillConfig()">Salvar</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ── Modal: Skill Table Select Options ── -->
+@if (editingSelectColumnIndex() !== null) {
+  <div class="modal-overlay" (click)="cancelSelectOptions()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Opções da Seleção</h3>
+        <button class="modal-close" (click)="cancelSelectOptions()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-field">
+          <label>Opções (uma por linha)</label>
+          <p class="form-hint">Defina os itens que aparecerão no dropdown desta coluna.</p>
+          <textarea
+            [(ngModel)]="selectColumnOptionsText"
+            rows="6"
+            placeholder="Opção 1&#10;Opção 2&#10;Opção 3"
+          ></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" (click)="cancelSelectOptions()">Cancelar</button>
+        <button class="btn-primary" (click)="saveSelectOptions()">Salvar</button>
       </div>
     </div>
   </div>

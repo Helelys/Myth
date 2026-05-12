@@ -213,10 +213,19 @@ export class SistemasComponent implements OnInit, OnDestroy {
     const editor = this.getEditor();
     if (!editor) return;
 
-    // Restore the editor's selection before executing commands.
-    // The mousedown handler already called preventDefault() so focus
-    // should still be on the editor; this is just a safety net.
-    if (!this.ensureEditorSelection()) return;
+    // Save the current selection, focus the editor, then restore the selection.
+    // This is more reliable than relying on a previously saved range from a
+    // selectionchange event, because editor.focus() can reset the selection
+    // in some browsers.
+    const sel = window.getSelection();
+    const savedRange = sel && sel.rangeCount > 0 ? sel.getRangeAt(0).cloneRange() : null;
+    editor.focus();
+    if (savedRange) {
+      try {
+        sel?.removeAllRanges();
+        sel?.addRange(savedRange);
+      } catch { /* ignore */ }
+    }
 
     // Enable CSS-based styling (produces <span style="..."> instead of <b>/<i>)
     try { document.execCommand('styleWithCSS', false, 'true'); } catch { /* noop */ }

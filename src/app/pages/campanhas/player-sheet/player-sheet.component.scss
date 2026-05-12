@@ -66,17 +66,15 @@
     height: 100%;
     background: #f9f9f9;
     border: 1px solid #ddd;
-    border-radius: 4px;
     padding: 8px;
     color: #1a1a1a;
-    font-family: inherit;
     font-size: 0.9rem;
-    outline: none;
     text-align: left;
-    display: block; /* Removed flex/align-items to fix centering */
+    display: block;
 
     &:focus { border-color: var(--accent); background: white; }
   }
+
 
   textarea {
     resize: none;
@@ -125,7 +123,10 @@
     display: block;
     line-height: 1.2;
     padding: 0;
+    border: none;
+    background: transparent;
   }
+
 }
 
 .num-field {

@@ -197,4 +197,25 @@
       </div>
     </div>
   </div>
+
+  <!-- Confirm Modal -->
+  <div class="modal-overlay" *ngIf="showConfirmModal()" (click)="confirmNo()">
+    <div class="modal-content confirm-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Confirmação</h2>
+      </div>
+      <div class="modal-body">
+        <p>{{ confirmMessage }}</p>
+        <div class="modal-actions">
+          <button class="btn-outline" (click)="confirmNo()">Não</button>
+          <button class="btn-primary delete-confirm" (click)="confirmYes()">Sim, excluir</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast" *ngIf="notificationMessage()" (click)="dismissToast()">
+    {{ notificationMessage() }}
+  </div>
 </div>

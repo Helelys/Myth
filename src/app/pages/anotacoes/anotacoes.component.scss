@@ -19,7 +19,7 @@
       }
       p { color: var(--text-secondary); font-size: 1.1rem; }
     }
-    
+
     .header-actions { display: flex; gap: 12px; }
   }
 
@@ -94,12 +94,12 @@
 
   .editor-view {
     animation: fadeIn 0.3s ease;
-    
+
     .editor-header {
       display: flex;
-      align-items: center;
-      gap: 24px;
-      margin-bottom: 32px;
+      flex-direction: column;
+      gap: 16px;
+      margin-bottom: 24px;
 
       .title-input {
         flex: 1;
@@ -124,19 +124,38 @@
 
       .editor-toolbar {
         background: var(--bg-elevated);
-        padding: 8px 16px;
-        border-bottom: 1px solid var(--border);
+        padding: 8px;
         display: flex;
-        gap: 8px;
+        gap: 4px;
+        border-bottom: 1px solid var(--border);
+
         .tool-btn {
           background: none;
           border: none;
-          color: var(--text-muted);
-          width: 32px;
-          height: 32px;
-          border-radius: 4px;
+          color: var(--text-secondary);
+          padding: 6px 12px;
+          border-radius: var(--radius-sm);
           cursor: pointer;
-          &:hover { background: var(--bg-surface); color: var(--text-primary); }
+          font-size: 0.9rem;
+          transition: all 0.15s ease;
+
+          &:hover {
+            background: var(--border);
+            color: var(--text-primary);
+          }
+
+          &.active {
+            background: var(--accent);
+            color: #fff;
+          }
+        }
+
+        .tool-sep {
+          width: 1px;
+          height: 20px;
+          background: var(--border);
+          margin: 0 4px;
+          align-self: center;
         }
       }
 
@@ -145,12 +164,53 @@
         min-height: 500px;
         background: none;
         border: none;
-        color: var(--text-secondary);
-        padding: 32px;
+        color: var(--text-primary);
+        padding: 24px;
         font-size: 1.1rem;
         line-height: 1.6;
         resize: vertical;
-        &:focus { outline: none; }
+        outline: none;
+        font-family: inherit;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+
+        &:empty:before {
+          content: attr(placeholder);
+          color: var(--text-muted);
+          pointer-events: none;
+        }
+
+        h1 {
+          font-size: 2rem;
+          font-weight: 700;
+          margin: 16px 0 8px 0;
+          color: var(--text-primary);
+          line-height: 1.3;
+        }
+
+        h2 {
+          font-size: 1.5rem;
+          font-weight: 600;
+          margin: 12px 0 6px 0;
+          color: var(--text-primary);
+          line-height: 1.3;
+        }
+
+        b, strong {
+          font-weight: 700;
+        }
+
+        i, em {
+          font-style: italic;
+        }
+
+        u {
+          text-decoration: underline;
+        }
+
+        p {
+          margin: 4px 0;
+        }
       }
     }
 
@@ -186,7 +246,7 @@
     z-index: 1000;
     padding: 20px;
   }
-
+  
   .modal-content {
     background: var(--bg-surface);
     border: 1px solid var(--border);
@@ -241,7 +301,63 @@
   }
 }
 
+.btn-text-back {
+  background: none;
+  border: none;
+  color: #6e40ff;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 8px;
+  display: inline-block;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+// Toast + Confirm
+.toast {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+  background: var(--accent);
+  color: #fff;
+  padding: 14px 24px;
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  z-index: 9999;
+  cursor: pointer;
+  animation: slideUp 0.3s ease;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.confirm-content {
+  max-width: 400px;
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.delete-confirm {
+  background: #e05a5a !important;
+  &:hover { background: #ff6b6b !important; }
+}
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
 }

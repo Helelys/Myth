@@ -196,6 +196,21 @@
             p { font-size: 0.9rem; }
           }
         }
+
+        .form-group {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+
+          label { font-size: 0.9rem; color: var(--text-secondary); font-weight: 600; }
+
+          input {
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 1rem;
+          }
+
+        }
       }
 
       .form-main {
@@ -217,14 +232,11 @@
           label { font-size: 0.9rem; color: var(--text-secondary); font-weight: 600; }
           
           input, textarea {
-            background: var(--bg-surface);
-            border: 1px solid var(--border);
             border-radius: 8px;
             padding: 12px 16px;
-            color: var(--text-primary);
             font-size: 1rem;
-            &:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim); }
           }
+
 
           textarea { min-height: 200px; resize: vertical; }
         }
@@ -346,7 +358,48 @@
   }
 }
 
+// Toast + Confirm
+.toast {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+  background: var(--accent);
+  color: #fff;
+  padding: 14px 24px;
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  z-index: 9999;
+  cursor: pointer;
+  animation: slideUp 0.3s ease;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.confirm-content {
+  max-width: 400px;
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.delete-confirm {
+  background: #e05a5a !important;
+  &:hover { background: #ff6b6b !important; }
+}
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
 }

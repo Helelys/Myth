@@ -25,7 +25,7 @@
           <button class="delete-btn" (click)="deleteNote(note.id, $event)">×</button>
         </div>
         <div class="card-preview">
-          {{ note.content }}
+          {{ getPlainText(note.content) }}
         </div>
         <div class="card-footer">
           {{ note.createdAt | date:'shortDate' }}
@@ -48,14 +48,20 @@
 
     <div class="rich-text-editor">
       <div class="editor-toolbar">
-        <button class="tool-btn"><b>B</b></button>
-        <button class="tool-btn"><i>I</i></button>
-        <button class="tool-btn"><u>U</u></button>
+        <button class="tool-btn" [class.active]="isBold" (mousedown)="onToolMouseDown('bold', $event)" title="Negrito"><b>B</b></button>
+        <button class="tool-btn" [class.active]="isItalic" (mousedown)="onToolMouseDown('italic', $event)" title="Itálico"><i>I</i></button>
+        <button class="tool-btn" [class.active]="isUnderline" (mousedown)="onToolMouseDown('underline', $event)" title="Sublinhado"><u>U</u></button>
+        <div class="tool-sep"></div>
+        <button class="tool-btn" [class.active]="currentHeading === 'h1'" (mousedown)="onToolMouseDown('h1', $event)" title="Título 1">H1</button>
+        <button class="tool-btn" [class.active]="currentHeading === 'h2'" (mousedown)="onToolMouseDown('h2', $event)" title="Título 2">H2</button>
       </div>
-      <textarea 
-        class="editor-area" 
-        [(ngModel)]="noteContent"
-        placeholder="Sua anotação aqui..."></textarea>
+      <div
+        #editorArea
+        class="editor-area"
+        contenteditable="true"
+        (input)="onContentEdit($event)"
+        placeholder="Sua anotação aqui..."
+      ></div>
     </div>
 
     <div class="editor-actions">
@@ -99,5 +105,26 @@
         }
       </div>
     </div>
+  </div>
+
+  <!-- Confirm Modal -->
+  <div class="modal-overlay" *ngIf="showConfirmModal()" (click)="confirmNo()">
+    <div class="modal-content confirm-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Confirmação</h2>
+      </div>
+      <div class="modal-body">
+        <p>{{ confirmMessage }}</p>
+        <div class="modal-actions">
+          <button class="btn-outline" (click)="confirmNo()">Não</button>
+          <button class="btn-primary delete-confirm" (click)="confirmYes()">Sim, excluir</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast" *ngIf="notificationMessage()" (click)="dismissToast()">
+    {{ notificationMessage() }}
   </div>
 </div>

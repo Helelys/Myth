@@ -43,80 +43,32 @@
   <!-- Tab Content -->
   <main class="tab-content" [class.no-padding]="activeTab() === 'sistema' && (activeSystemView() === 'ficha' || activeSystemView() === 'ficha-monstro')">
     
-    <!-- Tab: Sistema -->
+    <!-- ======================== TAB: SISTEMA ======================== -->
     <section *ngIf="activeTab() === 'sistema'" class="view-section" [class.full-width]="activeSystemView() === 'ficha' || activeSystemView() === 'ficha-monstro'">
-      
-      <!-- Overview / Menu -->
-      <div *ngIf="activeSystemView() === 'overview'">
-        <div class="section-header">
-          <h2>Gerenciar Sistema</h2>
-          <p>Configure a base mecânica, as regras e as anotações da sua campanha.</p>
-        </div>
-        <div class="system-menu-grid">
-          <div class="menu-card" (click)="setSystemView('ficha')">
-            <div class="menu-icon">🛡️</div>
-            <div class="menu-text">
-              <h3>Ficha de Jogador</h3>
-              <p>Crie o modelo base que todos os jogadores usarão nesta campanha.</p>
-            </div>
-          </div>
-          <div class="menu-card" (click)="setSystemView('ficha-monstro')">
-            <div class="menu-icon">👿</div>
-            <div class="menu-text">
-              <h3>Ficha de Monstro</h3>
-              <p>Crie o modelo base para as criaturas e NPCs desta campanha.</p>
-            </div>
-          </div>
-          <div class="menu-card" (click)="setSystemView('regras')">
-            <div class="menu-icon">⚖️</div>
-            <div class="menu-text">
-              <h3>Sistema e Regras</h3>
-              <p>Defina as mecânicas, magias e regras customizadas do seu mundo.</p>
-            </div>
-          </div>
-          <div class="menu-card" (click)="setSystemView('anotacoes')">
-            <div class="menu-icon">📓</div>
-            <div class="menu-text">
-              <h3>Anotações do Mestre</h3>
-              <p>Espaço para rascunhos, segredos e ideias da trama.</p>
-            </div>
-          </div>
-          <div class="menu-card" [routerLink]="['/campanhas', campaignId(), 'gerador-missao']">
-            <div class="menu-icon">🗺️</div>
-            <div class="menu-text">
-              <h3>Gerador de Missão</h3>
-              <p>Configure quais campos serão necessários para criar suas aventuras.</p>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      <div *ngIf="activeSystemView() === 'ficha' || activeSystemView() === 'ficha-monstro'">
-        <div class="section-header sub-header">
-          <div class="header-nav">
-            <button class="btn-text-back" (click)="setSystemView('overview')">← Voltar ao Menu</button>
-          </div>
-          <div class="header-info">
-            <h2>{{ activeSystemView() === 'ficha' ? 'Editor de Ficha de Jogador' : 'Editor de Ficha de Monstro' }}</h2>
-            <p>Configure o template base para {{ activeSystemView() === 'ficha' ? 'os jogadores' : 'as criaturas' }} desta campanha.</p>
-          </div>
-          <button class="btn-outline btn-sm" (click)="importGlobalTemplate(activeSystemView() === 'ficha' ? 'player' : 'monster')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0-13l-4 4m4-4l4 4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            Importar Modelo
-          </button>
-        </div>
-        
-        <app-sheet-builder
-          [campaignId]="campaignId()"
-          [templateType]="activeSystemView() === 'ficha' ? 'player' : 'monster'"
-          [editMode]="true"
-        ></app-sheet-builder>
-      </div>
+      <!-- Sub-nav tabs -->
+      <nav class="system-sub-nav">
+        <button class="sub-nav-btn" [class.active]="activeSystemView() === 'regras'" (click)="setSystemView('regras')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          Sistema
+        </button>
+        <button class="sub-nav-btn" [class.active]="activeSystemView() === 'ficha'" (click)="setSystemView('ficha')">
+          <span>🛡️</span> Ficha Jogador
+        </button>
+        <button class="sub-nav-btn" [class.active]="activeSystemView() === 'ficha-monstro'" (click)="setSystemView('ficha-monstro')">
+          <span>👿</span> Ficha Monstro
+        </button>
+        <button class="sub-nav-btn" [class.active]="activeSystemView() === 'itens'" (click)="setSystemView('itens')">
+          <span>⚔️</span> Itens
+        </button>
+        <button class="sub-nav-btn" [class.active]="activeSystemView() === 'anotacoes'" (click)="setSystemView('anotacoes')">
+          <span>📓</span> Anotações
+        </button>
+      </nav>
 
-      <!-- Sub-view: Regras -->
+      <!-- Sub-view: Regras (Sistema) - Abre direto no editor -->
       <div *ngIf="activeSystemView() === 'regras'">
         <div class="section-header sub-header">
-          <button class="btn-text-back" (click)="setSystemView('overview')">← Voltar</button>
           <div class="header-main-info">
             <h2>Regras do Sistema</h2>
             <p>Escreva aqui as mecânicas que regem o seu RPG.</p>
@@ -126,26 +78,94 @@
             Importar do MythMaker
           </button>
         </div>
-        <div class="rich-text-editor">
+        <div class="rich-text-editor sistema-editor">
           <div class="editor-toolbar">
-            <button class="tool-btn"><b>B</b></button>
-            <button class="tool-btn"><i>I</i></button>
-            <button class="tool-btn"><u>U</u></button>
+            <button class="tool-btn" title="Negrito" (mousedown)="onToolMouseDown('bold', $event)"><b>B</b></button>
+            <button class="tool-btn" title="Itálico" (mousedown)="onToolMouseDown('italic', $event)"><i>I</i></button>
+            <button class="tool-btn" title="Sublinhado" (mousedown)="onToolMouseDown('underline', $event)"><u>U</u></button>
+            <div class="tool-sep"></div>
+            <button class="tool-btn" title="Título 1" (mousedown)="onToolMouseDown('h1', $event)">H1</button>
+            <button class="tool-btn" title="Título 2" (mousedown)="onToolMouseDown('h2', $event)">H2</button>
+
           </div>
-          <textarea 
-            class="editor-area" 
-            [(ngModel)]="systemRules"
-            placeholder="Comece a escrever as regras do seu sistema..."></textarea>
+          <div
+            class="editor-area contenteditable"
+            contenteditable="true"
+            #editorRef
+            (input)="onSystemInput($event)"
+            (blur)="onSystemBlur()"
+            placeholder="Comece a escrever as regras do seu sistema..."
+          ></div>
         </div>
         <div class="view-actions">
           <button class="btn-primary" (click)="saveSystemData()">Salvar Alterações</button>
         </div>
       </div>
 
+      <!-- Sub-view: Ficha Jogador -->
+      <div *ngIf="activeSystemView() === 'ficha'">
+        <div class="section-header sub-header">
+          <div class="header-info">
+            <h2>Editor de Ficha de Jogador</h2>
+            <p>Configure o template base que todos os jogadores usarão nesta campanha.</p>
+          </div>
+          <button class="btn-outline btn-sm" (click)="importGlobalTemplate('player')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0-13l-4 4m4-4l4 4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Importar Modelo
+          </button>
+        </div>
+        <app-sheet-builder
+          [campaignId]="campaignId()"
+          [templateType]="'player'"
+          [editMode]="true"
+        ></app-sheet-builder>
+      </div>
+
+      <!-- Sub-view: Ficha Monstro -->
+      <div *ngIf="activeSystemView() === 'ficha-monstro'">
+        <div class="section-header sub-header">
+          <div class="header-info">
+            <h2>Editor de Ficha de Monstro</h2>
+            <p>Configure o template base para as criaturas desta campanha.</p>
+          </div>
+          <button class="btn-outline btn-sm" (click)="importGlobalTemplate('monster')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0-13l-4 4m4-4l4 4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Importar Modelo
+          </button>
+        </div>
+        <app-sheet-builder
+          [campaignId]="campaignId()"
+          [templateType]="'monster'"
+          [editMode]="true"
+        ></app-sheet-builder>
+      </div>
+
+      <!-- Sub-view: Itens -->
+      <div *ngIf="activeSystemView() === 'itens'">
+        <div class="section-header sub-header">
+          <div class="header-main-info">
+            <h2>Compêndio de Itens</h2>
+            <p>Gerencie armas, armaduras e acessórios disponíveis nesta campanha.</p>
+          </div>
+          <button class="btn-outline btn-sm" (click)="importGlobalItem()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0-13l-4 4m4-4l4 4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Importar do MythMaker
+          </button>
+        </div>
+        <div class="global-items-view">
+          <p style="color: var(--text-muted); margin-bottom: 16px;">
+            Os itens globais cadastrados no MythMaker estarão disponíveis aqui para consulta.
+          </p>
+          <button class="btn-primary btn-sm" routerLink="/itens">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Gerenciar Itens Globais
+          </button>
+        </div>
+      </div>
+
       <!-- Sub-view: Anotacoes -->
       <div *ngIf="activeSystemView() === 'anotacoes'">
         <div class="section-header sub-header">
-          <button class="btn-text-back" (click)="setSystemView('overview')">← Voltar</button>
           <div class="header-main-info">
             <h2>Anotações do Mestre</h2>
             <p>Seus segredos e planos para a campanha.</p>
@@ -177,10 +197,6 @@
             <h2>Personagens e Criaturas</h2>
             <p>Gerencie os heróis e os monstros da sua campanha.</p>
           </div>
-          <button class="btn-outline btn-sm" (click)="importGlobalItem()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20 7H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1Z" stroke="currentColor" stroke-width="1.5"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" stroke="currentColor" stroke-width="1.5"/></svg>
-            Compêndio de Itens
-          </button>
           <button class="btn-outline btn-sm" (click)="importGlobalCharacter()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0-13l-4 4m4-4l4 4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             Importar do MythMaker
@@ -561,6 +577,48 @@
       </div>
     </div>
   </div>
+</div>
+
+<!-- Global Import Modal -->
+<div class="modal-overlay" *ngIf="showImportGlobalModal()" (click)="cancelGlobalImport()">
+  <div class="modal-content import-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>{{ importTitle() }}</h3>
+      <button class="close-modal" (click)="cancelGlobalImport()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="import-list">
+        @for (item of importableItems(); track item.index) {
+          <div class="import-item" (click)="confirmGlobalImport(item.index)">
+            <div class="item-info">
+              <span class="name">{{ item.label }}</span>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Modal -->
+<div class="modal-overlay" *ngIf="showConfirmModal()" (click)="confirmNo()">
+  <div class="modal-content confirm-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Confirmação</h2>
+    </div>
+    <div class="modal-body">
+      <p>{{ confirmMessage }}</p>
+      <div class="modal-actions">
+        <button class="btn-outline" (click)="confirmNo()">Não</button>
+        <button class="btn-primary delete-confirm" (click)="confirmYes()">Sim</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Notification -->
+<div class="toast" *ngIf="notificationMessage()" (click)="dismissToast()">
+  {{ notificationMessage() }}
 </div>
 
 <!-- 404 Case -->

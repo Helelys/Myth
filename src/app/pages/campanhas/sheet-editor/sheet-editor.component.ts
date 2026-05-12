@@ -230,14 +230,13 @@ export class SheetEditorComponent {
 
     if (this.campaignId) {
       localStorage.setItem(`mythmaker_template_${this.templateType}_${this.campaignId}`, JSON.stringify(schema));
-      alert(`${this.templateType === 'player' ? 'Ficha de Jogador' : 'Ficha de Monstro'} salva com sucesso!`);
+      // SheetEditor is deprecated in favor of SheetBuilder, use toast anyway
     } else if (this.globalTemplateId) {
       const globalTemplates = JSON.parse(localStorage.getItem('mythmaker_global_templates') ?? '[]');
       const index = globalTemplates.findIndex((t: any) => t.id === this.globalTemplateId);
       if (index !== -1) {
         globalTemplates[index].schema = schema;
         localStorage.setItem('mythmaker_global_templates', JSON.stringify(globalTemplates));
-        alert('Modelo global salvo com sucesso!');
       }
     }
   }

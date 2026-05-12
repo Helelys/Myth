@@ -35,27 +35,6 @@
   }
 }
 
-input, textarea, select {
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 6px 10px;
-  color: var(--text-primary);
-  font-size: 0.85rem;
-  width: 100%;
-  outline: none;
-  transition: border-color 0.2s;
-
-  &:focus {
-    border-color: var(--accent);
-  }
-
-  &:disabled {
-    opacity: 0.8;
-    cursor: default;
-  }
-}
-
 /* ── ATTRIBUTE ── */
 .field-attribute {
   text-align: center;

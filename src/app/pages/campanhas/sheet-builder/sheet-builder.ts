@@ -17,8 +17,16 @@ import {
 })
 export class SheetBuilderComponent implements OnInit {
   @Input() campaignId: string | null = null;
+  @Input() globalTemplateId: string | null = null;
   @Input() templateType: 'player' | 'monster' = 'player';
   @Input() editMode: boolean = true;
+
+  // Toast + Confirm
+  notificationMessage = signal<string | null>(null);
+  private notifTimeout: any = null;
+  showConfirmModal = signal(false);
+  confirmMessage = '';
+  private confirmAction: (() => void) | null = null;
 
   // ── Core State ──
   sheet = signal<CharacterSheet>(this.createEmptySheet());
@@ -636,24 +644,64 @@ export class SheetBuilderComponent implements OnInit {
   // ── Persistence ──
   saveTemplate() {
     const data = this.sheet();
-    const key = `mythmaker_sheet2_${this.templateType}_${this.campaignId}`;
-    localStorage.setItem(key, JSON.stringify(data));
-    alert('Ficha salva com sucesso!');
+
+    if (this.globalTemplateId) {
+      // Save to global templates storage
+      const globalTemplates = JSON.parse(localStorage.getItem('mythmaker_global_templates') ?? '[]');
+      const index = globalTemplates.findIndex((t: any) => t.id === this.globalTemplateId);
+      if (index !== -1) {
+        globalTemplates[index].schema = data;
+        localStorage.setItem('mythmaker_global_templates', JSON.stringify(globalTemplates));
+        this.showToast('Modelo global salvo com sucesso!');
+        return;
+      }
+    }
+
+    if (this.campaignId) {
+      const key = `mythmaker_sheet2_${this.templateType}_${this.campaignId}`;
+      localStorage.setItem(key, JSON.stringify(data));
+      this.showToast('Ficha salva com sucesso!');
+      return;
+    }
+
+    this.showToast('Ficha salva!');
   }
 
   loadTemplate() {
-    if (!this.campaignId) {
+    const useId = this.globalTemplateId || this.campaignId;
+
+    if (!useId) {
       this.activeTabId.set(this.sheet().tabs[0]?.id || '');
       return;
     }
-    const key = `mythmaker_sheet2_${this.templateType}_${this.campaignId}`;
-    const saved = localStorage.getItem(key);
-    if (saved) {
-      try {
-        const data = JSON.parse(saved) as CharacterSheet;
-        this.sheet.set(data);
-      } catch { /* use default */ }
+
+    // First try loading from global templates
+    if (this.globalTemplateId) {
+      const globalTemplates = JSON.parse(localStorage.getItem('mythmaker_global_templates') ?? '[]');
+      const template = globalTemplates.find((t: any) => t.id === this.globalTemplateId);
+      if (template?.schema) {
+        try {
+          const data = JSON.parse(JSON.stringify(template.schema)) as CharacterSheet;
+          this.sheet.set(data);
+          this.activeTabId.set(data.tabs[0]?.id || '');
+          return;
+        } catch { /* fall through to default */ }
+      }
     }
+
+    if (this.campaignId) {
+      const key = `mythmaker_sheet2_${this.templateType}_${this.campaignId}`;
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        try {
+          const data = JSON.parse(saved) as CharacterSheet;
+          this.sheet.set(data);
+          this.activeTabId.set(data.tabs[0]?.id || '');
+          return;
+        } catch { /* use default */ }
+      }
+    }
+
     this.activeTabId.set(this.sheet().tabs[0]?.id || '');
   }
 
@@ -685,6 +733,35 @@ export class SheetBuilderComponent implements OnInit {
     return item.id;
   }
 
+  // ── Toast / Confirm ──
+  private showToast(message: string) {
+    if (this.notifTimeout) clearTimeout(this.notifTimeout);
+    this.notificationMessage.set(message);
+    this.notifTimeout = setTimeout(() => this.notificationMessage.set(null), 3000);
+  }
+
+  dismissToast() {
+    this.notificationMessage.set(null);
+    if (this.notifTimeout) clearTimeout(this.notifTimeout);
+  }
+
+  private askConfirm(message: string, onConfirm: () => void) {
+    this.confirmMessage = message;
+    this.confirmAction = onConfirm;
+    this.showConfirmModal.set(true);
+  }
+
+  confirmYes() {
+    this.showConfirmModal.set(false);
+    if (this.confirmAction) this.confirmAction();
+    this.confirmAction = null;
+  }
+
+  confirmNo() {
+    this.showConfirmModal.set(false);
+    this.confirmAction = null;
+  }
+
   // ── Export / Import ──
   exportJson() {
     const blob = new Blob([JSON.stringify(this.sheet(), null, 2)], { type: 'application/json' });
@@ -705,9 +782,9 @@ export class SheetBuilderComponent implements OnInit {
         const data = JSON.parse(e.target.result as string) as CharacterSheet;
         this.sheet.set(data);
         this.activeTabId.set(data.tabs[0]?.id || '');
-        alert('Ficha importada com sucesso!');
+        this.showToast('Ficha importada com sucesso!');
       } catch {
-        alert('Erro ao importar. Verifique o formato do arquivo.');
+        this.showToast('Erro ao importar. Verifique o formato do arquivo.');
       }
     };
     reader.readAsText(file);

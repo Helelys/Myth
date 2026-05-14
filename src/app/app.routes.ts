@@ -10,9 +10,11 @@ import { PersonagensComponent } from './pages/personagens/personagens.component'
 import { AnotacoesComponent } from './pages/anotacoes/anotacoes.component';
 import { ItensComponent } from './pages/itens/itens.component';
 import { DadosComponent } from './pages/dados/dados.component';
+import { PrecosComponent } from './pages/precos/precos.component';
 
 export const routes: Routes = [
   { path: '', component: HomeComponent, pathMatch: 'full' },
+  { path: 'precos', component: PrecosComponent },
   {
     path: '',
     component: AppLayoutComponent,

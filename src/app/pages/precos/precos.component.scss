@@ -1,0 +1,114 @@
+.pricing-page {
+  padding: 120px 0 80px;
+  min-height: 100vh;
+}
+
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 32px;
+  max-width: 720px;
+  margin: 0 auto;
+  align-items: start;
+}
+
+/* ── Card ── */
+.pricing-card {
+  position: relative;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 40px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: border-color 0.3s, transform 0.3s;
+
+  &:hover {
+    border-color: var(--border-hover);
+    transform: translateY(-4px);
+  }
+
+  &.premium {
+    border-color: rgba(124, 111, 255, 0.3);
+    background: linear-gradient(135deg, rgba(124, 111, 255, 0.06), transparent);
+
+    &:hover {
+      border-color: var(--accent);
+    }
+  }
+}
+
+.card-badge {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 16px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+
+.card-name {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.card-desc {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  flex: 1;
+}
+
+.card-price {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin: 4px 0 8px;
+
+  .price-value {
+    font-size: 2.5rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+
+  .price-period {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+  }
+}
+
+.card-features {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 8px;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+
+    svg {
+      flex-shrink: 0;
+      color: var(--accent);
+    }
+  }
+}
+
+.pricing-card .btn-primary {
+  align-self: flex-start;
+  width: 100%;
+  justify-content: center;
+}

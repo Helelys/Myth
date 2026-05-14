@@ -1,10 +1,12 @@
 import { Component, HostListener, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
+import { LoginModalComponent } from '../auth/login-modal/login-modal.component';
 
 @Component({
   selector: 'app-navbar',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterModule, LoginModalComponent],
   templateUrl: './navbar.component.html',
   styleUrl: './navbar.component.scss'
 })
@@ -13,12 +15,11 @@ export class NavbarComponent {
   menuOpen = signal(false);
 
   navLinks = [
-    { label: 'Recursos', href: '#recursos' },
-    { label: 'Preços', href: '#precos' },
-    { label: 'Templates', href: '#templates' },
-    { label: 'Blog', href: '#blog' },
-    { label: 'Comunidade', href: '#comunidade' },
+    { label: 'Recursos', href: '#recursos', route: null },
+    { label: 'Preços', href: null, route: '/precos' },
   ];
+
+  showLogin = signal(false);
 
   @HostListener('window:scroll')
   onScroll() {

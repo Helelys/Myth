@@ -1,0 +1,97 @@
+<div
+  class="modal-backdrop"
+  [class.visible]="show()"
+  (click)="onBackdropClick($event)"
+>
+  <div class="modal-card" [class.visible]="show()" [class.out]="animatingOut()">
+    <!-- Close -->
+    <button class="modal-close" (click)="handleClose()" aria-label="Fechar">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <line x1="18" y1="6" x2="6" y2="18"/>
+        <line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+
+    <h2 class="modal-title">Reportar Problema</h2>
+    <p class="modal-subtitle">Encontrou algo errado? Nos avise para corrigirmos o mais rápido possível.</p>
+
+    <form class="modal-form" (ngSubmit)="handleSubmit()" #f="ngForm">
+      <!-- Email -->
+      <div class="form-field">
+        <label for="report-email">Seu email</label>
+        <input
+          id="report-email"
+          type="email"
+          placeholder="seu@email.com"
+          [(ngModel)]="email"
+          name="email"
+          required
+          autocomplete="email"
+        />
+        @if (submitted && !email && !emailValid) {
+          <span class="field-error">Informe um email válido.</span>
+        }
+      </div>
+
+      <!-- Message -->
+      <div class="form-field">
+        <label for="report-message">Mensagem</label>
+        <textarea
+          id="report-message"
+          rows="4"
+          placeholder="Descreva o problema com o máximo de detalhes possível..."
+          [(ngModel)]="message"
+          name="message"
+          required
+        ></textarea>
+        @if (submitted && !message.trim()) {
+          <span class="field-error">Escreva uma mensagem.</span>
+        }
+      </div>
+
+      <!-- Photos -->
+      <div class="form-field">
+        <label>Fotos (máx. 3)</label>
+
+        <div class="file-dropzone" (click)="fileInput.click()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          <span>Clique para adicionar fotos</span>
+        </div>
+        <input
+          #fileInput
+          type="file"
+          accept="image/*"
+          multiple
+          (change)="onFileSelected($event)"
+          style="display:none"
+        />
+
+        @if (files.length > 0) {
+          <div class="file-previews">
+            @for (preview of previews; track preview; let i = $index) {
+              <div class="file-preview-item">
+                <img [src]="preview" alt="Preview" />
+                <button type="button" class="file-remove" (click)="removeFile(i)" aria-label="Remover foto">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <button type="submit" class="btn-submit">Enviar</button>
+    </form>
+
+    <p class="modal-footer">
+      Seu email será usado apenas para entrarmos em contato sobre este report.
+    </p>
+  </div>
+</div>

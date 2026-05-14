@@ -73,6 +73,15 @@
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
+
+  .btn-ghost {
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+  }
 }
 
 // Mobile toggle
@@ -145,6 +154,21 @@
   flex-direction: column;
   gap: 10px;
   padding: 16px 20px 0;
+
+  .btn-ghost {
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: color var(--transition);
+
+    &:hover {
+      color: var(--text-primary);
+    }
+  }
 }
 
 @media (max-width: 768px) {

@@ -1,159 +1,247 @@
 import Konva from 'konva';
-import { TokenBar } from '../models';
+import { BaseRenderer } from './base-renderer';
+import { LayerType, FogShape } from '../models';
+import { CameraService, FogService } from '../services';
 
 /**
- * Constants for bar rendering
- */
-const BAR_GAP = 2;
-const BAR_HEIGHT = 5;
-const BAR_BORDER_RADIUS = 2;
-
-/**
- * Renderer for configurable token bars.
- * Renders 0-3 configurable bars above the token with smooth animations.
+ * Renderer do Fog of War — VERSÃO BASEADA EM SHAPES.
  *
- * Performance:
- * - Uses granular updates instead of full recreation
- * - Caches bar background shapes
- * - Only redraws changed bars
+ * Renderiza shapes de fog como Konva.Rect e Konva.Line.
+ *
+ * Cada fog shape é um retângulo preto ou uma linha (brush) preta.
+ * A opacidade da layer controla a intensidade da neblina.
  */
-export class TokenBarRenderer {
-  /**
-   * Creates bar shapes for a token group.
-   * Returns the total height consumed by bars.
-   */
-  static createBars(group: Konva.Group, width: number, height: number, bars: TokenBar[]): number {
-    const visibleBars = bars.filter((b) => b.visible);
-    if (visibleBars.length === 0) return 0;
+export class FogRenderer extends BaseRenderer {
+  /** Mapa de shapes Konva renderizadas: shapeId → Konva.Node */
+  private shapeNodes = new Map<string, Konva.Rect | Konva.Line>();
+  /** Shape sendo desenhada atualmente (retângulo em progresso) */
+  private drawingRect: Konva.Rect | null = null;
+  /** Pontos do brush em progresso */
+  private brushPoints: number[] = [];
+  private brushLine: Konva.Line | null = null;
+  /** Flag pública para o canvas component verificar */
+  isDrawing = false;
 
-    const totalHeight = visibleBars.length * (BAR_HEIGHT + BAR_GAP);
-
-    visibleBars.forEach((bar, index) => {
-      // Background (dark track)
-      const bg = new Konva.Rect({
-        x: 0,
-        y: height + 4 + index * (BAR_HEIGHT + BAR_GAP),
-        width: width,
-        height: BAR_HEIGHT,
-        fill: '#1a1a2e',
-        cornerRadius: BAR_BORDER_RADIUS,
-        stroke: '#2a2a4a',
-        strokeWidth: 0.5,
-        name: `bar-bg-${index}`,
-      });
-      group.add(bg);
-
-      // Label (small text on the left side of bar)
-      const label = new Konva.Text({
-        x: 2,
-        y: height + 4 + index * (BAR_HEIGHT + BAR_GAP) - 0.5,
-        text: bar.label,
-        fontSize: 6,
-        fill: '#ffffff',
-        opacity: 0.9,
-        name: `bar-label-${index}`,
-        listening: false,
-      });
-      group.add(label);
-
-      // Fill bar
-      const ratio = bar.maxValue > 0 ? bar.value / bar.maxValue : 0;
-      const fillBar = new Konva.Rect({
-        x: 0,
-        y: height + 4 + index * (BAR_HEIGHT + BAR_GAP),
-        width: width * ratio,
-        height: BAR_HEIGHT,
-        fill: bar.color,
-        cornerRadius: BAR_BORDER_RADIUS,
-        name: `bar-fill-${index}`,
-      });
-      group.add(fillBar);
-
-      // Value text (right side)
-      const valueText = new Konva.Text({
-        x: width - 2,
-        y: height + 4 + index * (BAR_HEIGHT + BAR_GAP) - 0.5,
-        text: `${bar.value}/${bar.maxValue}`,
-        fontSize: 5,
-        fill: '#ffffff',
-        opacity: 0.85,
-        name: `bar-value-${index}`,
-        listening: false,
-        align: 'right',
-      });
-      group.add(valueText);
-    });
-
-    return totalHeight + 2;
+  constructor(
+    stage: Konva.Stage,
+    private fogService: FogService,
+  ) {
+    super(LayerType.Fog, stage);
+    this.layer.listening(true);
   }
 
-  /**
-   * Updates bars efficiently without recreating.
-   */
-  static updateBars(group: Konva.Group, width: number, height: number, bars: TokenBar[]): void {
-    const visibleBars = bars.filter((b) => b.visible);
+  override render(camera: CameraService): void {
+    const fogEnabled = this.fogService.enabled();
+    const gmVision = this.fogService.gmVision();
 
-    visibleBars.forEach((bar, index) => {
-      const fillBar = group.findOne(`.bar-fill-${index}`) as Konva.Rect;
-      const bgBar = group.findOne(`.bar-bg-${index}`) as Konva.Rect;
-      const labelText = group.findOne(`.bar-label-${index}`) as Konva.Text;
-      const valueText = group.findOne(`.bar-value-${index}`) as Konva.Text;
-
-      if (fillBar && bgBar) {
-        const ratio = bar.maxValue > 0 ? bar.value / bar.maxValue : 0;
-        const newWidth = width * ratio;
-
-        // Smooth animation
-        if (Math.abs(fillBar.width() - newWidth) > 0.5) {
-          fillBar.to({
-            width: newWidth,
-            duration: 0.2,
-            easing: Konva.Easings.EaseOut,
-          });
-        } else {
-          fillBar.width(newWidth);
-        }
-
-        fillBar.fill(bar.color);
-        bgBar.width(width);
-
-        // Update positions
-        const y = height + 4 + index * (BAR_HEIGHT + BAR_GAP);
-        bgBar.y(y);
-        fillBar.y(y);
-
-        // Update label and value text
-        if (labelText) {
-          labelText.y(y - 0.5);
-          labelText.text(bar.label);
-        }
-        if (valueText) {
-          valueText.x(width - 2);
-          valueText.y(y - 0.5);
-          valueText.text(`${Math.round(bar.value)}/${Math.round(bar.maxValue)}`);
-        }
-      }
-    });
-
-    // Remove excess bars if bars array shrank
-    for (let i = visibleBars.length; i < 10; i++) {
-      const fillBar = group.findOne(`.bar-fill-${i}`) as Konva.Rect;
-      if (fillBar) fillBar.destroy();
-      const bgBar = group.findOne(`.bar-bg-${i}`) as Konva.Rect;
-      if (bgBar) bgBar.destroy();
-      const labelText = group.findOne(`.bar-label-${i}`) as Konva.Text;
-      if (labelText) labelText.destroy();
-      const valueText = group.findOne(`.bar-value-${i}`) as Konva.Text;
-      if (valueText) valueText.destroy();
+    if (!fogEnabled || gmVision) {
+      this.layer.visible(false);
+      return;
     }
+
+    this.layer.visible(true);
+    this.layer.opacity(this.fogService.opacity());
+
+    const currentShapes = this.fogService.shapes();
+    const currentIds = new Set(currentShapes.map((s) => s.id));
+
+    for (const [id, node] of this.shapeNodes) {
+      if (!currentIds.has(id)) {
+        node.destroy();
+        this.shapeNodes.delete(id);
+      }
+    }
+
+    for (const shape of currentShapes) {
+      this.getOrCreateShapeNode(shape);
+    }
+
+    this.redraw();
   }
 
-  /**
-   * Calculates the area below token occupied by bars.
-   */
-  static getBarsHeight(bars: TokenBar[]): number {
-    const visibleBars = bars.filter((b) => b.visible);
-    if (visibleBars.length === 0) return 0;
-    return visibleBars.length * (BAR_HEIGHT + BAR_GAP) + 2;
+  private getOrCreateShapeNode(shape: FogShape): void {
+    if (this.shapeNodes.has(shape.id)) return;
+
+    let node: Konva.Rect | Konva.Line;
+
+    if (shape.type === 'rectangle') {
+      node = new Konva.Rect({
+        x: shape.x,
+        y: shape.y,
+        width: shape.width ?? 100,
+        height: shape.height ?? 100,
+        fill: '#000000',
+        stroke: '#000000',
+        strokeWidth: 0,
+        listening: false,
+        name: `fog-rect-${shape.id}`,
+      });
+    } else {
+      node = new Konva.Line({
+        points: shape.points ?? [],
+        stroke: '#000000',
+        strokeWidth: 40,
+        lineCap: 'round',
+        lineJoin: 'round',
+        tension: 0.3,
+        closed: false,
+        listening: false,
+        name: `fog-brush-${shape.id}`,
+      });
+    }
+
+    this.shapeNodes.set(shape.id, node);
+    this.layer.add(node);
+    this.redraw();
+  }
+
+  // ════════════════════════════════════════════════════════
+  // RETÂNGULO
+  // ════════════════════════════════════════════════════════
+
+  startRect(worldX: number, worldY: number): void {
+    this.drawingRect = new Konva.Rect({
+      x: worldX,
+      y: worldY,
+      width: 0,
+      height: 0,
+      fill: '#000000',
+      stroke: '#000000',
+      strokeWidth: 0,
+      listening: false,
+      name: 'fog-drawing-rect',
+    });
+    this.layer.add(this.drawingRect);
+    this.isDrawing = true;
+  }
+
+  updateRect(worldX: number, worldY: number): void {
+    if (!this.drawingRect || !this.isDrawing) return;
+    const startX = this.drawingRect.x();
+    const startY = this.drawingRect.y();
+    this.drawingRect.x(Math.min(startX, worldX));
+    this.drawingRect.y(Math.min(startY, worldY));
+    this.drawingRect.width(Math.abs(worldX - startX));
+    this.drawingRect.height(Math.abs(worldY - startY));
+    this.redraw();
+  }
+
+  finishRect(): void {
+    if (!this.drawingRect) return;
+    const rect = this.drawingRect;
+    const shape = this.fogService.addShape({
+      type: 'rectangle',
+      x: rect.x(),
+      y: rect.y(),
+      width: rect.width(),
+      height: rect.height(),
+    });
+    rect.destroy();
+    this.drawingRect = null;
+
+    const node = new Konva.Rect({
+      x: shape.x,
+      y: shape.y,
+      width: shape.width ?? 0,
+      height: shape.height ?? 0,
+      fill: '#000000',
+      stroke: '#000000',
+      strokeWidth: 0,
+      listening: false,
+      name: `fog-rect-${shape.id}`,
+    });
+    this.shapeNodes.set(shape.id, node);
+    this.layer.add(node);
+    this.isDrawing = false;
+    this.redraw();
+  }
+
+  // ════════════════════════════════════════════════════════
+  // BRUSH
+  // ════════════════════════════════════════════════════════
+
+  startBrush(worldX: number, worldY: number): void {
+    this.brushPoints = [worldX, worldY];
+    this.brushLine = new Konva.Line({
+      points: this.brushPoints,
+      stroke: '#000000',
+      strokeWidth: 40,
+      lineCap: 'round',
+      lineJoin: 'round',
+      tension: 0.3,
+      closed: false,
+      listening: false,
+      name: 'fog-drawing-brush',
+    });
+    this.layer.add(this.brushLine);
+    this.isDrawing = true;
+  }
+
+  updateBrush(worldX: number, worldY: number): void {
+    if (!this.isDrawing || !this.brushLine) return;
+    this.brushPoints.push(worldX, worldY);
+    this.brushLine.points(this.brushPoints);
+    this.redraw();
+  }
+
+  finishBrush(): void {
+    if (!this.brushLine || this.brushPoints.length < 4) {
+      this.brushLine?.destroy();
+      this.brushLine = null;
+      this.brushPoints = [];
+      this.isDrawing = false;
+      this.redraw();
+      return;
+    }
+
+    const shape = this.fogService.addShape({
+      type: 'brush',
+      x: this.brushPoints[0],
+      y: this.brushPoints[1],
+      points: [...this.brushPoints],
+    });
+
+    this.brushLine.destroy();
+    this.brushLine = null;
+    this.brushPoints = [];
+
+    const node = new Konva.Line({
+      points: shape.points ?? [],
+      stroke: '#000000',
+      strokeWidth: 40,
+      lineCap: 'round',
+      lineJoin: 'round',
+      tension: 0.3,
+      closed: false,
+      listening: false,
+      name: `fog-brush-${shape.id}`,
+    });
+    this.shapeNodes.set(shape.id, node);
+    this.layer.add(node);
+    this.isDrawing = false;
+    this.redraw();
+  }
+
+  cancelDrawing(): void {
+    if (this.drawingRect) {
+      this.drawingRect.destroy();
+      this.drawingRect = null;
+    }
+    if (this.brushLine) {
+      this.brushLine.destroy();
+      this.brushLine = null;
+    }
+    this.brushPoints = [];
+    this.isDrawing = false;
+    this.redraw();
+  }
+
+  override clear(): void {
+    for (const [, node] of this.shapeNodes) {
+      node.destroy();
+    }
+    this.shapeNodes.clear();
+    this.cancelDrawing();
+    super.clear();
   }
 }

@@ -1,5 +1,5 @@
 import { Injectable, signal, computed } from '@angular/core';
-import { ToolType, TOOL_CURSORS, TOOL_SHORTCUTS } from '../models';
+import { ToolMode, TOOL_CURSORS, TOOL_SHORTCUTS } from '../models';
 
 /**
  * Serviço de gerenciamento de ferramentas ativas.
@@ -7,16 +7,28 @@ import { ToolType, TOOL_CURSORS, TOOL_SHORTCUTS } from '../models';
  */
 @Injectable({ providedIn: 'root' })
 export class ToolService {
-  private activeTool = signal<ToolType>(ToolType.Select);
+  private activeTool = signal<ToolMode>('select');
+  private previousTool = signal<ToolMode>('select');
 
   readonly currentTool = this.activeTool.asReadonly();
   readonly cursor = computed(() => TOOL_CURSORS[this.activeTool()]);
 
-  setTool(tool: ToolType): void {
+  setTool(tool: ToolMode): void {
+    this.previousTool.set(this.activeTool());
     this.activeTool.set(tool);
   }
 
-  isActive(tool: ToolType): boolean {
+  /** Volta para a ferramenta anterior (útil após completar ação) */
+  revertToPrevious(): void {
+    this.activeTool.set(this.previousTool());
+  }
+
+  /** Volta para select */
+  revertToSelect(): void {
+    this.setTool('select');
+  }
+
+  isActive(tool: ToolMode): boolean {
     return this.activeTool() === tool;
   }
 
@@ -31,7 +43,7 @@ export class ToolService {
   }
 
   /** Obtém o tipo de ferramenta atual */
-  getSnapshot(): ToolType {
+  getSnapshot(): ToolMode {
     return this.activeTool();
   }
 }

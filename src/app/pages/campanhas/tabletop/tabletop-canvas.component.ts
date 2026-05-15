@@ -6,6 +6,7 @@ import {
   OnDestroy,
   ChangeDetectionStrategy,
   signal,
+  computed,
   effect,
   inject,
   NgZone,
@@ -24,7 +25,7 @@ import {
   VttEventService,
   PersistenceService,
 } from './services';
-import { ToolType } from './models';
+import { ToolMode } from './models';
 import {
   BackgroundRenderer,
   GridRenderer,
@@ -36,11 +37,13 @@ import { MapContextMenuComponent } from './map-context-menu.component';
 /**
  * Componente principal do Tabletop VTT.
  *
- * SIMPLIFICADO:
- * - SEM toolbar flutuante de mapa
- * - Botão direito abre menu contextual HTML real (MapContextMenuComponent)
- * - Múltiplos mapas suportados simultaneamente via MapService
- * - Render loop via renderAll()
+ * MELHORIA #1 — Ferramenta Modal + Reveal Mode:
+ * - FogMode: toggle modal com '2', '3' ou atalho na toolbar. Fica ativo
+ *   até trocar para Select (1) ou Esc. NÃO reseta após cada desenho.
+ * - RevealMode: Ctrl pressionado durante drag → remove shapes em vez de adicionar.
+ * - toolLabel mostra "🌫 Esconder (▭ Retângulo)" ou "✨ Revelar (✏ Caneta)".
+ *
+ * Ordem de camadas: Grid → Mapas → Fog → Tokens → UI
  */
 @Component({
   selector: 'app-tabletop-canvas',
@@ -48,38 +51,87 @@ import { MapContextMenuComponent } from './map-context-menu.component';
   imports: [CommonModule, MapContextMenuComponent],
   template: `
     <div class="vtt-container">
-      <!-- Toolbar lateral esquerda (global do canvas) -->
+      <!-- Toolbar lateral esquerda -->
       <aside class="toolbar">
         <div class="tool-group">
-          @for (tool of tools; track tool.type) {
+          <!-- Selecionar -->
+          <button
+            class="tool-btn"
+            [class.active]="activeTool() === 'select'"
+            title="Selecionar (1)"
+            (click)="selectTool('select')"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+            </svg>
+          </button>
+
+          <!-- Fog (com submenu) -->
+          <div class="tool-with-submenu" (mouseenter)="onFogSubmenuEnter()" (mouseleave)="onFogSubmenuLeave()">
+
             <button
               class="tool-btn"
-              [class.active]="activeTool() === tool.type"
-              [title]="tool.label + ' (' + tool.shortcut + ')'"
-              (click)="selectTool(tool.type)"
+              [class.active]="activeTool() === 'fog-rectangle' || activeTool() === 'fog-brush'"
+              title="Fog of War"
+              (click)="toggleFog()"
             >
-              <span [innerHTML]="tool.icon"></span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M18 10a4 4 0 00-7.6-1.8A3 3 0 008 11a3 3 0 000 6h10a2 2 0 000-4z" stroke="currentColor" stroke-width="1.5" fill="currentColor" fill-opacity="0.2"/>
+              </svg>
             </button>
-          }
+
+            @if (showFogSubmenu()) {
+              <div class="submenu">
+                <button class="submenu-btn" [class.active]="activeTool() === 'fog-rectangle'" (click)="selectTool('fog-rectangle'); $event.stopPropagation()">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.5"/>
+                  </svg>
+                  Retângulo
+                </button>
+                <button class="submenu-btn" [class.active]="activeTool() === 'fog-brush'" (click)="selectTool('fog-brush'); $event.stopPropagation()">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M3 17l4 4L19 9a2.83 2.83 0 00-4-4L3 17z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                    <path d="M14 6l4 4" stroke="currentColor" stroke-width="1.5"/>
+                  </svg>
+                  Caneta
+                </button>
+                <div class="submenu-divider"></div>
+                <button class="submenu-btn danger" (click)="clearFog(); $event.stopPropagation()">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                  </svg>
+                  Limpar todas
+                </button>
+              </div>
+            }
+          </div>
         </div>
+
         <div class="tool-divider"></div>
+
+        <!-- GM Vision toggle -->
+        <button class="tool-btn" [class.active]="gmVision()" title="GM Vision" (click)="toggleGmVision()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="1.5"/>
+            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
+          </svg>
+        </button>
+
+        <!-- Reset Zoom -->
         <button class="tool-btn" title="Reset Zoom" (click)="resetCamera()">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
             <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/>
             <path d="M8 12h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
           </svg>
         </button>
-        <button class="tool-btn" title="Grid Toggle (G)" (click)="toggleGrid()">
+
+        <!-- Grid Toggle -->
+        <button class="tool-btn" title="Grid (G)" (click)="toggleGrid()">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
             <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5"/>
             <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5"/>
             <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5"/>
             <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5"/>
-          </svg>
-        </button>
-        <button class="tool-btn" title="Fog Toggle (F)" (click)="toggleFog()" [class.active]="fogEnabled()">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-            <path d="M3 12h18M3 16h12M3 20h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
           </svg>
         </button>
       </aside>
@@ -108,20 +160,22 @@ import { MapContextMenuComponent } from './map-context-menu.component';
             </button>
           </div>
         }
+
+        <!-- Indicador de ferramenta ativa -->
+        @if (activeTool() !== 'select') {
+
+          <div class="tool-indicator">{{ toolLabel() }}</div>
+        }
       </div>
 
       <!-- File upload input -->
       <input #mapFileInput type="file" accept="image/jpeg,image/png,image/webp" (change)="handleMapUpload($event)" hidden />
       <input #tokenFileInput type="file" accept="image/*" (change)="handleTokenUpload($event)" hidden />
 
-      <!-- ════════════════════════════════════════════════════
-           MENU CONTEXTUAL — COMPONENTE SEPARADO (fora do Konva)
-           ════════════════════════════════════════════════════ -->
+      <!-- Menu contextual -->
       <app-map-context-menu />
 
-      <!-- ════════════════════════════════════════════════════
-           MODAL DE AVISO — IMAGEM MUITO GRANDE
-           ════════════════════════════════════════════════════ -->
+      <!-- Modal de aviso de tamanho -->
       @if (showSizeWarning()) {
         <div class="modal-overlay" (click)="closeSizeWarning()">
           <div class="modal-content" (click)="$event.stopPropagation()">
@@ -176,6 +230,19 @@ import { MapContextMenuComponent } from './map-context-menu.component';
       pointer-events: none;
       z-index: 10;
     }
+    .tool-indicator {
+      position: absolute;
+      top: 12px; left: 50%; transform: translateX(-50%);
+      background: rgba(79,195,247,0.15);
+      color: #4fc3f7;
+      padding: 4px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      border: 1px solid rgba(79,195,247,0.3);
+      pointer-events: none;
+      z-index: 10;
+    }
     .toolbar {
       width: 48px;
       background: #16162a;
@@ -200,10 +267,10 @@ import { MapContextMenuComponent } from './map-context-menu.component';
       transition: all 0.15s ease;
     }
     .tool-btn:hover { color: #ccc; background: #1e1e3a; }
-    .tool-btn.active { color: #4fc3f7; background: rgba(79, 195, 247, 0.1); }
+    .tool-btn.active { color: #4fc3f7; background: rgba(79, 195, 247, 0.1); border-color: rgba(79,195,247,0.3); }
     .map-quick-actions {
       position: absolute;
-      top: 12px; left: 50%; transform: translateX(-50%);
+      top: 12px; left: 56px;
       background: rgba(22,22,42,0.85);
       backdrop-filter: blur(8px);
       border: 1px solid rgba(255,255,255,0.1);
@@ -218,6 +285,45 @@ import { MapContextMenuComponent } from './map-context-menu.component';
       color: #8a8aaa; cursor: pointer; transition: all 0.15s;
     }
     .quick-btn:hover { color: #fff; background: rgba(255,255,255,0.1); }
+
+    /* ═══════════════════════════════════════════
+       SUBMENU
+       ═══════════════════════════════════════════ */
+    .tool-with-submenu { position: relative; }
+    .submenu {
+      position: absolute;
+      left: 100%;
+      top: -4px;
+      margin-left: 4px;
+      background: #1e1e3a;
+      border: 1px solid #2a2a4a;
+      border-radius: 8px;
+      padding: 4px;
+      min-width: 160px;
+      z-index: 1000;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .submenu-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: transparent;
+      border: none;
+      border-radius: 4px;
+      color: #b0b0c0;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.12s;
+      white-space: nowrap;
+    }
+    .submenu-btn:hover { background: rgba(79,195,247,0.1); color: #e0e0e0; }
+    .submenu-btn.active { background: rgba(79,195,247,0.15); color: #4fc3f7; }
+    .submenu-btn.danger:hover { background: rgba(244,67,54,0.1); color: #f44336; }
+    .submenu-divider { height: 1px; background: #2a2a4a; margin: 4px 8px; }
 
     /* ═══════════════════════════════════════════
        MODAL DE AVISO
@@ -242,46 +348,16 @@ import { MapContextMenuComponent } from './map-context-menu.component';
       padding: 16px 20px;
       border-bottom: 1px solid #2a2a4a;
     }
-    .modal-header h3 {
-      margin: 0;
-      font-size: 16px;
-      font-weight: 600;
-      color: #e0e0e0;
-    }
-    .modal-body {
-      padding: 20px;
-      color: #b0b0c0;
-      font-size: 14px;
-      line-height: 1.6;
-    }
-    .modal-body strong {
-      color: #e0e0e0;
-    }
-    .modal-hint {
-      margin-top: 12px;
-      font-size: 12px;
-      color: #6a6a8a;
-      font-style: italic;
-    }
-    .modal-footer {
-      padding: 12px 20px;
-      border-top: 1px solid #2a2a4a;
-      display: flex; justify-content: flex-end;
-    }
+    .modal-header h3 { margin: 0; font-size: 16px; font-weight: 600; color: #e0e0e0; }
+    .modal-body { padding: 20px; color: #b0b0c0; font-size: 14px; line-height: 1.6; }
+    .modal-body strong { color: #e0e0e0; }
+    .modal-hint { margin-top: 12px; font-size: 12px; color: #6a6a8a; font-style: italic; }
+    .modal-footer { padding: 12px 20px; border-top: 1px solid #2a2a4a; display: flex; justify-content: flex-end; }
     .modal-btn {
-      background: #4fc3f7;
-      color: #0a0a1a;
-      border: none;
-      border-radius: 6px;
-      padding: 8px 24px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.15s;
+      background: #4fc3f7; color: #0a0a1a; border: none; border-radius: 6px;
+      padding: 8px 24px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.15s;
     }
-    .modal-btn:hover {
-      background: #39a9db;
-    }
+    .modal-btn:hover { background: #39a9db; }
   `],
 
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -299,12 +375,41 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
   @ViewChild(MapContextMenuComponent)
   private contextMenuComponent!: MapContextMenuComponent;
 
-  // Limite seguro: ~3MB de arquivo original ≈ ~4MB de dataURL, dentro do localStorage (~5-10MB)
-  private readonly MAX_IMAGE_FILE_BYTES = 3 * 1024 * 1024; // 3MB
+  // Limite: ~3MB de arquivo original ≈ ~4MB de dataURL
+  private readonly MAX_IMAGE_FILE_BYTES = 3 * 1024 * 1024;
 
-  // Modal de erro de tamanho
+  // Modal de erro
   readonly showSizeWarning = signal(false);
   readonly sizeWarningData = signal<{ name: string; fileSizeMB: string; maxSizeMB: string } | null>(null);
+
+  // Submenu fog — com delay para permitir mouse sair do botão em direção ao submenu
+  readonly showFogSubmenu = signal(false);
+  private fogSubmenuTimer: ReturnType<typeof setTimeout> | null = null;
+
+  protected onFogSubmenuEnter(): void {
+    if (this.fogSubmenuTimer) {
+      clearTimeout(this.fogSubmenuTimer);
+      this.fogSubmenuTimer = null;
+    }
+    this.showFogSubmenu.set(true);
+  }
+
+  protected onFogSubmenuLeave(): void {
+    this.fogSubmenuTimer = setTimeout(() => {
+      this.showFogSubmenu.set(false);
+    }, 200); // 200ms de tolerância para o mouse alcançar o submenu
+  }
+
+  // Tool label para indicator — mostra ação atual + ferramenta
+  readonly toolLabel = computed(() => {
+    const tool = this.activeTool();
+    if (tool === 'select') return '';
+
+    const revealing = this.fogService.revealMode();
+    const sub = tool === 'fog-rectangle' ? '▭ Retângulo' : '✏ Caneta';
+    const action = revealing ? '✨ Revelar' : '🌫 Esconder';
+    return `${action} (${sub})`;
+  });
 
   // Serviços
   private ngZone = inject(NgZone);
@@ -321,31 +426,23 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
   // Signals UI
   readonly activeTool = this.toolService.currentTool;
   readonly zoomLevel = this.cameraService.scale;
-  readonly fogEnabled = this.fogService.enabled;
+  readonly gmVision = this.fogService.gmVision;
   readonly selectedMap = this.mapService.selectedMap;
-
-  protected tools = [
-    { type: ToolType.Select, label: 'Selecionar', shortcut: '1', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>' },
-    { type: ToolType.Pan, label: 'Mover', shortcut: 'Space', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
-    { type: ToolType.FogReveal, label: 'Revelar', shortcut: '3', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="5" fill="currentColor" opacity="0.3"/><circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="1.5"/></svg>' },
-    { type: ToolType.FogHide, label: 'Esconder', shortcut: '4', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="5" fill="currentColor"/><path d="M3 3l18 18" stroke="currentColor" stroke-width="1.5"/></svg>' },
-  ];
-  protected activeToolLabel = this.toolService.currentTool;
 
   // Stage Konva
   private stage!: Konva.Stage;
   private backgroundRenderer!: BackgroundRenderer;
-  private renderers: (GridRenderer | TokenRenderer | FogRenderer)[] = [];
+  private gridRenderer!: GridRenderer;
+  private fogRenderer!: FogRenderer;
+  private tokenRenderer!: TokenRenderer;
+  private renderers: any[] = [];
   private isSpaceDown = false;
   private isMiddleMouseDown = false;
 
   constructor() {
-    console.log('[ORDER] 0 CONSTRUCTOR');
     effect(() => {
-      // Monitora alterações nos signals e re-renderiza
       this.tokenService.tokenList();
       this.mapService.mapList();
-      console.log('[RENDER] EFFECT mapList mudou. maps:', this.mapService.mapList().length);
       if (this.stage) {
         this.renderAll();
       }
@@ -353,30 +450,16 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit(): void {
-    console.log('[ORDER] 1 ngAfterViewInit');
-    console.log('[ORDER] 2 initStage');
     this.initStage();
-    console.log('[ORDER] 3 initRenderers');
     this.initRenderers();
-    console.log('[ORDER] 4 setupEventListeners');
     this.setupEventListeners();
-    console.log('[ORDER] 5 loadCampaignData');
     this.loadCampaignData();
-
-    console.log('[ORDER] 6 applyCameraToStage');
-    // Depois de carregar, aplica câmera no stage
     this.applyCameraToStage();
-
-    console.log('[ORDER] 7 FIM ngAfterViewInit', {
-      stageExists: !!this.stage,
-      bgRendererExists: !!this.backgroundRenderer,
-      mapsCount: this.mapService.mapList().length,
-    });
   }
 
   ngOnDestroy(): void {
     this.eventService.completeAll();
-    this.renderers.forEach((r) => r.destroy());
+    this.renderers.forEach((r: any) => r.destroy());
     this.backgroundRenderer?.destroy();
     this.stage?.destroy();
   }
@@ -389,9 +472,19 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
   }
 
   private initRenderers(): void {
+    // Ordem de adição no stage determina z-order
+    // 1) Grid (mais ao fundo)
+    this.gridRenderer = new GridRenderer(this.stage, this.gridService);
+    // 2) Background (mapas)
     this.backgroundRenderer = new BackgroundRenderer(this.stage, this.mapService);
+    // 3) Fog
+    this.fogRenderer = new FogRenderer(this.stage, this.fogService);
+    // 4) Tokens
+    this.tokenRenderer = new TokenRenderer(this.stage, this.tokenService, this.gridService, this.eventService);
 
-    // Callback: clique no fundo → deseleciona
+    this.renderers = [this.gridRenderer, this.backgroundRenderer, this.fogRenderer, this.tokenRenderer];
+
+    // Callback: clique no fundo do background → deseleciona
     this.backgroundRenderer.onBackgroundClick = () => {
       this.ngZone.run(() => {
         this.mapService.deselectMap();
@@ -399,23 +492,28 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
       });
     };
 
-    // Callback: botão direito no mapa → abre menu contextual HTML
+    // Callback: botão direito no mapa → menu contextual
     this.backgroundRenderer.onContextMenu = (mapId: string, clientX: number, clientY: number) => {
-      console.log('[ContextMenu] onContextMenu callback chamado', { mapId, clientX, clientY });
       this.ngZone.run(() => {
         if (this.contextMenuComponent) {
           this.contextMenuComponent.open(mapId, clientX, clientY);
-        } else {
-          console.warn('[ContextMenu] contextMenuComponent não disponível');
         }
       });
     };
+  }
 
-    this.renderers = [
-      new GridRenderer(this.stage, this.gridService),
-      new TokenRenderer(this.stage, this.tokenService, this.gridService, this.eventService),
-      new FogRenderer(this.stage, this.fogService),
-    ];
+  /** Converte coordenadas da tela para coordenadas do mundo (considerando zoom/pan) */
+  private screenToWorld(clientX: number, clientY: number): { x: number; y: number } {
+    const containerRect = this.containerRef.nativeElement.getBoundingClientRect();
+    const screenX = clientX - containerRect.left;
+    const screenY = clientY - containerRect.top;
+    const stageX = this.stage.x();
+    const stageY = this.stage.y();
+    const scale = this.stage.scaleX();
+    return {
+      x: (screenX - stageX) / scale,
+      y: (screenY - stageY) / scale,
+    };
   }
 
   private setupEventListeners(): void {
@@ -457,54 +555,102 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
       this.renderAll();
     });
 
-    // Mouse down
+    // ── Mouse down ──
     this.stage.on('mousedown', (e: Konva.KonvaEventObject<MouseEvent>) => {
-      if (!this.stage.getPointerPosition()) return;
+      const pos = this.stage.getPointerPosition();
+      if (!pos) return;
+
+      // Pan com botão do meio ou space
       if (e.evt.button === 1 || this.isSpaceDown) {
         this.cameraService.startPan();
         this.isMiddleMouseDown = true;
         this.stage.container().style.cursor = 'grabbing';
         return;
       }
-      if (e.evt.button === 2) return; // botão direito tratado via contextmenu
+
+      // Botão direito ignorado (contextmenu trata)
+      if (e.evt.button === 2) return;
+
+      const tool = this.activeTool();
+
+      // ── FOG MODE: detecta Ctrl para reveal ──
+      if (tool === 'fog-rectangle' || tool === 'fog-brush') {
+        this.fogService.setRevealMode(e.evt.ctrlKey);
+        const world = this.screenToWorld(e.evt.clientX, e.evt.clientY);
+        if (tool === 'fog-rectangle') {
+          this.fogRenderer.startRect(world.x, world.y);
+        } else {
+          this.fogRenderer.startBrush(world.x, world.y);
+        }
+        return;
+      }
+
+      // ── SELECT - deseleciona ao clicar no fundo ──
       if (e.target === this.stage) {
         this.mapService.deselectMap();
         this.tokenService.deselectAll();
       }
     });
 
-    // Mouse move (pan)
+    // ── Mouse move ──
     this.stage.on('mousemove', (e: Konva.KonvaEventObject<MouseEvent>) => {
-      if (!this.isMiddleMouseDown && !this.isSpaceDown) return;
-      this.stage.x(this.stage.x() + e.evt.movementX);
-      this.stage.y(this.stage.y() + e.evt.movementY);
-      this.cameraService.updateState(this.stage.x(), this.stage.y(), this.stage.scaleX());
-      this.renderAll();
+      // Pan
+      if (this.isMiddleMouseDown || this.isSpaceDown) {
+        this.stage.x(this.stage.x() + e.evt.movementX);
+        this.stage.y(this.stage.y() + e.evt.movementY);
+        this.cameraService.updateState(this.stage.x(), this.stage.y(), this.stage.scaleX());
+        this.renderAll();
+        return;
+      }
+
+      const tool = this.activeTool();
+
+      // ── FOG — atualiza reveal mode se Ctrl mudar durante o drag ──
+      if (tool === 'fog-rectangle' || tool === 'fog-brush') {
+        this.fogService.setRevealMode(e.evt.ctrlKey);
+        const world = this.screenToWorld(e.evt.clientX, e.evt.clientY);
+        if (tool === 'fog-rectangle' && this.fogRenderer.isDrawing) {
+          this.fogRenderer.updateRect(world.x, world.y);
+        } else if (tool === 'fog-brush' && this.fogRenderer.isDrawing) {
+          this.fogRenderer.updateBrush(world.x, world.y);
+        }
+        return;
+      }
     });
 
-    // Mouse up
+    // ── Mouse up ──
     this.stage.on('mouseup', () => {
       if (this.isMiddleMouseDown) {
         this.cameraService.endPan();
         this.isMiddleMouseDown = false;
         this.stage.container().style.cursor = 'default';
+        return;
+      }
+
+      const tool = this.activeTool();
+
+      // ── FOG — finish sem revertToSelect (modal!) ──
+      if (tool === 'fog-rectangle') {
+        this.fogRenderer.finishRect();
+        this.fogService.setRevealMode(false);
+        this.renderAll();
+        return;
+      }
+
+      if (tool === 'fog-brush') {
+        this.fogRenderer.finishBrush();
+        this.fogService.setRevealMode(false);
+        this.renderAll();
+        return;
       }
     });
 
-    // Context menu no stage tenta identificar qual shape está sob o mouse
+    // Context menu no stage
     this.stage.on('contextmenu', (e: Konva.KonvaEventObject<PointerEvent>) => {
       e.evt.preventDefault();
-      console.log('[ContextMenu] Stage contextmenu disparado', {
-        targetName: e.target?.name?.() ?? 'unknown',
-        clientX: e.evt.clientX,
-        clientY: e.evt.clientY,
-      });
-
       const target = e.target;
-      // Verifica se clicou em uma imagem de mapa
       if (target && target.name()?.startsWith('map-image-')) {
         const mapId = target.name()!.replace('map-image-', '');
-        console.log('[ContextMenu] Clicou no mapa:', mapId);
         this.ngZone.run(() => {
           this.mapService.selectMap(mapId);
           if (this.contextMenuComponent) {
@@ -516,8 +662,26 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
   }
 
   // ════════════════════════════════════════════════════════
-  // CÂMERA E FERRAMENTAS
+  // FERRAMENTAS
   // ════════════════════════════════════════════════════════
+
+  protected selectTool(tool: ToolMode): void {
+    this.toolService.setTool(tool);
+    // Fecha submenu ao selecionar
+    if (tool === 'fog-rectangle' || tool === 'fog-brush') {
+      this.showFogSubmenu.set(false);
+      // Garante que o fog está ativado para o desenho aparecer
+      if (!this.fogService.enabled()) {
+        this.fogService.toggle();
+      }
+      this.renderAll();
+    }
+  }
+
+  protected toggleGmVision(): void {
+    this.fogService.toggleGmVision();
+    this.renderAll();
+  }
 
   protected resetCamera(): void {
     this.cameraService.reset();
@@ -536,8 +700,11 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
     this.renderAll();
   }
 
-  protected selectTool(toolType: ToolType): void {
-    this.toolService.setTool(toolType);
+  protected clearFog(): void {
+    this.fogService.clearAll();
+    this.fogRenderer.clear();
+    this.renderAll();
+    this.showFogSubmenu.set(false);
   }
 
   protected preventContextMenu(e: Event): void {
@@ -546,28 +713,51 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
 
   protected handleKeyDown(event: KeyboardEvent): void {
     this.eventService.emitKeyDown(event);
+
     if (event.key === ' ') {
       this.isSpaceDown = true;
       event.preventDefault();
       return;
     }
+
+    // Ctrl: ativa reveal mode
+    if (event.key === 'Control') {
+      this.fogService.setRevealMode(true);
+    }
+
     if (this.toolService.handleShortcut(event.key)) {
       event.preventDefault();
+      this.showFogSubmenu.set(false);
+      // Se escolheu ferramenta de fog, garante que fog está ativado
+      const tool = this.activeTool();
+      if (tool === 'fog-rectangle' || tool === 'fog-brush') {
+        if (!this.fogService.enabled()) {
+          this.fogService.toggle();
+        }
+        this.renderAll();
+      }
       return;
     }
+
     if (event.key === 'Escape') {
+      // Cancela desenho de fog em progresso + volta pra select
+      this.fogRenderer.cancelDrawing();
+      this.toolService.revertToSelect();
+      this.fogService.setRevealMode(false);
       this.mapService.deselectMap();
       this.tokenService.deselectAll();
       this.renderAll();
       return;
     }
+
     switch (event.key) {
       case 'g': case 'G': this.toggleGrid(); break;
-      case 'f': case 'F': this.toggleFog(); break;
+      case 'f': case 'F': this.toggleGmVision(); break;
       case 'Delete': case 'Backspace': this.tokenService.removeSelected(); this.renderAll(); break;
       case 'c': if (event.ctrlKey) this.tokenService.copySelected(); break;
       case 'v': if (event.ctrlKey) { this.tokenService.pasteFromClipboard(); this.renderAll(); } break;
       case 'd': if (event.ctrlKey) { this.tokenService.duplicateSelected(); this.renderAll(); } break;
+      case 'z': if (event.ctrlKey) { /* future: undo */ } break;
     }
   }
 
@@ -581,10 +771,13 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
         this.stage.container().style.cursor = 'default';
       }
     }
+    if (event.key === 'Control') {
+      this.fogService.setRevealMode(false);
+    }
   }
 
   // ════════════════════════════════════════════════════════
-  // AÇÕES DO MAPA (quick actions)
+  // AÇÕES DO MAPA
   // ════════════════════════════════════════════════════════
 
   centerMap(): void {
@@ -627,11 +820,9 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
     const file = target.files?.[0];
     if (!file) return;
 
-    // ── Verifica tamanho ANTES de carregar ──
     if (file.size > this.MAX_IMAGE_FILE_BYTES) {
       const mb = (file.size / (1024 * 1024)).toFixed(1);
       const maxMB = (this.MAX_IMAGE_FILE_BYTES / (1024 * 1024)).toFixed(0);
-      console.warn('[TabletopCanvas] Imagem muito grande:', file.name, file.size, 'bytes');
       this.sizeWarningData.set({ name: file.name, fileSizeMB: mb, maxSizeMB: maxMB });
       this.showSizeWarning.set(true);
       target.value = '';
@@ -643,7 +834,6 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
       this.mapService.centerMap(map.id, size.width, size.height);
       this.renderAll();
       target.value = '';
-      console.log('[TabletopCanvas] Mapa carregado:', map.name, 'total mapas:', this.mapService.mapList().length);
     });
   }
 
@@ -687,14 +877,12 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
     for (const renderer of this.renderers) {
       renderer.render(this.cameraService);
     }
-    this.backgroundRenderer?.render(this.cameraService);
   }
 
   // ════════════════════════════════════════════════════════
   // LOAD
   // ════════════════════════════════════════════════════════
 
-  /** Aplica o estado salvo da câmera no Stage Konva */
   private applyCameraToStage(): void {
     const cam = this.cameraService.getSnapshot();
     this.stage.position({ x: cam.x, y: cam.y });
@@ -706,13 +894,6 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
     if (campaignId) {
       this.fogService.setCampaignId(campaignId);
     }
-
-    // Persistência unificada — carrega maps, tokens, camera, fog, grid
     this.persistence.load();
-
-    console.log('[TabletopCanvas] Dados carregados', {
-      maps: this.mapService.mapList().length,
-      tokens: this.tokenService.tokenList().length,
-    });
   }
 }

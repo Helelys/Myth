@@ -1,40 +1,41 @@
 /**
- * Modo da ferramenta de Fog of War.
+ * Uma shape de fog (retângulo ou brush).
+ * Armazenada como dado serializável — NUNCA guarda referência Konva.
  */
-export enum FogMode {
-  /** Revela área (remove fog) */
-  Reveal = 'reveal',
-  /** Esconde área (adiciona fog) */
-  Hide = 'hide',
-  /** Pincel para revelar */
-  Brush = 'brush',
-  /** Apagar revelação */
-  Erase = 'erase',
+export interface FogShape {
+  id: string;
+  type: 'rectangle' | 'brush';
+  /** Posição (rect: canto superior esquerdo) */
+  x: number;
+  y: number;
+  /** Dimensões (rect) */
+  width?: number;
+  height?: number;
+  /** Pontos do brush (array alternado x,y) */
+  points?: number[];
 }
 
 /**
  * Dados do Fog of War.
- * A fog é armazenada como uma imagem canvas (dataURL) para performance.
+ * Agora baseado em vetores/shapes, não em canvas image.
  */
 export interface FogData {
   /** Caminho/identificador da campanha */
   campaignId: string;
-  /** Dados da imagem da fog em base64/dataURL */
-  fogImage: string;
+  /** Shapes de fog */
+  shapes: FogShape[];
   /** Opacidade da fog (0-1) */
   opacity: number;
   /** Se a fog está ativa */
   enabled: boolean;
   /** Se o GM pode ver através da fog */
   gmVision: boolean;
-  /** Raio do pincel para revelar/esconder */
-  brushRadius: number;
 }
 
 /** Valores padrão para Fog */
-export const DEFAULT_FOG_DATA: Omit<FogData, 'campaignId' | 'fogImage'> = {
-  opacity: 0.7,
+export const DEFAULT_FOG_DATA: Omit<FogData, 'campaignId'> = {
+  shapes: [],
+  opacity: 0.75,
   enabled: true,
   gmVision: true,
-  brushRadius: 60,
 };

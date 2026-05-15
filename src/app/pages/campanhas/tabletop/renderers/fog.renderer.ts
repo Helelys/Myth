@@ -1,196 +1,253 @@
 import Konva from 'konva';
 import { BaseRenderer } from './base-renderer';
-import { LayerType } from '../models';
+import { LayerType, FogShape } from '../models';
 import { CameraService, FogService } from '../services';
 
 /**
- * Renderer do Fog of War.
+ * Renderer do Fog of War — VERSÃO BASEADA EM SHAPES.
  *
- * Implementação:
- * - Uma camada preta semi-transparente sobre o canvas
- * - Áreas reveladas usam composite operation 'destination-out' via pincel
- * - A fog é persistida como dataURL
- * - O GM pode alternar visão total (gmVision)
+ * Renderiza shapes de fog como Konva.Rect e Konva.Line.
  *
- * A fog é desenhada em coordenadas do screen/container para alinhar
- * com o zoom e pan sem distorcer o pincel.
+ * Cada fog shape é um retângulo preto ou uma linha (brush) preta.
+ * A opacidade da layer controla a intensidade da neblina.
  */
 export class FogRenderer extends BaseRenderer {
-  /** Imagem da fog (preto com áreas transparentes reveladas) */
-  private fogImage: Konva.Image | null = null;
-  /** Canvas off-screen para manipular a fog */
-  private offscreenCanvas: HTMLCanvasElement | null = null;
-  private offscreenCtx: CanvasRenderingContext2D | null = null;
-  /** Estado de pintura */
-  private isPainting = false;
+  private shapeNodes = new Map<string, Konva.Rect | Konva.Line>();
+  private drawingRect: Konva.Rect | null = null;
+  private brushPoints: number[] = [];
+  private brushLine: Konva.Line | null = null;
+  isDrawing = false;
 
   constructor(
     stage: Konva.Stage,
     private fogService: FogService,
   ) {
     super(LayerType.Fog, stage);
-    this.initOffscreen();
-  }
-
-  private initOffscreen(): void {
-    this.offscreenCanvas = document.createElement('canvas');
-    this.offscreenCanvas.width = 2000;
-    this.offscreenCanvas.height = 2000;
-    this.offscreenCtx = this.offscreenCanvas.getContext('2d');
-
-    if (this.offscreenCtx) {
-      // Inicializa tudo preto (fog total)
-      this.offscreenCtx.fillStyle = '#000000';
-      this.offscreenCtx.fillRect(0, 0, 2000, 2000);
-    }
+    this.layer.listening(true);
   }
 
   override render(camera: CameraService): void {
-    const fog = this.fogService.getSnapshot();
+    const fogEnabled = this.fogService.enabled();
+    const gmVision = this.fogService.gmVision();
 
-    if (!fog.enabled) {
+    if (!fogEnabled || gmVision) {
       this.layer.visible(false);
       return;
     }
 
     this.layer.visible(true);
-    this.layer.opacity(fog.opacity);
+    this.layer.opacity(this.fogService.opacity());
 
-    // Se GM vision está ativo, esconde a layer
-    if (fog.gmVision) {
-      this.layer.visible(false);
+    const currentShapes = this.fogService.shapes();
+    const currentIds = new Set(currentShapes.map((s) => s.id));
+
+    for (const [id, node] of this.shapeNodes) {
+      if (!currentIds.has(id)) {
+        node.destroy();
+        this.shapeNodes.delete(id);
+      }
+    }
+
+    for (const shape of currentShapes) {
+      this.getOrCreateShapeNode(shape);
+    }
+
+    this.redraw();
+  }
+
+  private getOrCreateShapeNode(shape: FogShape): void {
+    if (this.shapeNodes.has(shape.id)) return;
+
+    let node: Konva.Rect | Konva.Line;
+
+    if (shape.type === 'rectangle') {
+      node = new Konva.Rect({
+        x: shape.x,
+        y: shape.y,
+        width: shape.width ?? 100,
+        height: shape.height ?? 100,
+        fill: '#000000',
+        stroke: '#000000',
+        strokeWidth: 0,
+        listening: false,
+        name: `fog-rect-${shape.id}`,
+      });
+    } else {
+      node = new Konva.Line({
+        points: shape.points ?? [],
+        stroke: '#000000',
+        strokeWidth: 40,
+        lineCap: 'round',
+        lineJoin: 'round',
+        tension: 0.3,
+        closed: false,
+        listening: false,
+        name: `fog-brush-${shape.id}`,
+      });
+    }
+
+    this.shapeNodes.set(shape.id, node);
+    this.layer.add(node);
+    this.redraw();
+  }
+
+  startRect(worldX: number, worldY: number): void {
+    this.drawingRect = new Konva.Rect({
+      x: worldX,
+      y: worldY,
+      width: 0,
+      height: 0,
+      fill: '#000000',
+      stroke: '#000000',
+      strokeWidth: 0,
+      listening: false,
+      name: 'fog-drawing-rect',
+    });
+    this.layer.add(this.drawingRect);
+    this.isDrawing = true;
+  }
+
+  updateRect(worldX: number, worldY: number): void {
+    if (!this.drawingRect || !this.isDrawing) return;
+    const startX = this.drawingRect.x();
+    const startY = this.drawingRect.y();
+    this.drawingRect.x(Math.min(startX, worldX));
+    this.drawingRect.y(Math.min(startY, worldY));
+    this.drawingRect.width(Math.abs(worldX - startX));
+    this.drawingRect.height(Math.abs(worldY - startY));
+    this.redraw();
+  }
+
+  finishRect(): void {
+    if (!this.drawingRect) return;
+    const rect = this.drawingRect;
+    const rx = rect.x();
+    const ry = rect.y();
+    const rw = rect.width();
+    const rh = rect.height();
+
+    if (this.fogService.revealMode()) {
+      // REVEAL: remove shapes na área do retângulo
+      this.fogService.removeShapesInRect(rx, ry, rw, rh);
+    } else {
+      // ESCONDE: adiciona shape
+      const shape = this.fogService.addShape({
+        type: 'rectangle',
+        x: rx,
+        y: ry,
+        width: rw,
+        height: rh,
+      });
+      const node = new Konva.Rect({
+        x: shape.x,
+        y: shape.y,
+        width: shape.width ?? 0,
+        height: shape.height ?? 0,
+        fill: '#000000',
+        stroke: '#000000',
+        strokeWidth: 0,
+        listening: false,
+        name: `fog-rect-${shape.id}`,
+      });
+      this.shapeNodes.set(shape.id, node);
+      this.layer.add(node);
+    }
+
+    rect.destroy();
+    this.drawingRect = null;
+    this.isDrawing = false;
+    this.redraw();
+  }
+
+  startBrush(worldX: number, worldY: number): void {
+    this.brushPoints = [worldX, worldY];
+    this.brushLine = new Konva.Line({
+      points: this.brushPoints,
+      stroke: '#000000',
+      strokeWidth: 40,
+      lineCap: 'round',
+      lineJoin: 'round',
+      tension: 0.3,
+      closed: false,
+      listening: false,
+      name: 'fog-drawing-brush',
+    });
+    this.layer.add(this.brushLine);
+    this.isDrawing = true;
+  }
+
+  updateBrush(worldX: number, worldY: number): void {
+    if (!this.isDrawing || !this.brushLine) return;
+    this.brushPoints.push(worldX, worldY);
+    this.brushLine.points(this.brushPoints);
+    this.redraw();
+  }
+
+  finishBrush(): void {
+    if (!this.brushLine || this.brushPoints.length < 4) {
+      this.brushLine?.destroy();
+      this.brushLine = null;
+      this.brushPoints = [];
+      this.isDrawing = false;
       this.redraw();
       return;
     }
 
-    // Cria ou atualiza a imagem da fog
-    if (!this.fogImage && this.offscreenCanvas) {
-      this.fogImage = new Konva.Image({
-        image: this.offscreenCanvas,
-        x: 0,
-        y: 0,
-        width: camera.getContainerSize().width,
-        height: camera.getContainerSize().height,
-        listening: true,
-        name: 'fog-image',
-      });
+    const pts = [...this.brushPoints];
 
-      this.setupFogBrush();
-      this.layer.add(this.fogImage);
-    }
-
-    // Carrega fog persistida se existir
-    if (fog.fogImage && this.offscreenCanvas) {
-      const img = new Image();
-      img.onload = () => {
-        if (this.offscreenCtx) {
-          this.offscreenCtx.clearRect(
-            0,
-            0,
-            this.offscreenCanvas!.width,
-            this.offscreenCanvas!.height,
-          );
-          this.offscreenCtx.drawImage(img, 0, 0);
-          this.redraw();
-        }
-      };
-      img.src = fog.fogImage;
-    }
-
-    this.redraw();
-  }
-
-  private setupFogBrush(): void {
-    if (!this.fogImage) return;
-
-    this.fogImage.on('mousedown', (e: Konva.KonvaEventObject<MouseEvent>) => {
-      if (e.evt.button !== 0) return;
-      this.isPainting = true;
-      this.paintAt(e);
-    });
-
-    this.fogImage.on('mousemove', (e: Konva.KonvaEventObject<MouseEvent>) => {
-      if (!this.isPainting) return;
-      this.paintAt(e);
-    });
-
-    this.fogImage.on('mouseup', () => {
-      this.isPainting = false;
-      this.saveFog();
-    });
-
-    this.fogImage.on('mouseleave', () => {
-      this.isPainting = false;
-    });
-  }
-
-  private paintAt(e: Konva.KonvaEventObject<MouseEvent>): void {
-    if (!this.offscreenCtx || !this.offscreenCanvas || !this.fogImage) return;
-
-    const pos = this.fogImage.getStage()?.getPointerPosition();
-    if (!pos) return;
-
-    const fog = this.fogService.getSnapshot();
-    const mode = this.fogService.currentMode();
-
-    this.offscreenCtx.save();
-
-    if (mode === 'reveal' || mode === 'brush') {
-      // Revela: usa destination-out para tornar transparente
-      this.offscreenCtx.globalCompositeOperation = 'destination-out';
-      this.offscreenCtx.beginPath();
-      this.offscreenCtx.arc(
-        pos.x,
-        pos.y,
-        fog.brushRadius,
-        0,
-        Math.PI * 2,
-      );
-      this.offscreenCtx.fill();
+    if (this.fogService.revealMode()) {
+      // REVEAL: remove shapes que interseptam o brush stroke
+      this.fogService.removeShapesInBrushBounds(pts, 40);
     } else {
-      // Esconde: pinta preto
-      this.offscreenCtx.globalCompositeOperation = 'source-over';
-      this.offscreenCtx.fillStyle = '#000000';
-      this.offscreenCtx.beginPath();
-      this.offscreenCtx.arc(
-        pos.x,
-        pos.y,
-        fog.brushRadius,
-        0,
-        Math.PI * 2,
-      );
-      this.offscreenCtx.fill();
+      // ESCONDE: adiciona shape
+      const shape = this.fogService.addShape({
+        type: 'brush',
+        x: pts[0],
+        y: pts[1],
+        points: pts,
+      });
+      const node = new Konva.Line({
+        points: shape.points ?? [],
+        stroke: '#000000',
+        strokeWidth: 40,
+        lineCap: 'round',
+        lineJoin: 'round',
+        tension: 0.3,
+        closed: false,
+        listening: false,
+        name: `fog-brush-${shape.id}`,
+      });
+      this.shapeNodes.set(shape.id, node);
+      this.layer.add(node);
     }
 
-    this.offscreenCtx.restore();
+    this.brushLine.destroy();
+    this.brushLine = null;
+    this.brushPoints = [];
+    this.isDrawing = false;
     this.redraw();
   }
 
-  private saveFog(): void {
-    if (this.offscreenCanvas) {
-      const dataUrl = this.offscreenCanvas.toDataURL();
-      this.fogService.setFogImage(dataUrl);
+  cancelDrawing(): void {
+    if (this.drawingRect) {
+      this.drawingRect.destroy();
+      this.drawingRect = null;
     }
-  }
-
-  /** Revela uma área circular (útil para reveal inicial) */
-  revealCircle(worldX: number, worldY: number, radius: number): void {
-    if (!this.offscreenCtx) return;
-
-    this.offscreenCtx.save();
-    this.offscreenCtx.globalCompositeOperation = 'destination-out';
-    this.offscreenCtx.beginPath();
-    this.offscreenCtx.arc(worldX, worldY, radius, 0, Math.PI * 2);
-    this.offscreenCtx.fill();
-    this.offscreenCtx.restore();
-
-    this.saveFog();
+    if (this.brushLine) {
+      this.brushLine.destroy();
+      this.brushLine = null;
+    }
+    this.brushPoints = [];
+    this.isDrawing = false;
     this.redraw();
   }
 
   override clear(): void {
+    for (const [, node] of this.shapeNodes) {
+      node.destroy();
+    }
+    this.shapeNodes.clear();
+    this.cancelDrawing();
     super.clear();
-    this.fogImage = null;
-    this.initOffscreen();
   }
 }

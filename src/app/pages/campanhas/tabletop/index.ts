@@ -8,7 +8,7 @@ export type {
 } from './models';
 export {
   DEFAULT_TOKEN, DEFAULT_GRID_CONFIG, DEFAULT_CAMERA_STATE,
-  DEFAULT_FOG_DATA, FogMode, ToolType, TOOL_CURSORS, TOOL_SHORTCUTS,
+  DEFAULT_FOG_DATA, TOOL_CURSORS, TOOL_SHORTCUTS, TOOL_LABELS, TOOL_ICONS,
   LayerType, DEFAULT_LAYERS
 } from './models';
 export * from './services';

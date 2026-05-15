@@ -6,21 +6,20 @@ import { CameraService, MapService } from '../services';
 /**
  * Renderer de mapas — VERSÃO SIMPLIFICADA.
  *
- * Cada mapa possui seu próprio grupo, transformer e outline.
- * Não há toolbar nem cadeado persistente.
+ * Cada mapa possui seu próprio grupo e transformer.
+ * SEM outline visual (apenas handles do transformer).
  * Lock controla apenas draggable e transformer.
  *
  * REGRA:
  *   - Se mapa está selecionado (selectedId === map.id):
  *     - locked=false → draggable=true, transformer visível
  *     - locked=true  → draggable=false, transformer invisível
- *   - Se NÃO está selecionado → tudo invisível, sem interação
+ *   - Se NÃO está selecionado → transformer invisível, sem interação
  */
 export class BackgroundRenderer extends BaseRenderer {
   private mapGroups = new Map<string, {
     group: Konva.Group;
     image: Konva.Image;
-    outline: Konva.Rect;
     transformer: Konva.Transformer;
   }>();
 
@@ -118,35 +117,18 @@ export class BackgroundRenderer extends BaseRenderer {
       name: `map-image-${map.id}`,
     });
 
-    // ── OUTLINE (seleção) ──
-    const outline = new Konva.Rect({
-      x: -3,
-      y: -3,
-      width: img.width * (map.scaleX ?? map.scale ?? 1) + 6,
-      height: img.height * (map.scaleY ?? map.scale ?? 1) + 6,
-      stroke: '#4fc3f7',
-      strokeWidth: 2,
-      strokeScaleEnabled: false,
-      dash: [6, 3],
-      listening: false,
-      visible: false,
-      name: `map-outline-${map.id}`,
-    });
-
     group.add(image);
-    group.add(outline);
 
-    // ── TRANSFORMER ──
+    // ── TRANSFORMER — APENAS HANDLES (SEM BORDA AZUL) ──
     const transformer = new Konva.Transformer({
       nodes: [],
       rotateEnabled: false,
       keepRatio: true,
       ignoreStroke: true,
+      borderEnabled: false,
       enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
       anchorSize: 10,
       anchorCornerRadius: 3,
-      borderStroke: '#4fc3f7',
-      borderStrokeWidth: 2,
       anchorStroke: '#4fc3f7',
       anchorFill: '#ffffff',
       visible: false,
@@ -175,9 +157,7 @@ export class BackgroundRenderer extends BaseRenderer {
     image.on('contextmenu', (e: Konva.KonvaEventObject<PointerEvent>) => {
       e.evt.preventDefault();
       e.cancelBubble = true;
-      // Seleciona o mapa primeiro
       this.mapService.selectMap(map.id);
-      // Dispara o callback para o componente abrir o menu HTML
       if (this.onContextMenu) {
         this.onContextMenu(map.id, e.evt.clientX, e.evt.clientY);
       }
@@ -195,11 +175,7 @@ export class BackgroundRenderer extends BaseRenderer {
       });
     });
 
-    // Transform (resize)
-    image.on('transform', () => {
-      this.updateOutline(map.id);
-    });
-
+    // Transform end (resize)
     image.on('transformend', () => {
       this.mapService.updateMap(map.id, {
         x: group.x(),
@@ -208,11 +184,10 @@ export class BackgroundRenderer extends BaseRenderer {
         scaleY: image.scaleY(),
         scale: image.scaleX(),
       });
-      this.updateOutline(map.id);
     });
 
     // Adiciona à layer
-    this.mapGroups.set(map.id, { group, image, outline, transformer });
+    this.mapGroups.set(map.id, { group, image, transformer });
     this.layer.add(group);
     this.redraw();
   }
@@ -221,7 +196,7 @@ export class BackgroundRenderer extends BaseRenderer {
     const data = this.mapGroups.get(map.id);
     if (!data) return;
 
-    const { group, image, outline, transformer } = data;
+    const { group, image, transformer } = data;
     const isSelected = selectedId === map.id;
 
     // Posição e escala
@@ -233,38 +208,17 @@ export class BackgroundRenderer extends BaseRenderer {
     // Ordem Z
     group.zIndex(map.zIndex);
 
-    if (isSelected) {
-      // ── SELECIONADO ──
-      outline.visible(true);
-      outline.stroke(map.locked ? '#ff6b6b' : '#4fc3f7');
-      outline.dash(map.locked ? [4, 4] : [6, 3]);
-
-      if (!map.locked) {
-        group.draggable(true);
-        transformer.visible(true);
-        transformer.nodes([image]);
-      } else {
-        group.draggable(false);
-        transformer.nodes([]);
-        transformer.visible(false);
-      }
+    if (isSelected && !map.locked) {
+      // ── SELECIONADO + DESTRAVADO — mostra handles, permite drag ──
+      group.draggable(true);
+      transformer.visible(true);
+      transformer.nodes([image]);
     } else {
-      // ── NÃO SELECIONADO ──
-      outline.visible(false);
+      // ── NÃO SELECIONADO ou TRAVADO — sem handles, sem drag ──
       group.draggable(false);
       transformer.nodes([]);
       transformer.visible(false);
     }
-
-    this.updateOutline(map.id);
-  }
-
-  private updateOutline(mapId: string): void {
-    const data = this.mapGroups.get(mapId);
-    if (!data) return;
-    const { outline, image } = data;
-    outline.width(image.width() * image.scaleX() + 6);
-    outline.height(image.height() * image.scaleY() + 6);
   }
 
   private getOrLoadImage(url: string, existingObj?: HTMLImageElement): HTMLImageElement | null {

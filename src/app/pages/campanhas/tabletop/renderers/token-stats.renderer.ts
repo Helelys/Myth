@@ -17,15 +17,17 @@ export class TokenStatsRenderer {
     if (!token.armor || !token.armor.enabled) return 0;
 
     const startY = token.height + 4 + barsHeight + 4;
+    const badgeWidth = 40;
+    const badgeHeight = 26; // maior para caber 2 linhas
 
     // Background for armor badge
     const statsBg = new Konva.Rect({
-      x: token.width / 2 - 20, // Center badge
+      x: token.width / 2 - badgeWidth / 2,
       y: startY,
-      width: 40,
-      height: this.STAT_BG_HEIGHT,
+      width: badgeWidth,
+      height: badgeHeight,
       fill: '#151525',
-      cornerRadius: 4,
+      cornerRadius: 6,
       stroke: '#4a4a7a',
       strokeWidth: 1,
       strokeScaleEnabled: false,
@@ -37,24 +39,42 @@ export class TokenStatsRenderer {
     });
     group.add(statsBg);
 
-    // Armor text
-    const statsText = new Konva.Text({
-      x: token.width / 2 - 20,
-      y: startY + 2,
-      width: 40,
-      height: this.STAT_BG_HEIGHT - 4,
-      text: `${token.armor.label} ${token.armor.value}`,
-      fontSize: this.FONT_SIZE,
+    // Label (ex: "Armadura") — menor, semi-transparente
+    const labelText = new Konva.Text({
+      x: token.width / 2 - badgeWidth / 2,
+      y: startY + 3,
+      width: badgeWidth,
+      height: 12,
+      text: token.armor.label,
+      fontSize: 9,
+      fontStyle: 'normal',
+      fill: '#ffffff',
+      align: 'center',
+      verticalAlign: 'middle',
+      opacity: 0.75,
+      name: 'stats-label',
+      listening: false,
+    });
+    group.add(labelText);
+
+    // Value (ex: "20") — maior, destaque
+    const valueText = new Konva.Text({
+      x: token.width / 2 - badgeWidth / 2,
+      y: startY + 13,
+      width: badgeWidth,
+      height: 12,
+      text: String(token.armor.value),
+      fontSize: 13,
       fontStyle: 'bold',
       fill: '#ffffff',
       align: 'center',
       verticalAlign: 'middle',
-      name: 'stats-text',
+      name: 'stats-value',
       listening: false,
     });
-    group.add(statsText);
+    group.add(valueText);
 
-    return this.STAT_BG_HEIGHT + 4;
+    return badgeHeight + 4;
   }
 
   /**
@@ -62,8 +82,9 @@ export class TokenStatsRenderer {
    */
   static updateStats(group: Konva.Group, token: Token, barsHeight: number): void {
     group.findOne('.stats-bg')?.destroy();
-    group.findOne('.stats-text')?.destroy();
-    
+    group.findOne('.stats-label')?.destroy();
+    group.findOne('.stats-value')?.destroy();
+
     this.createStats(group, token, barsHeight);
   }
 }

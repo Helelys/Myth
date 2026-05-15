@@ -21,6 +21,7 @@ import {
   MapService,
   TokenService,
   FogService,
+  FogCollisionService,
   ToolService,
   VttEventService,
   PersistenceService,
@@ -36,12 +37,6 @@ import { MapContextMenuComponent } from './map-context-menu.component';
 
 /**
  * Componente principal do Tabletop VTT.
- *
- * MELHORIA #1 — Ferramenta Modal + Reveal Mode:
- * - FogMode: toggle modal com '2', '3' ou atalho na toolbar. Fica ativo
- *   até trocar para Select (1) ou Esc. NÃO reseta após cada desenho.
- * - RevealMode: Ctrl pressionado durante drag → remove shapes em vez de adicionar.
- * - toolLabel mostra "🌫 Esconder (▭ Retângulo)" ou "✨ Revelar (✏ Caneta)".
  *
  * Ordem de camadas: Grid → Mapas → Fog → Tokens → UI
  */
@@ -203,160 +198,36 @@ import { MapContextMenuComponent } from './map-context-menu.component';
   `,
   styles: [`
     :host { display: block; width: 100%; height: 100%; }
-    .vtt-container {
-      display: flex;
-      width: 100%;
-      height: 100%;
-      background: #1a1a2e;
-      position: relative;
-      overflow: hidden;
-    }
-    .canvas-container {
-      flex: 1;
-      position: relative;
-      outline: none;
-      cursor: default;
-    }
+    .vtt-container { display: flex; width: 100%; height: 100%; background: #1a1a2e; position: relative; overflow: hidden; }
+    .canvas-container { flex: 1; position: relative; outline: none; cursor: default; }
     .canvas-container canvas { display: block; }
-    .zoom-indicator {
-      position: absolute;
-      bottom: 12px; right: 12px;
-      background: rgba(0,0,0,0.6);
-      color: #aaa;
-      padding: 4px 10px;
-      border-radius: 4px;
-      font-size: 12px;
-      font-family: monospace;
-      pointer-events: none;
-      z-index: 10;
-    }
-    .tool-indicator {
-      position: absolute;
-      top: 12px; left: 50%; transform: translateX(-50%);
-      background: rgba(79,195,247,0.15);
-      color: #4fc3f7;
-      padding: 4px 14px;
-      border-radius: 6px;
-      font-size: 13px;
-      font-weight: 500;
-      border: 1px solid rgba(79,195,247,0.3);
-      pointer-events: none;
-      z-index: 10;
-    }
-    .toolbar {
-      width: 48px;
-      background: #16162a;
-      border-right: 1px solid #2a2a4a;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 8px 0;
-      gap: 4px;
-      z-index: 5;
-    }
+    .zoom-indicator { position: absolute; bottom: 12px; right: 12px; background: rgba(0,0,0,0.6); color: #aaa; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-family: monospace; pointer-events: none; z-index: 10; }
+    .tool-indicator { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: rgba(79,195,247,0.15); color: #4fc3f7; padding: 4px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; border: 1px solid rgba(79,195,247,0.3); pointer-events: none; z-index: 10; }
+    .toolbar { width: 48px; background: #16162a; border-right: 1px solid #2a2a4a; display: flex; flex-direction: column; align-items: center; padding: 8px 0; gap: 4px; z-index: 5; }
     .tool-group { display: flex; flex-direction: column; gap: 2px; }
     .tool-divider { width: 28px; height: 1px; background: #2a2a4a; margin: 6px 0; }
-    .tool-btn {
-      width: 36px; height: 36px;
-      display: flex; align-items: center; justify-content: center;
-      background: transparent;
-      border: 1px solid transparent;
-      border-radius: 6px;
-      color: #6a6a8a;
-      cursor: pointer;
-      transition: all 0.15s ease;
-    }
+    .tool-btn { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: transparent; border: 1px solid transparent; border-radius: 6px; color: #6a6a8a; cursor: pointer; transition: all 0.15s ease; }
     .tool-btn:hover { color: #ccc; background: #1e1e3a; }
     .tool-btn.active { color: #4fc3f7; background: rgba(79, 195, 247, 0.1); border-color: rgba(79,195,247,0.3); }
-    .map-quick-actions {
-      position: absolute;
-      top: 12px; left: 56px;
-      background: rgba(22,22,42,0.85);
-      backdrop-filter: blur(8px);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 8px;
-      padding: 3px; display: flex; gap: 2px;
-      z-index: 10; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-    }
-    .quick-btn {
-      width: 28px; height: 28px;
-      display: flex; align-items: center; justify-content: center;
-      background: transparent; border: none; border-radius: 4px;
-      color: #8a8aaa; cursor: pointer; transition: all 0.15s;
-    }
+    .map-quick-actions { position: absolute; top: 12px; left: 56px; background: rgba(22,22,42,0.85); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 3px; display: flex; gap: 2px; z-index: 10; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+    .quick-btn { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; border-radius: 4px; color: #8a8aaa; cursor: pointer; transition: all 0.15s; }
     .quick-btn:hover { color: #fff; background: rgba(255,255,255,0.1); }
-
-    /* ═══════════════════════════════════════════
-       SUBMENU
-       ═══════════════════════════════════════════ */
     .tool-with-submenu { position: relative; }
-    .submenu {
-      position: absolute;
-      left: 100%;
-      top: -4px;
-      margin-left: 4px;
-      background: #1e1e3a;
-      border: 1px solid #2a2a4a;
-      border-radius: 8px;
-      padding: 4px;
-      min-width: 160px;
-      z-index: 1000;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-    .submenu-btn {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
-      background: transparent;
-      border: none;
-      border-radius: 4px;
-      color: #b0b0c0;
-      font-size: 13px;
-      cursor: pointer;
-      transition: all 0.12s;
-      white-space: nowrap;
-    }
+    .submenu { position: absolute; left: 100%; top: -4px; margin-left: 4px; background: #1e1e3a; border: 1px solid #2a2a4a; border-radius: 8px; padding: 4px; min-width: 160px; z-index: 1000; box-shadow: 0 8px 24px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 2px; }
+    .submenu-btn { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: transparent; border: none; border-radius: 4px; color: #b0b0c0; font-size: 13px; cursor: pointer; transition: all 0.12s; white-space: nowrap; }
     .submenu-btn:hover { background: rgba(79,195,247,0.1); color: #e0e0e0; }
     .submenu-btn.active { background: rgba(79,195,247,0.15); color: #4fc3f7; }
     .submenu-btn.danger:hover { background: rgba(244,67,54,0.1); color: #f44336; }
     .submenu-divider { height: 1px; background: #2a2a4a; margin: 4px 8px; }
-
-    /* ═══════════════════════════════════════════
-       MODAL DE AVISO
-       ═══════════════════════════════════════════ */
-    .modal-overlay {
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,0.6);
-      display: flex; align-items: center; justify-content: center;
-      z-index: 1000;
-    }
-    .modal-content {
-      background: #1e1e3a;
-      border: 1px solid #2a2a4a;
-      border-radius: 12px;
-      padding: 0;
-      width: 400px;
-      max-width: 90vw;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-    }
-    .modal-header {
-      display: flex; align-items: center; gap: 10px;
-      padding: 16px 20px;
-      border-bottom: 1px solid #2a2a4a;
-    }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+    .modal-content { background: #1e1e3a; border: 1px solid #2a2a4a; border-radius: 12px; padding: 0; width: 400px; max-width: 90vw; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+    .modal-header { display: flex; align-items: center; gap: 10px; padding: 16px 20px; border-bottom: 1px solid #2a2a4a; }
     .modal-header h3 { margin: 0; font-size: 16px; font-weight: 600; color: #e0e0e0; }
     .modal-body { padding: 20px; color: #b0b0c0; font-size: 14px; line-height: 1.6; }
     .modal-body strong { color: #e0e0e0; }
     .modal-hint { margin-top: 12px; font-size: 12px; color: #6a6a8a; font-style: italic; }
     .modal-footer { padding: 12px 20px; border-top: 1px solid #2a2a4a; display: flex; justify-content: flex-end; }
-    .modal-btn {
-      background: #4fc3f7; color: #0a0a1a; border: none; border-radius: 6px;
-      padding: 8px 24px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.15s;
-    }
+    .modal-btn { background: #4fc3f7; color: #0a0a1a; border: none; border-radius: 6px; padding: 8px 24px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
     .modal-btn:hover { background: #39a9db; }
   `],
 
@@ -375,7 +246,7 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
   @ViewChild(MapContextMenuComponent)
   private contextMenuComponent!: MapContextMenuComponent;
 
-  // Limite: ~3MB de arquivo original ≈ ~4MB de dataURL
+  // Limte: ~3MB de arquivo original ≈ ~4MB de dataURL
   private readonly MAX_IMAGE_FILE_BYTES = 3 * 1024 * 1024;
 
   // Modal de erro
@@ -397,18 +268,15 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
   protected onFogSubmenuLeave(): void {
     this.fogSubmenuTimer = setTimeout(() => {
       this.showFogSubmenu.set(false);
-    }, 200); // 200ms de tolerância para o mouse alcançar o submenu
+    }, 200);
   }
 
-  // Tool label para indicator — mostra ação atual + ferramenta
+  // Tool label for indicator
   readonly toolLabel = computed(() => {
     const tool = this.activeTool();
     if (tool === 'select') return '';
-
-    const revealing = this.fogService.revealMode();
     const sub = tool === 'fog-rectangle' ? '▭ Retângulo' : '✏ Caneta';
-    const action = revealing ? '✨ Revelar' : '🌫 Esconder';
-    return `${action} (${sub})`;
+    return `🌫 Esconder (${sub})`;
   });
 
   // Serviços
@@ -418,6 +286,7 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
   private mapService = inject(MapService);
   private tokenService = inject(TokenService);
   private fogService = inject(FogService);
+  private fogCollisionService = inject(FogCollisionService);
   private toolService = inject(ToolService);
   private eventService = inject(VttEventService);
   private persistence = inject(PersistenceService);
@@ -480,7 +349,7 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
     // 3) Fog
     this.fogRenderer = new FogRenderer(this.stage, this.fogService);
     // 4) Tokens
-    this.tokenRenderer = new TokenRenderer(this.stage, this.tokenService, this.gridService, this.eventService);
+    this.tokenRenderer = new TokenRenderer(this.stage, this.tokenService, this.gridService, this.eventService, this.fogCollisionService);
 
     this.renderers = [this.gridRenderer, this.backgroundRenderer, this.fogRenderer, this.tokenRenderer];
 
@@ -573,9 +442,8 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
 
       const tool = this.activeTool();
 
-      // ── FOG MODE: detecta Ctrl para reveal ──
+      // ── FOG MODE ──
       if (tool === 'fog-rectangle' || tool === 'fog-brush') {
-        this.fogService.setRevealMode(e.evt.ctrlKey);
         const world = this.screenToWorld(e.evt.clientX, e.evt.clientY);
         if (tool === 'fog-rectangle') {
           this.fogRenderer.startRect(world.x, world.y);
@@ -605,9 +473,8 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
 
       const tool = this.activeTool();
 
-      // ── FOG — atualiza reveal mode se Ctrl mudar durante o drag ──
+      // ── FOG ──
       if (tool === 'fog-rectangle' || tool === 'fog-brush') {
-        this.fogService.setRevealMode(e.evt.ctrlKey);
         const world = this.screenToWorld(e.evt.clientX, e.evt.clientY);
         if (tool === 'fog-rectangle' && this.fogRenderer.isDrawing) {
           this.fogRenderer.updateRect(world.x, world.y);
@@ -629,17 +496,15 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
 
       const tool = this.activeTool();
 
-      // ── FOG — finish sem revertToSelect (modal!) ──
+      // ── FOG — finish ──
       if (tool === 'fog-rectangle') {
         this.fogRenderer.finishRect();
-        this.fogService.setRevealMode(false);
         this.renderAll();
         return;
       }
 
       if (tool === 'fog-brush') {
         this.fogRenderer.finishBrush();
-        this.fogService.setRevealMode(false);
         this.renderAll();
         return;
       }
@@ -672,7 +537,7 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
       this.showFogSubmenu.set(false);
       // Garante que o fog está ativado para o desenho aparecer
       if (!this.fogService.enabled()) {
-        this.fogService.toggle();
+        this.fogService.toggleEnabled();
       }
       this.renderAll();
     }
@@ -696,12 +561,12 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
   }
 
   protected toggleFog(): void {
-    this.fogService.toggle();
+    this.fogService.toggleEnabled();
     this.renderAll();
   }
 
   protected clearFog(): void {
-    this.fogService.clearAll();
+    this.fogService.clear();
     this.fogRenderer.clear();
     this.renderAll();
     this.showFogSubmenu.set(false);
@@ -720,11 +585,6 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    // Ctrl: ativa reveal mode
-    if (event.key === 'Control') {
-      this.fogService.setRevealMode(true);
-    }
-
     if (this.toolService.handleShortcut(event.key)) {
       event.preventDefault();
       this.showFogSubmenu.set(false);
@@ -732,7 +592,7 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
       const tool = this.activeTool();
       if (tool === 'fog-rectangle' || tool === 'fog-brush') {
         if (!this.fogService.enabled()) {
-          this.fogService.toggle();
+          this.fogService.toggleEnabled();
         }
         this.renderAll();
       }
@@ -743,7 +603,6 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
       // Cancela desenho de fog em progresso + volta pra select
       this.fogRenderer.cancelDrawing();
       this.toolService.revertToSelect();
-      this.fogService.setRevealMode(false);
       this.mapService.deselectMap();
       this.tokenService.deselectAll();
       this.renderAll();
@@ -770,9 +629,6 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
         this.isMiddleMouseDown = false;
         this.stage.container().style.cursor = 'default';
       }
-    }
-    if (event.key === 'Control') {
-      this.fogService.setRevealMode(false);
     }
   }
 
@@ -890,10 +746,6 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
   }
 
   private loadCampaignData(): void {
-    const campaignId = this.route.snapshot.paramMap.get('id');
-    if (campaignId) {
-      this.fogService.setCampaignId(campaignId);
-    }
     this.persistence.load();
   }
 }

@@ -1,191 +1,222 @@
 import { Injectable, signal, computed } from '@angular/core';
-import { FogData, FogShape, DEFAULT_FOG_DATA } from '../models';
+import { FogRegion, FogDoor, FogData, DEFAULT_FOG_DATA } from '../models/fog-region.model';
+import { createRectRegion, createBrushRegion } from '../utils/geometry-utils';
 
 /**
- * Serviço de gerenciamento do Fog of War.
+ * ═══════════════════════════════════════════════════════════
+ * FOG SERVICE (REFATORADO) — Sistema de neblina baseado em regiões
+ * ═══════════════════════════════════════════════════════════
  *
- * Implementação baseada em SHAPES VETORIAIS (retângulos e brush).
- * Ao contrário da versão anterior (canvas-based), esta versão:
- * - Armazena shapes serializáveis (FogShape[])
- * - Cada shape é um retângulo ou uma linha de brush
- * - Persiste facilmente no localStorage
- * - Renderiza via Konva Rect + Line
+ * AGORA usa FogRegion[] em vez de FogShape[].
  *
- * Modal + Reveal:
- * - fogMode: se o modo fog está ativo (toggle via F)
- * - revealMode: Ctrl+drag revela em vez de esconder
- *
- * Ordem de camadas:
- * Grid → Mapas → Fog → Tokens → UI
+ * Mudanças principais:
+ * - FogRegion tem bordas computadas (para colisão)
+ * - FogRegion tem portas
+ * - Manutenção de compatibilidade com FogData (serialização)
+ * - addShape() migrado para criar FogRegion
  */
 @Injectable({ providedIn: 'root' })
 export class FogService {
-  private state = signal<FogData>({
-    campaignId: '',
-    ...DEFAULT_FOG_DATA,
-  });
+  // ═══════════════════════════════════════════════════════
+  // STATE
+  // ═══════════════════════════════════════════════════════
 
-  /** Se o modo fog está ativo (modal toggle via F) */
-  private _fogMode = signal(false);
-  /** Se está em modo reveal (Ctrl pressionado durante drag) */
-  private _revealMode = signal(false);
+  private regionsSignal = signal<FogRegion[]>([]);
+  private enabledSignal = signal(true);
+  private gmVisionSignal = signal(true);
+  private opacitySignal = signal(0.75);
 
-  readonly enabled = computed(() => this.state().enabled);
-  readonly opacity = computed(() => this.state().opacity);
-  readonly gmVision = computed(() => this.state().gmVision);
-  readonly shapes = computed(() => this.state().shapes);
-  readonly fogMode = this._fogMode.asReadonly();
-  readonly revealMode = this._revealMode.asReadonly();
+  /** Regiões de fog ativas */
+  readonly regions = this.regionsSignal.asReadonly();
 
-  private shapeIdCounter = 0;
+  /** Se fog está habilitada */
+  readonly enabled = this.enabledSignal.asReadonly();
 
-  setCampaignId(id: string): void {
-    this.state.update((s) => ({ ...s, campaignId: id }));
-  }
+  /** Se GM pode ver através da fog */
+  readonly gmVision = this.gmVisionSignal.asReadonly();
 
-  toggle(): void {
-    this.state.update((s) => ({ ...s, enabled: !s.enabled }));
+  /** Opacidade da fog */
+  readonly opacity = this.opacitySignal.asReadonly();
+
+  /** Número de regiões de fog */
+  readonly regionCount = computed(() => this.regionsSignal().length);
+
+  // ═══════════════════════════════════════════════════════
+  // FOG TOGGLE
+  // ═══════════════════════════════════════════════════════
+
+  toggleEnabled(): void {
+    this.enabledSignal.update(v => !v);
   }
 
   toggleGmVision(): void {
-    this.state.update((s) => ({ ...s, gmVision: !s.gmVision }));
+    this.gmVisionSignal.update(v => !v);
   }
 
-  setOpacity(opacity: number): void {
-    this.state.update((s) => ({ ...s, opacity: Math.max(0, Math.min(1, opacity)) }));
+  setOpacity(value: number): void {
+    this.opacitySignal.set(Math.max(0, Math.min(1, value)));
   }
 
-  // ════════════════════════════════════════════════════════════
-  // FOG MODE (Modal toggle)
-  // ════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════
+  // REGION CRUD
+  // ═══════════════════════════════════════════════════════
 
-  /** Ativa/desativa o modo fog (modal — fica ativo até desligar) */
-  toggleFogMode(): void {
-    this._fogMode.update((v) => !v);
-  }
-
-  /** Sai do modo fog */
-  exitFogMode(): void {
-    this._fogMode.set(false);
-  }
-
-  // ════════════════════════════════════════════════════════════
-  // REVEAL MODE (Ctrl)
-  // ════════════════════════════════════════════════════════════
-
-  setRevealMode(revealing: boolean): void {
-    this._revealMode.set(revealing);
-  }
-
-  // ════════════════════════════════════════════════════════════
-  // SHAPES
-  // ════════════════════════════════════════════════════════════
-
-  /** Adiciona uma shape de fog */
-  addShape(shape: Omit<FogShape, 'id'>): FogShape {
-    const id = `fog-${++this.shapeIdCounter}-${Date.now()}`;
-    const newShape: FogShape = { id, ...shape };
-    this.state.update((s) => ({ ...s, shapes: [...s.shapes, newShape] }));
-    return newShape;
-  }
-
-  /** Remove uma shape pelo ID */
-  removeShape(id: string): void {
-    this.state.update((s) => ({
-      ...s,
-      shapes: s.shapes.filter((sh) => sh.id !== id),
-    }));
+  /**
+   * Adiciona uma região retangular.
+   * Mantido para compatibilidade com addShape({ type: 'rectangle', ... }).
+   */
+  addRectRegion(x: number, y: number, width: number, height: number): FogRegion {
+    const region = createRectRegion(x, y, width, height);
+    this.regionsSignal.update(list => [...list, region]);
+    return region;
   }
 
   /**
-   * Remove shapes cujo centro esteja dentro do retângulo.
-   * Usado no Reveal Mode com ferramenta retangular.
+   * Adiciona uma região brush.
+   * Mantido para compatibilidade com addShape({ type: 'brush', ... }).
    */
-  removeShapesInRect(rx: number, ry: number, rw: number, rh: number): void {
-    this.state.update((s) => ({
-      ...s,
-      shapes: s.shapes.filter((sh) => {
-        const cx = sh.x + (sh.width ?? 0) / 2;
-        const cy = sh.y + (sh.height ?? 0) / 2;
-        return !(cx >= rx && cx <= rx + rw && cy >= ry && cy <= ry + rh);
-      }),
-    }));
+  addBrushRegion(points: number[]): FogRegion {
+    const region = createBrushRegion(points);
+    this.regionsSignal.update(list => [...list, region]);
+    return region;
   }
 
   /**
-   * Remove shapes que interseptam a bounding box de um brush stroke.
-   * Usado no Reveal Mode com ferramenta brush.
+   * API de compatibilidade: aceita FogShape-like params e cria FogRegion.
    */
-  removeShapesInBrushBounds(points: number[], brushWidth: number): void {
-    if (points.length < 4) return;
-    const bbox = this.computeBoundingBox(points, brushWidth);
-    this.state.update((s) => ({
-      ...s,
-      shapes: s.shapes.filter((sh) => {
-        const shapeBbox = this.shapeBoundingBox(sh);
-        return !this.rectsOverlap(bbox, shapeBbox);
-      }),
-    }));
-  }
-
-  /** Remove todas as shapes */
-  clearAll(): void {
-    this.state.update((s) => ({ ...s, shapes: [] }));
-  }
-
-  getSnapshot(): FogData {
-    return this.state();
-  }
-
-  loadFromSnapshot(fog: FogData): void {
-    this.state.set(fog);
-  }
-
-  // ════════════════════════════════════════════════════════════
-  // HELPERS
-  // ════════════════════════════════════════════════════════════
-
-  private computeBoundingBox(
-    points: number[],
-    brushWidth: number,
-  ): { x: number; y: number; width: number; height: number } {
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-    for (let i = 0; i < points.length; i += 2) {
-      if (points[i] < minX) minX = points[i];
-      if (points[i] > maxX) maxX = points[i];
-      if (points[i + 1] < minY) minY = points[i + 1];
-      if (points[i + 1] > maxY) maxY = points[i + 1];
+  addShape(shape: { type: 'rectangle' | 'brush'; x: number; y: number; width?: number; height?: number; points?: number[] }): FogRegion {
+    if (shape.type === 'rectangle') {
+      return this.addRectRegion(shape.x, shape.y, shape.width ?? 100, shape.height ?? 100);
+    } else {
+      return this.addBrushRegion(shape.points ?? [shape.x, shape.y, shape.x + 50, shape.y + 50]);
     }
-    const half = brushWidth / 2;
+  }
+
+  /** Remove uma região */
+  removeRegion(id: string): void {
+    this.regionsSignal.update(list => list.filter(r => r.id !== id));
+  }
+
+  /** Obtém região por ID */
+  getRegionById(id: string): FogRegion | undefined {
+    return this.regionsSignal().find(r => r.id === id);
+  }
+
+  /** Remove todas as regiões */
+  clearRegions(): void {
+    this.regionsSignal.set([]);
+  }
+
+  // ═══════════════════════════════════════════════════════
+  // DOOR MANAGEMENT
+  // ═══════════════════════════════════════════════════════
+
+  /** Adiciona uma porta a uma região */
+  addDoor(regionId: string, door: FogDoor): void {
+    this.regionsSignal.update(list =>
+      list.map(r => {
+        if (r.id !== regionId) return r;
+
+        // Atualiza edge para incluir doorId
+        const updatedEdges = r.edges.map(e => {
+          if (e.index !== door.edgeIndex) return e;
+          return {
+            ...e,
+            doorIds: [...e.doorIds, door.id],
+          };
+        });
+
+        return {
+          ...r,
+          doors: [...r.doors, door],
+          edges: updatedEdges,
+        };
+      }),
+    );
+  }
+
+  /** Remove uma porta */
+  removeDoor(doorId: string): void {
+    this.regionsSignal.update(list =>
+      list.map(r => {
+        const door = r.doors.find(d => d.id === doorId);
+        if (!door) return r;
+
+        return {
+          ...r,
+          doors: r.doors.filter(d => d.id !== doorId),
+          edges: r.edges.map(e => {
+            if (e.index !== door.edgeIndex) return e;
+            return {
+              ...e,
+              doorIds: e.doorIds.filter(id => id !== doorId),
+            };
+          }),
+        };
+      }),
+    );
+  }
+
+  /** Alterna estado de uma porta */
+  toggleDoor(doorId: string): void {
+    this.regionsSignal.update(list =>
+      list.map(r => ({
+        ...r,
+        doors: r.doors.map(d =>
+          d.id === doorId ? { ...d, open: !d.open } : d,
+        ),
+      })),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════
+  // SNAPSHOT / SERIALIZATION
+  // ═══════════════════════════════════════════════════════
+
+  /** Obtém snapshot para serialização */
+  getSnapshot(): FogData {
     return {
-      x: minX - half,
-      y: minY - half,
-      width: maxX - minX + brushWidth,
-      height: maxY - minY + brushWidth,
+      campaignId: '',
+      regions: this.regionsSignal(),
+      opacity: this.opacitySignal(),
+      enabled: this.enabledSignal(),
+      gmVision: this.gmVisionSignal(),
     };
   }
 
-  private shapeBoundingBox(shape: FogShape): {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  } {
-    if (shape.type === 'rectangle') {
-      return { x: shape.x, y: shape.y, width: shape.width ?? 0, height: shape.height ?? 0 };
-    }
-    // brush — estimar bounding box pelos points
-    const pts = shape.points ?? [];
-    return this.computeBoundingBox(pts, 40);
+  /** Carrega estado de um snapshot */
+  loadFromSnapshot(data: FogData): void {
+    this.regionsSignal.set(data.regions ?? []);
+    this.opacitySignal.set(data.opacity ?? 0.75);
+    this.enabledSignal.set(data.enabled ?? true);
+    this.gmVisionSignal.set(data.gmVision ?? true);
   }
 
-  private rectsOverlap(
-    a: { x: number; y: number; width: number; height: number },
-    b: { x: number; y: number; width: number; height: number },
-  ): boolean {
-    return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+  /** Reseta para estado padrão */
+  clear(): void {
+    this.regionsSignal.set([]);
+    this.opacitySignal.set(DEFAULT_FOG_DATA.opacity);
+    this.enabledSignal.set(DEFAULT_FOG_DATA.enabled);
+    this.gmVisionSignal.set(DEFAULT_FOG_DATA.gmVision);
+  }
+
+  // ═══════════════════════════════════════════════════════
+  // COMPATIBILIDADE COM FogShape antigo
+  // ═══════════════════════════════════════════════════════
+
+  /**
+   * @deprecated Use regions() diretamente.
+   * Mantido para compatibilidade com código que ainda usa shapes.
+   */
+  shapes(): any[] {
+    return this.regionsSignal().map(r => ({
+      id: r.id,
+      type: r.type,
+      x: r.x,
+      y: r.y,
+      width: r.width,
+      height: r.height,
+      points: r.points,
+    }));
   }
 }

@@ -6,6 +6,7 @@ import {
   TokenService,
   GridService,
   VttEventService,
+  FogCollisionService,
 } from '../services';
 import { CoordinateUtils } from '../utils';
 import { TokenBarRenderer } from './token-bar.renderer';
@@ -42,6 +43,7 @@ export class TokenRenderer extends BaseRenderer {
     private tokenService: TokenService,
     private gridService: GridService,
     private eventService: VttEventService,
+    private fogCollisionService: FogCollisionService,
   ) {
     super(LayerType.Token, stage);
     this.setupEventHandlers();
@@ -148,7 +150,7 @@ export class TokenRenderer extends BaseRenderer {
         // Simula object-fit: cover
         const imageRatio = imgElement.width / imgElement.height;
         const targetRatio = token.width / token.height;
-        
+
         let cropWidth = imgElement.width;
         let cropHeight = imgElement.height;
         let cropX = 0;
@@ -267,7 +269,7 @@ export class TokenRenderer extends BaseRenderer {
       if (group.getStage()) {
         group.getStage()!.container().style.cursor = 'grabbing';
       }
-      
+
       // Destaca outline
       const outline = group.findOne('.selection-outline') as Konva.Rect;
       if (outline) {
@@ -306,7 +308,7 @@ export class TokenRenderer extends BaseRenderer {
         shadow.offsetY(2);
         shadow.opacity(0.2);
       }
-      
+
       let worldX = group.x();
       let worldY = group.y();
 
@@ -317,7 +319,7 @@ export class TokenRenderer extends BaseRenderer {
 
       // Atualiza o estado real no Angular
       this.tokenService.moveToken(token.id, worldX, worldY);
-      
+
       // Reposiciona com os cálculos finais (garante snap visual instantâneo)
       this.updateTokenPosition(token, group);
     });

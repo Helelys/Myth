@@ -10,7 +10,7 @@ export interface VttSnapshot {
   timestamp: number;
   campaignId: string;
   tokens: Token[];
-  map: MapData | null;
+  maps: MapData[];
   grid: GridConfig;
   fog: FogData;
   layers: LayerData[];
@@ -27,7 +27,7 @@ export class VttSerializer {
   static createSnapshot(
     campaignId: string,
     tokens: Token[],
-    map: MapData | null,
+    maps: MapData[],
     grid: GridConfig,
     fog: FogData,
     layers: LayerData[],
@@ -36,7 +36,7 @@ export class VttSerializer {
       timestamp: Date.now(),
       campaignId,
       tokens: tokens.map((t) => ({ ...t })),
-      map: map ? { ...map } : null,
+      maps: maps.map((m) => ({ ...m })),
       grid: { ...grid },
       fog: { ...fog },
       layers: layers.map((l) => ({ ...l })),
@@ -49,14 +49,14 @@ export class VttSerializer {
    */
   static applySnapshot(snapshot: VttSnapshot): {
     tokens: Token[];
-    map: MapData | null;
+    maps: MapData[];
     grid: GridConfig;
     fog: FogData;
     layers: LayerData[];
   } {
     return {
       tokens: snapshot.tokens,
-      map: snapshot.map,
+      maps: snapshot.maps,
       grid: snapshot.grid,
       fog: snapshot.fog,
       layers: snapshot.layers,

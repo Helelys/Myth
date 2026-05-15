@@ -8,6 +8,7 @@ import {
   signal,
   effect,
   inject,
+  NgZone,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
@@ -21,41 +22,32 @@ import {
   FogService,
   ToolService,
   VttEventService,
-  LayerService,
 } from './services';
-import { ToolType, FogMode } from './models';
+import { ToolType } from './models';
 import {
   BackgroundRenderer,
   GridRenderer,
   TokenRenderer,
   FogRenderer,
 } from './renderers';
-import { CoordinateUtils } from './utils';
+import { MapContextMenuComponent } from './map-context-menu.component';
 
 /**
  * Componente principal do Tabletop VTT.
  *
- * Gerencia:
- * - Inicialização do Stage Konva
- * - Render loop com requestAnimationFrame
- * - Eventos de mouse/teclado
- * - Zoom/Pan da câmera
- * - Coordenação entre renderers e serviços
- *
- * Performance:
- * - ChangeDetectionStrategy.OnPush
- * - Signals para estado reativo
- * - Render loop em rAF
- * - Culling no renderer de tokens
- * - Grid desenhado apenas para viewport visível
+ * SIMPLIFICADO:
+ * - SEM toolbar flutuante de mapa
+ * - Botão direito abre menu contextual HTML real (MapContextMenuComponent)
+ * - Múltiplos mapas suportados simultaneamente via MapService
+ * - Render loop via renderAll()
  */
 @Component({
   selector: 'app-tabletop-canvas',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, MapContextMenuComponent],
   template: `
     <div class="vtt-container">
-      <!-- Toolbar lateral esquerda -->
+      <!-- Toolbar lateral esquerda (global do canvas) -->
       <aside class="toolbar">
         <div class="tool-group">
           @for (tool of tools; track tool.type) {
@@ -98,48 +90,33 @@ import { CoordinateUtils } from './utils';
         (keyup)="handleKeyUp($event)"
         tabindex="0"
       >
-        <!-- Map Toolbar -->
-        @if (currentMap()) {
-          <div class="map-toolbar">
-            <button class="tool-btn" title="Centralizar Mapa" (click)="centerMap()">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <path d="M4 12h16M12 4v16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-              </svg>
+        <!-- Indicador de zoom -->
+        <div class="zoom-indicator">{{ zoomLevel() }}%</div>
+
+        <!-- Botões rápidos para o mapa selecionado -->
+        @if (selectedMap(); as map) {
+          <div class="map-quick-actions">
+            <button class="quick-btn" title="Centralizar" (click)="centerMap()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 12h16M12 4v16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
             </button>
-            <button class="tool-btn" title="Ajustar à Tela (Fit)" (click)="fitMapToScreen()">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <path d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+            <button class="quick-btn" title="Ajustar à Tela" (click)="fitMapToScreen()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
-            <button class="tool-btn" title="Escala Original (1:1)" (click)="resetMapScale()">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/>
-                <path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
-            </button>
-            <div class="tool-divider horizontal"></div>
-            <button class="tool-btn" [title]="currentMap()?.locked ? 'Destravar Mapa' : 'Travar Mapa'" [class.active]="currentMap()?.locked" (click)="toggleMapLock()">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <path d="M7 11V7a5 5 0 0110 0v4M5 11h14v10H5V11z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+            <button class="quick-btn" title="Escala 1:1" (click)="resetMapScale()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
             </button>
           </div>
         }
-
-        <!-- Indicador de zoom -->
-        <div class="zoom-indicator">
-          {{ zoomLevel() }}%
-        </div>
-
-        <!-- Indicador de ferramenta ativa -->
-        <div class="tool-indicator">
-          {{ activeToolLabel() }}
-        </div>
       </div>
 
-      <!-- File upload input (oculto) -->
+      <!-- File upload input -->
       <input #mapFileInput type="file" accept="image/jpeg,image/png,image/webp" (change)="handleMapUpload($event)" hidden />
       <input #tokenFileInput type="file" accept="image/*" (change)="handleTokenUpload($event)" hidden />
+
+      <!-- ════════════════════════════════════════════════════
+           MENU CONTEXTUAL — COMPONENTE SEPARADO (fora do Konva)
+           ════════════════════════════════════════════════════ -->
+      <app-map-context-menu />
     </div>
   `,
   styles: [`
@@ -161,28 +138,13 @@ import { CoordinateUtils } from './utils';
     .canvas-container canvas { display: block; }
     .zoom-indicator {
       position: absolute;
-      bottom: 12px;
-      right: 12px;
+      bottom: 12px; right: 12px;
       background: rgba(0,0,0,0.6);
       color: #aaa;
       padding: 4px 10px;
       border-radius: 4px;
       font-size: 12px;
       font-family: monospace;
-      pointer-events: none;
-      z-index: 10;
-    }
-    .tool-indicator {
-      position: absolute;
-      top: 12px;
-      left: 12px;
-      background: rgba(0,0,0,0.6);
-      color: #ccc;
-      padding: 4px 10px;
-      border-radius: 4px;
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
       pointer-events: none;
       z-index: 10;
     }
@@ -198,18 +160,10 @@ import { CoordinateUtils } from './utils';
       z-index: 5;
     }
     .tool-group { display: flex; flex-direction: column; gap: 2px; }
-    .tool-divider {
-      width: 28px;
-      height: 1px;
-      background: #2a2a4a;
-      margin: 6px 0;
-    }
+    .tool-divider { width: 28px; height: 1px; background: #2a2a4a; margin: 6px 0; }
     .tool-btn {
-      width: 36px;
-      height: 36px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      width: 36px; height: 36px;
+      display: flex; align-items: center; justify-content: center;
       background: transparent;
       border: 1px solid transparent;
       border-radius: 6px;
@@ -218,37 +172,24 @@ import { CoordinateUtils } from './utils';
       transition: all 0.15s ease;
     }
     .tool-btn:hover { color: #ccc; background: #1e1e3a; }
-    .btn-sm.danger:hover { background: #3a1a1a; border-color: #e05a5a; }
-    
-    .map-toolbar {
+    .tool-btn.active { color: #4fc3f7; background: rgba(79, 195, 247, 0.1); }
+    .map-quick-actions {
       position: absolute;
-      top: 12px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(22, 22, 42, 0.9);
+      top: 12px; left: 50%; transform: translateX(-50%);
+      background: rgba(22,22,42,0.85);
       backdrop-filter: blur(8px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255,255,255,0.1);
       border-radius: 8px;
-      padding: 4px;
-      display: flex;
-      gap: 4px;
-      z-index: 10;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      padding: 3px; display: flex; gap: 2px;
+      z-index: 10; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
     }
-    .tool-divider.horizontal {
-      width: 1px;
-      height: 28px;
-      margin: 4px 2px;
-      background: rgba(255, 255, 255, 0.1);
+    .quick-btn {
+      width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+      background: transparent; border: none; border-radius: 4px;
+      color: #8a8aaa; cursor: pointer; transition: all 0.15s;
     }
-    .map-toolbar .tool-btn {
-      width: 32px;
-      height: 32px;
-    }
-    .map-toolbar .tool-btn.active {
-      color: #e05a5a;
-      background: rgba(224, 90, 90, 0.1);
-    }
+    .quick-btn:hover { color: #fff; background: rgba(255,255,255,0.1); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -262,7 +203,11 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
   @ViewChild('tokenFileInput', { static: true })
   private tokenFileInput!: ElementRef<HTMLInputElement>;
 
-  // Serviços injetados
+  @ViewChild(MapContextMenuComponent)
+  private contextMenuComponent!: MapContextMenuComponent;
+
+  // Serviços
+  private ngZone = inject(NgZone);
   private cameraService = inject(CameraService);
   private gridService = inject(GridService);
   private mapService = inject(MapService);
@@ -270,42 +215,34 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
   private fogService = inject(FogService);
   private toolService = inject(ToolService);
   private eventService = inject(VttEventService);
-  private layerService = inject(LayerService);
   private route = inject(ActivatedRoute);
 
-  // Signals para UI
+  // Signals UI
   readonly activeTool = this.toolService.currentTool;
   readonly zoomLevel = this.cameraService.scale;
   readonly fogEnabled = this.fogService.enabled;
-  readonly currentMap = this.mapService.map;
+  readonly selectedMap = this.mapService.selectedMap;
 
-  // Ferramentas disponíveis
   protected tools = [
     { type: ToolType.Select, label: 'Selecionar', shortcut: '1', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>' },
     { type: ToolType.Pan, label: 'Mover', shortcut: 'Space', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
     { type: ToolType.FogReveal, label: 'Revelar', shortcut: '3', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="5" fill="currentColor" opacity="0.3"/><circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="1.5"/></svg>' },
     { type: ToolType.FogHide, label: 'Esconder', shortcut: '4', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="5" fill="currentColor"/><path d="M3 3l18 18" stroke="currentColor" stroke-width="1.5"/></svg>' },
   ];
-
-  // Estado
   protected activeToolLabel = this.toolService.currentTool;
 
   // Stage Konva
   private stage!: Konva.Stage;
-  private renderers: (BackgroundRenderer | GridRenderer | TokenRenderer | FogRenderer)[] = [];
-  private animationFrameId: number | null = null;
-
-  // Event state
+  private backgroundRenderer!: BackgroundRenderer;
+  private renderers: (GridRenderer | TokenRenderer | FogRenderer)[] = [];
   private isSpaceDown = false;
   private isMiddleMouseDown = false;
-  private lastPointerPos = { x: 0, y: 0 };
 
   constructor() {
     effect(() => {
-      // Monitora alterações na lista de tokens
+      // Monitora alterações nos signals e re-renderiza
       this.tokenService.tokenList();
-
-      // Se o stage já estiver inicializado, renderiza
+      this.mapService.mapList();
       if (this.stage) {
         this.renderAll();
       }
@@ -317,30 +254,50 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
     this.initRenderers();
     this.setupEventListeners();
     this.loadCampaignData();
+    console.log('[TabletopCanvas] Inicializado', {
+      stageExists: !!this.stage,
+      bgRendererExists: !!this.backgroundRenderer,
+    });
   }
 
   ngOnDestroy(): void {
     this.eventService.completeAll();
     this.renderers.forEach((r) => r.destroy());
+    this.backgroundRenderer?.destroy();
     this.stage?.destroy();
   }
 
   private initStage(): void {
     const container = this.containerRef.nativeElement;
     const { width, height } = container.getBoundingClientRect();
-
-    this.stage = new Konva.Stage({
-      container,
-      width,
-      height,
-    });
-
+    this.stage = new Konva.Stage({ container, width, height });
     this.cameraService.setContainerSize(width, height);
   }
 
   private initRenderers(): void {
+    this.backgroundRenderer = new BackgroundRenderer(this.stage, this.mapService);
+
+    // Callback: clique no fundo → deseleciona
+    this.backgroundRenderer.onBackgroundClick = () => {
+      this.ngZone.run(() => {
+        this.mapService.deselectMap();
+        this.renderAll();
+      });
+    };
+
+    // Callback: botão direito no mapa → abre menu contextual HTML
+    this.backgroundRenderer.onContextMenu = (mapId: string, clientX: number, clientY: number) => {
+      console.log('[ContextMenu] onContextMenu callback chamado', { mapId, clientX, clientY });
+      this.ngZone.run(() => {
+        if (this.contextMenuComponent) {
+          this.contextMenuComponent.open(mapId, clientX, clientY);
+        } else {
+          console.warn('[ContextMenu] contextMenuComponent não disponível');
+        }
+      });
+    };
+
     this.renderers = [
-      new BackgroundRenderer(this.stage, this.mapService),
       new GridRenderer(this.stage, this.gridService),
       new TokenRenderer(this.stage, this.tokenService, this.gridService, this.eventService),
       new FogRenderer(this.stage, this.fogService),
@@ -367,28 +324,20 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
       e.evt.preventDefault();
       const pointer = this.stage.getPointerPosition();
       if (!pointer) return;
-
       const oldScale = this.stage.scaleX();
       const scaleBy = 1.05;
-
       const mousePointTo = {
         x: (pointer.x - this.stage.x()) / oldScale,
         y: (pointer.y - this.stage.y()) / oldScale,
       };
-
       const direction = e.evt.deltaY > 0 ? -1 : 1;
       let newScale = direction > 0 ? oldScale * scaleBy : oldScale / scaleBy;
-
-      // Clamp scale
       newScale = Math.max(0.1, Math.min(5, newScale));
-
       this.stage.scale({ x: newScale, y: newScale });
-
       const newPos = {
         x: pointer.x - mousePointTo.x * newScale,
         y: pointer.y - mousePointTo.y * newScale,
       };
-
       this.stage.position(newPos);
       this.cameraService.updateState(newPos.x, newPos.y, newScale);
       this.renderAll();
@@ -396,37 +345,27 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
 
     // Mouse down
     this.stage.on('mousedown', (e: Konva.KonvaEventObject<MouseEvent>) => {
-      const pos = this.stage.getPointerPosition();
-      if (!pos) return;
-
-      // Botão do meio ou Space = pan
+      if (!this.stage.getPointerPosition()) return;
       if (e.evt.button === 1 || this.isSpaceDown) {
         this.cameraService.startPan();
         this.isMiddleMouseDown = true;
         this.stage.container().style.cursor = 'grabbing';
         return;
       }
-
-      // Botão direito = contexto
-      if (e.evt.button === 2) return;
-
-      // Clique no canvas vazio = deselect
+      if (e.evt.button === 2) return; // botão direito tratado via contextmenu
       if (e.target === this.stage) {
+        this.mapService.deselectMap();
         this.tokenService.deselectAll();
       }
     });
 
-    // Mouse move
+    // Mouse move (pan)
     this.stage.on('mousemove', (e: Konva.KonvaEventObject<MouseEvent>) => {
-      if (this.isMiddleMouseDown || this.isSpaceDown) {
-        // Nativo pan
-        const dx = e.evt.movementX;
-        const dy = e.evt.movementY;
-        this.stage.x(this.stage.x() + dx);
-        this.stage.y(this.stage.y() + dy);
-        this.cameraService.updateState(this.stage.x(), this.stage.y(), this.stage.scaleX());
-        this.renderAll();
-      }
+      if (!this.isMiddleMouseDown && !this.isSpaceDown) return;
+      this.stage.x(this.stage.x() + e.evt.movementX);
+      this.stage.y(this.stage.y() + e.evt.movementY);
+      this.cameraService.updateState(this.stage.x(), this.stage.y(), this.stage.scaleX());
+      this.renderAll();
     });
 
     // Mouse up
@@ -438,8 +377,33 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
       }
     });
 
-    // Duplo clique removido conforme a nova regra.
+    // Context menu no stage tenta identificar qual shape está sob o mouse
+    this.stage.on('contextmenu', (e: Konva.KonvaEventObject<PointerEvent>) => {
+      e.evt.preventDefault();
+      console.log('[ContextMenu] Stage contextmenu disparado', {
+        targetName: e.target?.name?.() ?? 'unknown',
+        clientX: e.evt.clientX,
+        clientY: e.evt.clientY,
+      });
+
+      const target = e.target;
+      // Verifica se clicou em uma imagem de mapa
+      if (target && target.name()?.startsWith('map-image-')) {
+        const mapId = target.name()!.replace('map-image-', '');
+        console.log('[ContextMenu] Clicou no mapa:', mapId);
+        this.ngZone.run(() => {
+          this.mapService.selectMap(mapId);
+          if (this.contextMenuComponent) {
+            this.contextMenuComponent.open(mapId, e.evt.clientX, e.evt.clientY);
+          }
+        });
+      }
+    });
   }
+
+  // ════════════════════════════════════════════════════════
+  // CÂMERA E FERRAMENTAS
+  // ════════════════════════════════════════════════════════
 
   protected resetCamera(): void {
     this.cameraService.reset();
@@ -468,56 +432,33 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
 
   protected handleKeyDown(event: KeyboardEvent): void {
     this.eventService.emitKeyDown(event);
-
     if (event.key === ' ') {
       this.isSpaceDown = true;
       event.preventDefault();
       return;
     }
-
-    // Shortcuts de ferramentas
     if (this.toolService.handleShortcut(event.key)) {
       event.preventDefault();
       return;
     }
-
+    if (event.key === 'Escape') {
+      this.mapService.deselectMap();
+      this.tokenService.deselectAll();
+      this.renderAll();
+      return;
+    }
     switch (event.key) {
-      case 'g':
-      case 'G':
-        this.toggleGrid();
-        break;
-      case 'f':
-      case 'F':
-        this.toggleFog();
-        break;
-      case 'Delete':
-      case 'Backspace':
-        this.tokenService.removeSelected();
-        this.renderAll();
-        break;
-      case 'c':
-        if (event.ctrlKey) {
-          this.tokenService.copySelected();
-        }
-        break;
-      case 'v':
-        if (event.ctrlKey) {
-          this.tokenService.pasteFromClipboard();
-          this.renderAll();
-        }
-        break;
-      case 'd':
-        if (event.ctrlKey) {
-          this.tokenService.duplicateSelected();
-          this.renderAll();
-        }
-        break;
+      case 'g': case 'G': this.toggleGrid(); break;
+      case 'f': case 'F': this.toggleFog(); break;
+      case 'Delete': case 'Backspace': this.tokenService.removeSelected(); this.renderAll(); break;
+      case 'c': if (event.ctrlKey) this.tokenService.copySelected(); break;
+      case 'v': if (event.ctrlKey) { this.tokenService.pasteFromClipboard(); this.renderAll(); } break;
+      case 'd': if (event.ctrlKey) { this.tokenService.duplicateSelected(); this.renderAll(); } break;
     }
   }
 
   protected handleKeyUp(event: KeyboardEvent): void {
     this.eventService.emitKeyUp(event);
-
     if (event.key === ' ') {
       this.isSpaceDown = false;
       if (this.isMiddleMouseDown) {
@@ -528,55 +469,55 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  // --- Map Controls ---
+  // ════════════════════════════════════════════════════════
+  // AÇÕES DO MAPA (quick actions)
+  // ════════════════════════════════════════════════════════
+
   centerMap(): void {
+    const map = this.mapService.selectedMap();
+    if (!map) return;
     const size = this.cameraService.getContainerSize();
-    this.mapService.centerMap(size.width, size.height);
+    this.mapService.centerMap(map.id, size.width, size.height);
     this.renderAll();
   }
 
   fitMapToScreen(): void {
+    const map = this.mapService.selectedMap();
+    if (!map) return;
     const size = this.cameraService.getContainerSize();
-    this.mapService.fitToScreen(size.width, size.height);
+    this.mapService.fitToScreen(map.id, size.width, size.height);
     this.renderAll();
   }
 
   resetMapScale(): void {
-    this.mapService.resetScale();
+    const map = this.mapService.selectedMap();
+    if (!map) return;
+    this.mapService.resetScale(map.id);
     this.renderAll();
   }
 
-  toggleMapLock(): void {
-    this.mapService.toggleLock();
-    this.renderAll();
-  }
-
-  // --- Upload ---
+  // ════════════════════════════════════════════════════════
+  // UPLOAD
+  // ════════════════════════════════════════════════════════
 
   openMapUpload(): void {
-    if (this.mapFileInput) {
-      this.mapFileInput.nativeElement.click();
-    }
+    this.mapFileInput?.nativeElement?.click();
   }
 
   openTokenUpload(): void {
-    if (this.tokenFileInput) {
-      this.tokenFileInput.nativeElement.click();
-    }
+    this.tokenFileInput?.nativeElement?.click();
   }
 
   protected handleMapUpload(event: Event): void {
     const target = event.target as HTMLInputElement;
     const file = target.files?.[0];
     if (!file) return;
-
-    this.mapService.loadMapFromFile(file).then(() => {
-      this.mapService.centerMap(
-        this.cameraService.getContainerSize().width,
-        this.cameraService.getContainerSize().height,
-      );
+    this.mapService.loadMapFromFile(file).then((map) => {
+      const size = this.cameraService.getContainerSize();
+      this.mapService.centerMap(map.id, size.width, size.height);
       this.renderAll();
       target.value = '';
+      console.log('[TabletopCanvas] Mapa carregado:', map.name, 'total mapas:', this.mapService.mapList().length);
     });
   }
 
@@ -584,17 +525,13 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
     const target = event.target as HTMLInputElement;
     const file = target.files?.[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (e: ProgressEvent<FileReader>) => {
       const img = new Image();
       img.onload = () => {
         const cellSize = this.gridService.cellSize();
-        
-        // Posição central visível
         const centerX = (this.stage.width() / 2 - this.stage.x()) / this.stage.scaleX();
         const centerY = (this.stage.height() / 2 - this.stage.y()) / this.stage.scaleY();
-
         this.tokenService.createToken({
           image: img.src,
           x: centerX - cellSize / 2,
@@ -610,41 +547,33 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
     reader.readAsDataURL(file);
   }
 
-  // --- Propriedades do Token ---
-  // Foram removidas pois agora são gerenciadas pelo TokenEditorPanelComponent
+  // ════════════════════════════════════════════════════════
+  // RENDER
+  // ════════════════════════════════════════════════════════
 
-  /**
-   * Renderiza todas as camadas, chamando o render() de cada renderer.
-   * Deve ser chamado sempre que o estado da câmera, tokens, mapa ou fog mudar.
-   */
-  private renderAll(): void {
-    const cameraSnapshot = this.cameraService.getSnapshot();
-    // Recria um CameraService compatível para os renderers que esperam o serviço completo
+  renderAll(): void {
+    if (!this.stage) return;
     for (const renderer of this.renderers) {
       renderer.render(this.cameraService);
     }
-    // Também renderiza a fog, já que FogRenderer está registrado em this.renderers
+    this.backgroundRenderer?.render(this.cameraService);
   }
 
-  // --- Load / Save ---
+  // ════════════════════════════════════════════════════════
+  // LOAD
+  // ════════════════════════════════════════════════════════
 
   private loadCampaignData(): void {
     const campaignId = this.route.snapshot.paramMap.get('id');
     if (campaignId) {
       this.fogService.setCampaignId(campaignId);
       this.fogService.loadFromStorage(campaignId);
-      this.loadSavedTokens(campaignId);
-    }
-  }
-
-  private loadSavedTokens(campaignId: string): void {
-    const saved = localStorage.getItem(`mythmaker_vtt_tokens_${campaignId}`);
-    if (saved) {
-      try {
-        const tokens = JSON.parse(saved);
-        this.tokenService.loadFromSnapshot(tokens);
-      } catch {
-        // Ignora dados corrompidos
+      const saved = localStorage.getItem(`mythmaker_vtt_tokens_${campaignId}`);
+      if (saved) {
+        try {
+          const tokens = JSON.parse(saved);
+          this.tokenService.loadFromSnapshot(tokens);
+        } catch { /* ignore */ }
       }
     }
   }

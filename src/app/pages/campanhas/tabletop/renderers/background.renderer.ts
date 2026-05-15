@@ -1,148 +1,306 @@
 import Konva from 'konva';
 import { BaseRenderer } from './base-renderer';
-import { LayerType } from '../models';
+import { LayerType, MapData } from '../models';
 import { CameraService, MapService } from '../services';
 
 /**
- * Renderer responsável por desenhar o mapa de fundo.
- * Renderiza a imagem do mapa na BackgroundLayer com suporte a
- * escala, posicionamento e bloqueio.
+ * Renderer de mapas — VERSÃO SIMPLIFICADA.
+ *
+ * Cada mapa possui seu próprio grupo, transformer e outline.
+ * Não há toolbar nem cadeado persistente.
+ * Lock controla apenas draggable e transformer.
+ *
+ * REGRA:
+ *   - Se mapa está selecionado (selectedId === map.id):
+ *     - locked=false → draggable=true, transformer visível
+ *     - locked=true  → draggable=false, transformer invisível
+ *   - Se NÃO está selecionado → tudo invisível, sem interação
  */
 export class BackgroundRenderer extends BaseRenderer {
-  private backgroundImage: Konva.Image | null = null;
-  private imageObj: HTMLImageElement | null = null;
-  private transformer: Konva.Transformer;
+  private mapGroups = new Map<string, {
+    group: Konva.Group;
+    image: Konva.Image;
+    outline: Konva.Rect;
+    transformer: Konva.Transformer;
+  }>();
 
-  constructor(private stage: Konva.Stage, private mapService: MapService) {
+  private imageCache = new Map<string, HTMLImageElement>();
+
+  onBackgroundClick: (() => void) | null = null;
+  onContextMenu: ((mapId: string, clientX: number, clientY: number) => void) | null = null;
+
+  constructor(
+    private stage: Konva.Stage,
+    private mapService: MapService,
+  ) {
     super(LayerType.Background, stage);
-
-    this.transformer = new Konva.Transformer({
-      rotateEnabled: false,
-      keepRatio: true,
-      ignoreStroke: true,
-      enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
-      anchorSize: 10,
-      borderStroke: '#4fc3f7',
-      anchorStroke: '#4fc3f7',
-      anchorFill: '#ffffff',
-    });
-    this.layer.add(this.transformer);
-
-    this.setupEventListeners();
+    this.setupStageEvents();
   }
 
-  private setupEventListeners(): void {
-    // Stage click para deselecionar
-    this.stage.on('click mousedown', (e: Konva.KonvaEventObject<MouseEvent>) => {
-      // Se clicou direto no stage ou fora da imagem, ou num token
-      if (e.target === this.stage) {
-        this.deselectMap();
+  /** Escuta clique no fundo do stage para deselecionar */
+  private setupStageEvents(): void {
+    this.stage.on('mousedown', (e: Konva.KonvaEventObject<MouseEvent>) => {
+      if (e.evt.button !== 0) return;
+
+      const target = e.target;
+      const selectedId = this.mapService.selectedId();
+      if (!selectedId) return;
+
+      // Se clicou no stage (vazio) ou em token/grid/fog — deseleciona
+      if (
+        target === this.stage ||
+        target.name()?.startsWith('token-') ||
+        target.name()?.startsWith('grid-') ||
+        target.name()?.startsWith('fog-')
+      ) {
+        this.mapService.deselectMap();
+        if (this.onBackgroundClick) {
+          this.onBackgroundClick();
+        }
       }
     });
-  }
-
-  private deselectMap(): void {
-    if (this.transformer.nodes().length > 0) {
-      this.transformer.nodes([]);
-      this.redraw();
-    }
   }
 
   override render(camera: CameraService): void {
-    const map = this.mapService.map();
-    if (!map) {
-      this.clear();
-      return;
-    }
+    const maps = this.mapService.sortedMaps();
+    const selectedId = this.mapService.selectedId();
+    const currentIds = new Set(maps.map((m) => m.id));
 
-    const imageUrl = map.imageUrl;
-    
-    // Se a imagem já estiver no MapData (cache), não precisamos baixar de novo
-    if (map.imageObj && this.imageObj !== map.imageObj) {
-      this.imageObj = map.imageObj;
-      this.clear();
-      this.createBackgroundImage(this.imageObj, map);
-    } else if (!map.imageObj && this.imageObj?.src !== imageUrl) {
-      this.loadImage(imageUrl);
-    }
-
-    if (this.backgroundImage && this.imageObj) {
-      this.backgroundImage.x(map.x);
-      this.backgroundImage.y(map.y);
-      this.backgroundImage.scaleX(map.scale);
-      this.backgroundImage.scaleY(map.scale);
-      this.backgroundImage.draggable(!map.locked);
-      this.backgroundImage.listening(true);
-      
-      if (map.locked) {
-        this.deselectMap();
+    // Remove mapas que não existem mais
+    for (const [id, data] of this.mapGroups) {
+      if (!currentIds.has(id)) {
+        data.group.destroy();
+        this.mapGroups.delete(id);
       }
+    }
+
+    // Cria e atualiza cada mapa
+    for (const map of maps) {
+      this.getOrCreateMapGroup(map);
+      this.applyMapState(map, selectedId);
     }
 
     this.redraw();
   }
 
-  private createBackgroundImage(img: HTMLImageElement, map: any): void {
-    this.backgroundImage = new Konva.Image({
-      image: img,
-      x: map.x ?? 0,
-      y: map.y ?? 0,
-      width: img.width,
-      height: img.height,
-      scaleX: map.scale ?? 1,
-      scaleY: map.scale ?? 1,
-      draggable: !map.locked,
+  private getOrCreateMapGroup(map: MapData): void {
+    if (this.mapGroups.has(map.id)) return;
+
+    const img = this.getOrLoadImage(map.imageUrl, map.imageObj);
+    if (!img) return;
+
+    // Cache da imagem
+    if (!map.imageObj) {
+      this.mapService.updateMap(map.id, { imageObj: img });
+    }
+
+    // ── GRUPO DO MAPA ──
+    const group = new Konva.Group({
+      x: map.x,
+      y: map.y,
+      draggable: false,
+      visible: true,
       listening: true,
-      name: 'map-background',
+      name: `map-group-${map.id}`,
     });
 
-    // Clique para selecionar
-    this.backgroundImage.on('click', (e) => {
+    // ── IMAGEM ──
+    const image = new Konva.Image({
+      image: img,
+      x: 0,
+      y: 0,
+      width: img.width,
+      height: img.height,
+      scaleX: map.scaleX ?? map.scale ?? 1,
+      scaleY: map.scaleY ?? map.scale ?? 1,
+      draggable: false,
+      listening: true,
+      name: `map-image-${map.id}`,
+    });
+
+    // ── OUTLINE (seleção) ──
+    const outline = new Konva.Rect({
+      x: -3,
+      y: -3,
+      width: img.width * (map.scaleX ?? map.scale ?? 1) + 6,
+      height: img.height * (map.scaleY ?? map.scale ?? 1) + 6,
+      stroke: '#4fc3f7',
+      strokeWidth: 2,
+      strokeScaleEnabled: false,
+      dash: [6, 3],
+      listening: false,
+      visible: false,
+      name: `map-outline-${map.id}`,
+    });
+
+    group.add(image);
+    group.add(outline);
+
+    // ── TRANSFORMER ──
+    const transformer = new Konva.Transformer({
+      nodes: [],
+      rotateEnabled: false,
+      keepRatio: true,
+      ignoreStroke: true,
+      enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
+      anchorSize: 10,
+      anchorCornerRadius: 3,
+      borderStroke: '#4fc3f7',
+      borderStrokeWidth: 2,
+      anchorStroke: '#4fc3f7',
+      anchorFill: '#ffffff',
+      visible: false,
+      name: `map-transformer-${map.id}`,
+    });
+    group.add(transformer);
+
+    // ═══════════════════════════════════════════
+    // EVENTOS
+    // ═══════════════════════════════════════════
+
+    // Clique esquerdo → seleciona mapa
+    image.on('click', (e: Konva.KonvaEventObject<MouseEvent>) => {
+      if (e.evt.button !== 0) return;
       e.cancelBubble = true;
-      if (!this.mapService.map()?.locked) {
-        this.transformer.nodes([this.backgroundImage!]);
-        this.redraw();
+      this.mapService.selectMap(map.id);
+    });
+
+    // Duplo clique → seleciona
+    image.on('dblclick', (e: Konva.KonvaEventObject<MouseEvent>) => {
+      e.cancelBubble = true;
+      this.mapService.selectMap(map.id);
+    });
+
+    // Botão direito → menu contextual HTML
+    image.on('contextmenu', (e: Konva.KonvaEventObject<PointerEvent>) => {
+      e.evt.preventDefault();
+      e.cancelBubble = true;
+      // Seleciona o mapa primeiro
+      this.mapService.selectMap(map.id);
+      // Dispara o callback para o componente abrir o menu HTML
+      if (this.onContextMenu) {
+        this.onContextMenu(map.id, e.evt.clientX, e.evt.clientY);
       }
     });
 
-    // Arrastar
-    this.backgroundImage.on('dragend', () => {
-      if (!this.backgroundImage) return;
-      this.mapService.updateMap({
-        x: this.backgroundImage.x(),
-        y: this.backgroundImage.y(),
+    // Drag — move o grupo e atualiza posição no service
+    group.on('dragstart', () => {
+      this.mapService.bringToFront(map.id);
+    });
+
+    group.on('dragend', () => {
+      this.mapService.updateMap(map.id, {
+        x: group.x(),
+        y: group.y(),
       });
     });
 
-    // Transformar (Resize)
-    this.backgroundImage.on('transformend', () => {
-      if (!this.backgroundImage) return;
-      this.mapService.updateMap({
-        x: this.backgroundImage.x(),
-        y: this.backgroundImage.y(),
-        scale: this.backgroundImage.scaleX(),
-      });
+    // Transform (resize)
+    image.on('transform', () => {
+      this.updateOutline(map.id);
     });
 
-    this.layer.add(this.backgroundImage);
-    this.transformer.moveToTop();
+    image.on('transformend', () => {
+      this.mapService.updateMap(map.id, {
+        x: group.x(),
+        y: group.y(),
+        scaleX: image.scaleX(),
+        scaleY: image.scaleY(),
+        scale: image.scaleX(),
+      });
+      this.updateOutline(map.id);
+    });
+
+    // Adiciona à layer
+    this.mapGroups.set(map.id, { group, image, outline, transformer });
+    this.layer.add(group);
+    this.redraw();
   }
 
-  private loadImage(url: string): void {
+  private applyMapState(map: MapData, selectedId: string | null): void {
+    const data = this.mapGroups.get(map.id);
+    if (!data) return;
+
+    const { group, image, outline, transformer } = data;
+    const isSelected = selectedId === map.id;
+
+    // Posição e escala
+    group.x(map.x);
+    group.y(map.y);
+    image.scaleX(map.scaleX ?? map.scale ?? 1);
+    image.scaleY(map.scaleY ?? map.scale ?? 1);
+
+    // Ordem Z
+    group.zIndex(map.zIndex);
+
+    if (isSelected) {
+      // ── SELECIONADO ──
+      outline.visible(true);
+      outline.stroke(map.locked ? '#ff6b6b' : '#4fc3f7');
+      outline.dash(map.locked ? [4, 4] : [6, 3]);
+
+      if (!map.locked) {
+        group.draggable(true);
+        transformer.visible(true);
+        transformer.nodes([image]);
+      } else {
+        group.draggable(false);
+        transformer.nodes([]);
+        transformer.visible(false);
+      }
+    } else {
+      // ── NÃO SELECIONADO ──
+      outline.visible(false);
+      group.draggable(false);
+      transformer.nodes([]);
+      transformer.visible(false);
+    }
+
+    this.updateOutline(map.id);
+  }
+
+  private updateOutline(mapId: string): void {
+    const data = this.mapGroups.get(mapId);
+    if (!data) return;
+    const { outline, image } = data;
+    outline.width(image.width() * image.scaleX() + 6);
+    outline.height(image.height() * image.scaleY() + 6);
+  }
+
+  private getOrLoadImage(url: string, existingObj?: HTMLImageElement): HTMLImageElement | null {
+    if (existingObj) {
+      this.imageCache.set(url, existingObj);
+      return existingObj;
+    }
+    if (this.imageCache.has(url)) {
+      return this.imageCache.get(url) ?? null;
+    }
+
     const img = new Image();
     img.onload = () => {
-      this.imageObj = img;
-      this.clear();
-      this.createBackgroundImage(img, this.mapService.map() || {});
+      this.imageCache.set(url, img);
+      const maps = this.mapService.mapList();
+      const map = maps.find((m) => m.imageUrl === url);
+      if (map) {
+        this.mapService.updateMap(map.id, { imageObj: img });
+      }
       this.redraw();
     };
     img.src = url;
+
+    if (img.complete && img.naturalWidth > 0) {
+      this.imageCache.set(url, img);
+      return img;
+    }
+    this.imageCache.set(url, img);
+    return null;
   }
 
   override clear(): void {
+    for (const [, data] of this.mapGroups) {
+      data.group.destroy();
+    }
+    this.mapGroups.clear();
     super.clear();
-    this.backgroundImage = null;
-    this.transformer.nodes([]);
-    this.layer.add(this.transformer); // Mantém o transformer
   }
 }

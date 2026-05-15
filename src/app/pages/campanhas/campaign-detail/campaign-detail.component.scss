@@ -94,9 +94,18 @@
   flex: 1;
   padding: 32px;
   overflow-y: auto;
+  min-height: 0;
 
   &.no-padding {
     padding: 0 32px 32px;
+  }
+
+  /* Tabletop active: remove padding/scroll and expand full */
+  &.tabletop-active {
+    padding: 0 !important;
+    overflow: hidden !important;
+    display: flex;
+    flex-direction: column;
   }
 }
 
@@ -1717,4 +1726,17 @@
       background: #c94a4a;
     }
   }
+}
+
+/* ── Tabletop Section ── */
+.view-section.tabletop-section {
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
 }

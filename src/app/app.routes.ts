@@ -29,6 +29,7 @@ export const routes: Routes = [
       { path: 'itens', component: ItensComponent },
       { path: 'dados', component: DadosComponent },
       { path: 'campanhas/:id/gerador-missao', loadComponent: () => import('./pages/campanhas/mission-generator/mission-generator.component').then(m => m.MissionGeneratorComponent) },
+      { path: 'campanhas/:id/tabletop', loadComponent: () => import('./pages/campanhas/tabletop/tabletop.component').then(m => m.TabletopComponent) },
     ]
   },
 ];

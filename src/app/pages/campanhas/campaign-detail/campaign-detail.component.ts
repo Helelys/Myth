@@ -7,8 +7,9 @@ import { Campaign } from '../criar-campanha/criar-campanha.component';
 import { SheetBuilderComponent } from '../sheet-builder/sheet-builder';
 import { PlayerSheetViewComponent } from '../sheet-builder/player-sheet-view/player-sheet-view';
 import { Character } from '../player-sheet/player-sheet.component';
+import { TabletopComponent } from '../tabletop/tabletop.component';
 
-type Tab = 'sistema' | 'personagens' | 'combates' | 'escudo';
+type Tab = 'sistema' | 'personagens' | 'combates' | 'escudo' | 'tabletop';
 type SystemView = 'regras' | 'ficha' | 'ficha-monstro' | 'itens' | 'anotacoes';
 
 export interface CombatParticipant {
@@ -37,7 +38,7 @@ export interface DMTracker {
 @Component({
   selector: 'app-campaign-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SheetBuilderComponent, PlayerSheetViewComponent],
+  imports: [CommonModule, FormsModule, RouterLink, SheetBuilderComponent, PlayerSheetViewComponent, TabletopComponent],
   templateUrl: './campaign-detail.component.html',
   styleUrl: './campaign-detail.component.scss'
 })

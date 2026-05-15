@@ -63,6 +63,11 @@ export class CameraService {
     this.state.update((s) => ({ ...s, isPanning: false }));
   }
 
+  /** Carrega um snapshot de câmera */
+  loadFromSnapshot(snapshot: Partial<CameraState>): void {
+    this.state.update((s) => ({ ...s, ...snapshot }));
+  }
+
   /** Reseta a câmera para o estado inicial */
   reset(): void {
     this.state.set({ ...DEFAULT_CAMERA_STATE });

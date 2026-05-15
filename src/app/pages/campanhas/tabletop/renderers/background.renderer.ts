@@ -169,6 +169,15 @@ export class BackgroundRenderer extends BaseRenderer {
     });
 
     group.on('dragend', () => {
+      const savedMap = this.mapService.getMapById(map.id);
+      console.log('[DRAGEND]', {
+        mapId: map.id,
+        visualX: group.x(),
+        visualY: group.y(),
+        savedX: savedMap?.x,
+        savedY: savedMap?.y,
+        willUpdate: true,
+      });
       this.mapService.updateMap(map.id, {
         x: group.x(),
         y: group.y(),
@@ -177,6 +186,17 @@ export class BackgroundRenderer extends BaseRenderer {
 
     // Transform end (resize)
     image.on('transformend', () => {
+      const savedMap = this.mapService.getMapById(map.id);
+      console.log('[TRANSFORMEND]', {
+        mapId: map.id,
+        visualX: group.x(),
+        visualY: group.y(),
+        visualScaleX: image.scaleX(),
+        visualScaleY: image.scaleY(),
+        savedX: savedMap?.x,
+        savedY: savedMap?.y,
+        savedScaleX: savedMap?.scaleX,
+      });
       this.mapService.updateMap(map.id, {
         x: group.x(),
         y: group.y(),

@@ -22,6 +22,7 @@ import {
   FogService,
   ToolService,
   VttEventService,
+  PersistenceService,
 } from './services';
 import { ToolType } from './models';
 import {
@@ -117,6 +118,33 @@ import { MapContextMenuComponent } from './map-context-menu.component';
            MENU CONTEXTUAL — COMPONENTE SEPARADO (fora do Konva)
            ════════════════════════════════════════════════════ -->
       <app-map-context-menu />
+
+      <!-- ════════════════════════════════════════════════════
+           MODAL DE AVISO — IMAGEM MUITO GRANDE
+           ════════════════════════════════════════════════════ -->
+      @if (showSizeWarning()) {
+        <div class="modal-overlay" (click)="closeSizeWarning()">
+          <div class="modal-content" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="#f44336" stroke-width="1.5"/>
+                <path d="M12 8v4M12 16h.01" stroke="#f44336" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <h3>Imagem muito grande</h3>
+            </div>
+            <div class="modal-body">
+              @if (sizeWarningData(); as data) {
+                <p>O arquivo <strong>{{ data.name }}</strong> tem <strong>{{ data.fileSizeMB }}MB</strong>.</p>
+                <p>O limite máximo permitido é de <strong>{{ data.maxSizeMB }}MB</strong> por imagem.</p>
+              }
+              <p class="modal-hint">Imagens grandes não cabem no armazenamento local do navegador (localStorage).</p>
+            </div>
+            <div class="modal-footer">
+              <button class="modal-btn" (click)="closeSizeWarning()">Entendi</button>
+            </div>
+          </div>
+        </div>
+      }
     </div>
   `,
   styles: [`
@@ -190,7 +218,72 @@ import { MapContextMenuComponent } from './map-context-menu.component';
       color: #8a8aaa; cursor: pointer; transition: all 0.15s;
     }
     .quick-btn:hover { color: #fff; background: rgba(255,255,255,0.1); }
+
+    /* ═══════════════════════════════════════════
+       MODAL DE AVISO
+       ═══════════════════════════════════════════ */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000;
+    }
+    .modal-content {
+      background: #1e1e3a;
+      border: 1px solid #2a2a4a;
+      border-radius: 12px;
+      padding: 0;
+      width: 400px;
+      max-width: 90vw;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    .modal-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 16px 20px;
+      border-bottom: 1px solid #2a2a4a;
+    }
+    .modal-header h3 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+      color: #e0e0e0;
+    }
+    .modal-body {
+      padding: 20px;
+      color: #b0b0c0;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .modal-body strong {
+      color: #e0e0e0;
+    }
+    .modal-hint {
+      margin-top: 12px;
+      font-size: 12px;
+      color: #6a6a8a;
+      font-style: italic;
+    }
+    .modal-footer {
+      padding: 12px 20px;
+      border-top: 1px solid #2a2a4a;
+      display: flex; justify-content: flex-end;
+    }
+    .modal-btn {
+      background: #4fc3f7;
+      color: #0a0a1a;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 24px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .modal-btn:hover {
+      background: #39a9db;
+    }
   `],
+
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
@@ -206,6 +299,13 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
   @ViewChild(MapContextMenuComponent)
   private contextMenuComponent!: MapContextMenuComponent;
 
+  // Limite seguro: ~3MB de arquivo original ≈ ~4MB de dataURL, dentro do localStorage (~5-10MB)
+  private readonly MAX_IMAGE_FILE_BYTES = 3 * 1024 * 1024; // 3MB
+
+  // Modal de erro de tamanho
+  readonly showSizeWarning = signal(false);
+  readonly sizeWarningData = signal<{ name: string; fileSizeMB: string; maxSizeMB: string } | null>(null);
+
   // Serviços
   private ngZone = inject(NgZone);
   private cameraService = inject(CameraService);
@@ -215,6 +315,7 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
   private fogService = inject(FogService);
   private toolService = inject(ToolService);
   private eventService = inject(VttEventService);
+  private persistence = inject(PersistenceService);
   private route = inject(ActivatedRoute);
 
   // Signals UI
@@ -239,10 +340,12 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
   private isMiddleMouseDown = false;
 
   constructor() {
+    console.log('[ORDER] 0 CONSTRUCTOR');
     effect(() => {
       // Monitora alterações nos signals e re-renderiza
       this.tokenService.tokenList();
       this.mapService.mapList();
+      console.log('[RENDER] EFFECT mapList mudou. maps:', this.mapService.mapList().length);
       if (this.stage) {
         this.renderAll();
       }
@@ -250,13 +353,24 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit(): void {
+    console.log('[ORDER] 1 ngAfterViewInit');
+    console.log('[ORDER] 2 initStage');
     this.initStage();
+    console.log('[ORDER] 3 initRenderers');
     this.initRenderers();
+    console.log('[ORDER] 4 setupEventListeners');
     this.setupEventListeners();
+    console.log('[ORDER] 5 loadCampaignData');
     this.loadCampaignData();
-    console.log('[TabletopCanvas] Inicializado', {
+
+    console.log('[ORDER] 6 applyCameraToStage');
+    // Depois de carregar, aplica câmera no stage
+    this.applyCameraToStage();
+
+    console.log('[ORDER] 7 FIM ngAfterViewInit', {
       stageExists: !!this.stage,
       bgRendererExists: !!this.backgroundRenderer,
+      mapsCount: this.mapService.mapList().length,
     });
   }
 
@@ -512,6 +626,18 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
     const target = event.target as HTMLInputElement;
     const file = target.files?.[0];
     if (!file) return;
+
+    // ── Verifica tamanho ANTES de carregar ──
+    if (file.size > this.MAX_IMAGE_FILE_BYTES) {
+      const mb = (file.size / (1024 * 1024)).toFixed(1);
+      const maxMB = (this.MAX_IMAGE_FILE_BYTES / (1024 * 1024)).toFixed(0);
+      console.warn('[TabletopCanvas] Imagem muito grande:', file.name, file.size, 'bytes');
+      this.sizeWarningData.set({ name: file.name, fileSizeMB: mb, maxSizeMB: maxMB });
+      this.showSizeWarning.set(true);
+      target.value = '';
+      return;
+    }
+
     this.mapService.loadMapFromFile(file).then((map) => {
       const size = this.cameraService.getContainerSize();
       this.mapService.centerMap(map.id, size.width, size.height);
@@ -519,6 +645,11 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
       target.value = '';
       console.log('[TabletopCanvas] Mapa carregado:', map.name, 'total mapas:', this.mapService.mapList().length);
     });
+  }
+
+  protected closeSizeWarning(): void {
+    this.showSizeWarning.set(false);
+    this.sizeWarningData.set(null);
   }
 
   protected handleTokenUpload(event: Event): void {
@@ -563,18 +694,25 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
   // LOAD
   // ════════════════════════════════════════════════════════
 
+  /** Aplica o estado salvo da câmera no Stage Konva */
+  private applyCameraToStage(): void {
+    const cam = this.cameraService.getSnapshot();
+    this.stage.position({ x: cam.x, y: cam.y });
+    this.stage.scale({ x: cam.scale, y: cam.scale });
+  }
+
   private loadCampaignData(): void {
     const campaignId = this.route.snapshot.paramMap.get('id');
     if (campaignId) {
       this.fogService.setCampaignId(campaignId);
-      this.fogService.loadFromStorage(campaignId);
-      const saved = localStorage.getItem(`mythmaker_vtt_tokens_${campaignId}`);
-      if (saved) {
-        try {
-          const tokens = JSON.parse(saved);
-          this.tokenService.loadFromSnapshot(tokens);
-        } catch { /* ignore */ }
-      }
     }
+
+    // Persistência unificada — carrega maps, tokens, camera, fog, grid
+    this.persistence.load();
+
+    console.log('[TabletopCanvas] Dados carregados', {
+      maps: this.mapService.mapList().length,
+      tokens: this.tokenService.tokenList().length,
+    });
   }
 }

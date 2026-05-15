@@ -195,14 +195,46 @@ export class MapService {
     return this.maps().find((m) => m.id === id);
   }
 
-  /** Obtém o snapshot para serialização */
+  /** Obtém o snapshot para serialização (STRIPPA imageObj — não serializável!) */
   getSnapshot(): MapData[] {
-    return this.maps();
+    const snap = this.maps().map((m) => {
+      const { imageObj, ...rest } = m;
+      return rest as MapData;
+    });
+    console.log('[MAPSERVICE] getSnapshot() — maps count:', snap.length);
+    snap.forEach((m, i) => {
+      console.log(`[MAPSERVICE] map[${i}]:`, {
+        id: m.id,
+        name: m.name,
+        imageUrlLen: m.imageUrl?.length || 0,
+        imageUrlStart: m.imageUrl?.substring(0, 60) || 'NONE',
+      });
+    });
+    const totalBytes = snap.reduce((acc, m) => acc + (m.imageUrl?.length || 0), 0);
+    console.log('[MAPSERVICE] Total imageUrl bytes:', totalBytes, `(~${Math.round(totalBytes / 1024)}KB)`);
+    return snap;
   }
 
   /** Carrega mapas de um snapshot */
   loadFromSnapshot(maps: MapData[]): void {
-    this.maps.set(maps);
+    console.log('[MAPSERVICE] loadFromSnapshot() — recebidos', maps.length, 'mapas');
+    // Limpa imageObj — não serializável (JSON.stringify transforma em {}).
+    // O BackgroundRenderer recarregará a imagem via imageUrl (data URL) com onload.
+    const clean = maps.map((m) => {
+      const { imageObj, ...rest } = m;
+      return { ...rest, imageObj: undefined } as unknown as MapData;
+    });
+    clean.forEach((m, i) => {
+      console.log(`[MAPSERVICE] loadFromSnapshot map[${i}]:`, {
+        id: m.id,
+        name: m.name,
+        imageUrlLen: m.imageUrl?.length || 0,
+        imageUrlOk: m.imageUrl?.length > 100,
+      });
+    });
+    console.log('[MAPSERVICE] loadFromSnapshot — setando maps signal com', clean.length, 'mapas');
+    this.maps.set(clean);
+    console.log('[MAPSERVICE] loadFromSnapshot — CONFIRMADO mapList length:', this.maps().length);
   }
 
   /** Remove todos os mapas */

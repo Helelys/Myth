@@ -42,4 +42,8 @@ export class GridService {
   getSnapshot(): GridConfig {
     return this.state();
   }
+
+  loadFromSnapshot(grid: GridConfig): void {
+    this.state.set({ ...grid });
+  }
 }

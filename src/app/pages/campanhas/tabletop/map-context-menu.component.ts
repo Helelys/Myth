@@ -1,6 +1,6 @@
 import { Component, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MapService } from './services';
+import { MapService, PersistenceService } from './services';
 
 /**
  * Componente de menu contextual HTML para mapas.
@@ -10,10 +10,10 @@ import { MapService } from './services';
  * Aparece em coordenadas fixed (clientX/clientY).
  */
 @Component({
-    selector: 'app-map-context-menu',
-    standalone: true,
-    imports: [CommonModule],
-    template: `
+  selector: 'app-map-context-menu',
+  standalone: true,
+  imports: [CommonModule],
+  template: `
     @if (visible()) {
       <!-- Overlay: captura clique fora -->
       <div class="ctx-overlay" (click)="close()" (contextmenu)="close(); $event.preventDefault()"></div>
@@ -62,7 +62,7 @@ import { MapService } from './services';
       </div>
     }
   `,
-    styles: [`
+  styles: [`
     .ctx-overlay {
       position: fixed;
       top: 0; left: 0;
@@ -117,70 +117,76 @@ import { MapService } from './services';
   `],
 })
 export class MapContextMenuComponent {
-    private mapService = inject(MapService);
+  private mapService = inject(MapService);
+  private persistence = inject(PersistenceService);
 
-    /** Estado do menu */
-    readonly visible = signal(false);
-    readonly x = signal(0);
-    readonly y = signal(0);
-    private mapId = signal<string | null>(null);
+  /** Estado do menu */
+  readonly visible = signal(false);
+  readonly x = signal(0);
+  readonly y = signal(0);
+  private mapId = signal<string | null>(null);
 
-    /** Dados do mapa atual para o template */
-    readonly mapData = this.mapService.getMapByIdSignal(this.mapId);
+  /** Dados do mapa atual para o template */
+  readonly mapData = this.mapService.getMapByIdSignal(this.mapId);
 
-    /** Abre o menu */
-    open(mapId: string, clientX: number, clientY: number): void {
-        this.mapId.set(mapId);
-        this.x.set(clientX);
-        this.y.set(clientY);
-        this.visible.set(true);
-    }
+  /** Abre o menu */
+  open(mapId: string, clientX: number, clientY: number): void {
+    this.mapId.set(mapId);
+    this.x.set(clientX);
+    this.y.set(clientY);
+    this.visible.set(true);
+  }
 
-    /** Fecha o menu */
-    close(): void {
-        this.visible.set(false);
-        this.mapId.set(null);
-    }
+  /** Fecha o menu */
+  close(): void {
+    this.visible.set(false);
+    this.mapId.set(null);
+  }
 
-    protected edit(): void {
-        const id = this.mapId();
-        if (!id) return;
-        this.mapService.selectMap(id);
-        this.close();
-    }
+  protected edit(): void {
+    const id = this.mapId();
+    if (!id) return;
+    this.mapService.selectMap(id);
+    this.close();
+  }
 
-    protected lock(): void {
-        const id = this.mapId();
-        if (!id) return;
-        this.mapService.updateMap(id, { locked: true });
-        this.close();
-    }
+  protected lock(): void {
+    const id = this.mapId();
+    if (!id) return;
+    this.mapService.updateMap(id, { locked: true });
+    this.persistence.saveNow('immediate');
+    this.close();
+  }
 
-    protected unlock(): void {
-        const id = this.mapId();
-        if (!id) return;
-        this.mapService.updateMap(id, { locked: false });
-        this.close();
-    }
+  protected unlock(): void {
+    const id = this.mapId();
+    if (!id) return;
+    this.mapService.updateMap(id, { locked: false });
+    this.persistence.saveNow('immediate');
+    this.close();
+  }
 
-    protected bringToFront(): void {
-        const id = this.mapId();
-        if (!id) return;
-        this.mapService.bringToFront(id);
-        this.close();
-    }
+  protected bringToFront(): void {
+    const id = this.mapId();
+    if (!id) return;
+    this.mapService.bringToFront(id);
+    this.persistence.saveNow('immediate');
+    this.close();
+  }
 
-    protected sendToBack(): void {
-        const id = this.mapId();
-        if (!id) return;
-        this.mapService.sendToBack(id);
-        this.close();
-    }
+  protected sendToBack(): void {
+    const id = this.mapId();
+    if (!id) return;
+    this.mapService.sendToBack(id);
+    this.persistence.saveNow('immediate');
+    this.close();
+  }
 
-    protected deleteMap(): void {
-        const id = this.mapId();
-        if (!id) return;
-        this.mapService.removeMap(id);
-        this.close();
-    }
+  protected deleteMap(): void {
+    const id = this.mapId();
+    if (!id) return;
+    this.mapService.removeMap(id);
+    this.persistence.saveNow('immediate');
+    this.close();
+  }
 }

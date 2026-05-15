@@ -6,3 +6,4 @@ export { FogService } from './fog.service';
 export { ToolService } from './tool.service';
 export { VttEventService } from './event.service';
 export { LayerService } from './layer.service';
+export { PersistenceService } from './persistence.service';

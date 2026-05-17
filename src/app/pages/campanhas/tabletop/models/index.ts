@@ -1,5 +1,5 @@
 export { DEFAULT_TOKEN, createDefaultToken, createDefaultBar, BAR_COLORS } from './token.model';
-export type { Token, TokenBar, TokenArmor } from './token.model';
+export type { Token, TokenBar, TokenArmor, TokenLight, TokenVision } from './token.model';
 export { DEFAULT_GRID_CONFIG } from './grid-config.model';
 export type { GridConfig } from './grid-config.model';
 export { DEFAULT_CAMERA_STATE } from './camera-state.model';

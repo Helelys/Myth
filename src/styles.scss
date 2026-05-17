@@ -32,7 +32,9 @@
 }
 
 // Reset & Base
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -103,6 +105,11 @@ select {
 a {
   text-decoration: none;
   color: inherit;
+}
+
+/* router-outlet is a non-visual placeholder; hide so it doesn't break flex layouts */
+router-outlet {
+  display: none;
 }
 
 ul {

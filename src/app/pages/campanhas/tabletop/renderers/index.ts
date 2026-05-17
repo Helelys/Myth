@@ -6,3 +6,4 @@ export { FogRenderer } from './fog.renderer';
 export { TokenBarRenderer } from './token-bar.renderer';
 export { TokenStatsRenderer } from './token-stats.renderer';
 export { TokenInteractionManager } from './token-interaction.manager';
+export { WallRenderer } from './wall.renderer';

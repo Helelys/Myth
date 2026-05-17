@@ -222,6 +222,33 @@ export class TokenRenderer extends BaseRenderer {
     });
     group.add(nameText);
 
+    // ═══ Indicador de Luz (se token emitir luz) ═══
+    if (token.light?.enabled) {
+      const hasVision = token.vision?.enabled;
+      const lightIcon = new Konva.Text({
+        text: '💡',
+        fontSize: 11,
+        x: -token.width / 2 + 2,
+        y: -32,
+        name: 'light-indicator',
+        listening: false,
+      });
+      group.add(lightIcon);
+    }
+
+    // ═══ Indicador de Visão (se token tiver visão ativa) ═══
+    if (token.vision?.enabled) {
+      const visionIcon = new Konva.Text({
+        text: token.vision.darkvision ? '👁🌙' : '👁',
+        fontSize: 11,
+        x: token.width / 2 - 14,
+        y: -32,
+        name: 'vision-indicator',
+        listening: false,
+      });
+      group.add(visionIcon);
+    }
+
     // Barras configuráveis (HP, Mana, etc.)
     TokenBarRenderer.createBars(group, token.width, token.height, token.bars);
 

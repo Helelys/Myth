@@ -8,3 +8,7 @@ export { ToolService } from './tool.service';
 export { VttEventService } from './event.service';
 export { LayerService } from './layer.service';
 export { PersistenceService } from './persistence.service';
+export { WallService } from './wall.service';
+export { LightService } from './light.service';
+export { ExplorationService } from './exploration.service';
+export { VisionService } from './vision.service';

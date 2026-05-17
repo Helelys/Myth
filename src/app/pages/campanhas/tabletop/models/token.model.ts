@@ -1,3 +1,71 @@
+// ═══════════════════════════════════════════════════════════
+// TOKEN LIGHT — Iluminação emitida pelo token
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Configuração de luz do token.
+ * Define como o token ilumina o ambiente ao redor.
+ *
+ * A luz NÃO é apenas visual — ela RECORTA a Darkness Surface,
+ * revelando áreas para todos os jogadores que possuem visão.
+ *
+ * Token pode ter luz MAS SEM visão (ex: tocha no chão).
+ */
+export interface TokenLight {
+  /** Se a luz está ativa */
+  enabled: boolean;
+  /** Raio da luz em unidades do mundo (px) */
+  radius: number;
+  /** Cor da luz em hex */
+  color: string;
+  /** Intensidade (0-1) */
+  intensity: number;
+  /** Suavidade da borda (0 = dura, 1 = muito suave) */
+  softness: number;
+  /** Tipo de luz */
+  type: 'radial' | 'cone';
+  /** Ângulo do cone (radianos, para cone) */
+  angle?: number;
+  /** Rotação do cone (radianos) */
+  rotation?: number;
+  /** Se a luz deve tremer (tocha) */
+  flicker?: boolean;
+}
+
+// ═══════════════════════════════════════════════════════════
+// TOKEN VISION — Campo de visão do token
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Configuração de visão do token.
+ * Define como o token enxerga o ambiente.
+ *
+ * VISÃO ≠ LUZ
+ * Token pode enxergar sem emitir luz (darkvision).
+ * Token pode emitir luz sem enxergar (tocha estática).
+ *
+ * A visão SEMPRE respeita:
+ * - Paredes (raycasting)
+ * - Portas (abertas/fechadas)
+ * - Line of sight
+ */
+export interface TokenVision {
+  /** Se a visão está ativa */
+  enabled: boolean;
+  /** Raio de visão em unidades do mundo (px) */
+  radius: number;
+  /** Darkvision — enxerga no escuro sem precisar de luz */
+  darkvision: boolean;
+  /** Blindsight — enxerga sem precisar de linha de visão */
+  blindsight: boolean;
+  /** Tremorsense — detecta vibrações no solo */
+  tremorsense: boolean;
+  /** Se a visão é em cone (visão de criatura) */
+  cone: boolean;
+  /** Ângulo do cone de visão (radianos) */
+  angle: number;
+}
+
 /**
  * Configurable bar on a token (HP, Mana, Sanity, etc.)
  */
@@ -22,6 +90,21 @@ export interface TokenArmor {
 /**
  * Representa um token de personagem/criatura no Tabletop VTT.
  * Cada token possui propriedades visuais, status e metadados.
+ *
+ * ═══════════════════════════════════════════════════════════
+ * NOVO: O token agora é uma ENTIDADE DE VISÃO E ILUMINAÇÃO
+ * ═══════════════════════════════════════════════════════════
+ *
+ * Cada token possui:
+ *   1. Dados visuais (imagem, nome, aura)
+ *   2. Dados de iluminação (TokenLight)
+ *   3. Dados de visão (TokenVision)
+ *   4. Dados de colisão (locked, layer)
+ *   5. Estado de exploração (contribui para exploration grid)
+ *
+ * Fluxo correto:
+ *   Token move → VisionService recalcula → Raycasting executa →
+ *   Visibility polygon atualiza → Darkness mask é recortada → Mapa ilumina
  */
 export interface Token {
   /** Identificador único do token */
@@ -44,6 +127,10 @@ export interface Token {
   bars: TokenBar[];
   /** Configuração de Armadura/CA */
   armor?: TokenArmor;
+  /** ═══ NOVO: Configuração de luz emitida pelo token ═══ */
+  light?: TokenLight;
+  /** ═══ NOVO: Configuração de visão do token ════ */
+  vision?: TokenVision;
   /** Lista de condições aplicadas (ex: 'envenenado', 'paralisado') */
   conditions: string[];
   /** Se o token está selecionado */

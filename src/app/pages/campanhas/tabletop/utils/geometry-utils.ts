@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- * GEOMETRY UTILS — Funções de geometria vetorial
+ * GEOMETRY UTILS — Funções de geometria vetorial + Raycasting
  * ═══════════════════════════════════════════════════════════
  *
  * Usadas para:
@@ -8,11 +8,15 @@
  * ✔ Ponto dentro de polígono (inside fog check)
  * ✔ Distância ponto a segmento
  * ✔ Cálculo de bordas de região
+ * ✔ RAYCASTING (visibilidade, luz, linha de visão)
+ * ✔ Visibility Polygon (polígono de visibilidade com obstrução)
+ * ✔ Wall crossing (colisão de token contra paredes)
  *
  * TODAS as funções são matemática pura — NÃO dependem de Konva.
  */
 
 import { LineSegment, Point2D, FogEdge, FogRegion } from '../models/fog-region.model';
+import { Wall } from '../models/wall.model';
 
 // ═══════════════════════════════════════════════════════════
 // EDGE CROSSING RESULT
@@ -241,20 +245,9 @@ function computeEdge(
 }
 
 // ═══════════════════════════════════════════════════════════
-// CROSSING DETECTION
+// CROSSING DETECTION (Fog)
 // ═══════════════════════════════════════════════════════════
 
-/**
- * Verifica se um movimento de um ponto a outro CRUZA alguma borda
- * de uma região de fog.
- *
- * Retorna a borda cruzada e o ponto de interseção, ou null se não
- * houver cruzamento.
- *
- * IMPORTANTE: verifica apenas TRAJETÓRIA (não posição final).
- * O token pode estar dentro da fog e se mover livremente DENTRO.
- * A colisão só ocorre ao CRUZAR a borda.
- */
 /**
  * @deprecated Use detectEdgeCrossingV2 que retorna EdgeCrossingResult.
  */
@@ -275,11 +268,6 @@ export function detectEdgeCrossing(
  * de uma região de fog.
  *
  * Retorna EdgeCrossingResult completo ou null se não houver cruzamento.
- *
- * IMPORTANTE:
- * - Se `passedThroughDoor === true`: token cruzou APENAS portas abertas → PERMITIR
- * - Se `passedThroughDoor === false`: token cruzou borda SEM porta → BLOQUEAR
- * - Se `null`: nenhuma borda cruzada → PERMITIR
  */
 export function detectEdgeCrossingV2(
     fromX: number,
@@ -405,4 +393,263 @@ export function createBrushRegion(points: number[]): FogRegion {
         edges: computeBrushEdges(points),
         doors: [],
     };
+}
+
+// ═══════════════════════════════════════════════════════════
+// RAYCASTING — Visibility polygon computation
+// ═══════════════════════════════════════════════════════════
+//
+// Algoritmo clássico de "visibility polygon" via raycasting:
+//   1. Para cada vértice de parede, calcula-se o ângulo relativo
+//      à origem da luz/visão
+//   2. Adiciona-se um pequeno epsilon (+/-) para capturar bordas
+//   3. Para cada ângulo, dispara-se um ray e encontra-se a parede
+//      mais próxima
+//   4. Constrói-se o polígono de visibilidade a partir dos pontos
+//      de interseção
+//
+// Isso produz o efeito de luz "recortada" por paredes.
+// ═══════════════════════════════════════════════════════════
+
+/** Um raio (origem + direção) */
+export interface Ray {
+    origin: Point2D;
+    direction: Point2D; // normalizado
+    angle: number;
+}
+
+/** Resultado de raycasting */
+export interface RaycastHit {
+    /** Ponto de interseção */
+    point: Point2D;
+    /** Parede atingida */
+    wall: Wall;
+    /** Distância da origem */
+    distance: number;
+    /** Ângulo do raio */
+    angle: number;
+}
+
+/**
+ * Gera um polígono de visibilidade a partir de uma origem,
+ * considerando um conjunto de paredes que bloqueiam.
+ *
+ * @param origin Origem da luz/visão
+ * @param walls  Paredes que bloqueiam luz
+ * @param radius Raio máximo de visão
+ * @param coneAngle Opcional: ângulo do cone (radianos)
+ * @param coneRotation Opcional: rotação do cone (radianos)
+ * @returns Pontos do polígono de visibilidade (x, y alternados)
+ */
+export function computeVisibilityPolygon(
+    origin: Point2D,
+    walls: Wall[],
+    radius: number,
+    coneAngle?: number,
+    coneRotation?: number,
+): number[] {
+    if (walls.length === 0) {
+        // Sem paredes: polígono é um círculo completo
+        return generateCirclePoints(origin, radius, 64, coneAngle, coneRotation);
+    }
+
+    // Coleta ângulos relevantes: extremidades das paredes + epsilon
+    const angles = new Set<number>();
+    const angleEps = 0.0001; // ~0.0057 graus
+
+    for (const wall of walls) {
+        if (!wall.flags.blocksLight) continue;
+        const a1 = Math.atan2(wall.y1 - origin.y, wall.x1 - origin.x);
+        const a2 = Math.atan2(wall.y2 - origin.y, wall.x2 - origin.x);
+        angles.add(a1);
+        angles.add(a2);
+        angles.add(a1 - angleEps);
+        angles.add(a1 + angleEps);
+        angles.add(a2 - angleEps);
+        angles.add(a2 + angleEps);
+    }
+
+    // Filtra ângulos dentro do cone, se aplicável
+    let sortedAngles: number[] = [];
+    if (coneAngle !== undefined && coneRotation !== undefined) {
+        const halfCone = coneAngle / 2;
+        const coneStart = coneRotation - halfCone;
+        const coneEnd = coneRotation + halfCone;
+
+        for (const a of angles) {
+            let normalized = a;
+            while (normalized < coneStart) normalized += Math.PI * 2;
+            while (normalized > coneEnd) normalized -= Math.PI * 2;
+            if (normalized >= coneStart && normalized <= coneEnd) {
+                sortedAngles.push(a);
+            }
+        }
+
+        // Adiciona as bordas do cone
+        sortedAngles.push(coneRotation - halfCone);
+        sortedAngles.push(coneRotation + halfCone);
+    } else {
+        sortedAngles = Array.from(angles);
+    }
+
+    // Ordena ângulos
+    sortedAngles.sort((a, b) => a - b);
+
+    // Para cada ângulo, dispara um raio e encontra a parede mais próxima
+    const points: number[] = [];
+
+    for (const angle of sortedAngles) {
+        const dirX = Math.cos(angle);
+        const dirY = Math.sin(angle);
+
+        const hit = castRay(origin, dirX, dirY, walls, radius);
+        if (hit) {
+            points.push(hit.point.x, hit.point.y);
+        } else {
+            // Nada atingido: vai até a borda do raio
+            points.push(
+                origin.x + dirX * radius,
+                origin.y + dirY * radius,
+            );
+        }
+    }
+
+    return points;
+}
+
+/**
+ * Dispara um único raio da origem em uma direção e encontra
+ * a parede mais próxima.
+ */
+export function castRay(
+    origin: Point2D,
+    dirX: number,
+    dirY: number,
+    walls: Wall[],
+    maxDist: number,
+): RaycastHit | null {
+    let closestHit: RaycastHit | null = null;
+
+    for (const wall of walls) {
+        if (!wall.flags.blocksLight) continue;
+
+        const hit = raySegmentIntersection(
+            origin.x, origin.y,
+            origin.x + dirX * maxDist, origin.y + dirY * maxDist,
+            wall.x1, wall.y1, wall.x2, wall.y2,
+        );
+
+        if (hit && hit.distance > 1) { // Ignora interseção na origem
+            if (!closestHit || hit.distance < closestHit.distance) {
+                closestHit = {
+                    point: hit.point,
+                    wall,
+                    distance: hit.distance,
+                    angle: Math.atan2(dirY, dirX),
+                };
+            }
+        }
+    }
+
+    return closestHit;
+}
+
+/**
+ * Interseção entre um raio (segmento origem→max) e um segmento de parede.
+ */
+function raySegmentIntersection(
+    ox: number, oy: number,
+    rx: number, ry: number, // ponto máximo do raio
+    wx1: number, wy1: number,
+    wx2: number, wy2: number,
+): { point: Point2D; distance: number } | null {
+    const d1x = rx - ox;
+    const d1y = ry - oy;
+    const d2x = wx2 - wx1;
+    const d2y = wy2 - wy1;
+
+    const cross = d1x * d2y - d1y * d2x;
+    if (Math.abs(cross) < 1e-10) return null; // paralelos
+
+    const dx = wx1 - ox;
+    const dy = wy1 - oy;
+
+    const t = (dx * d2y - dy * d2x) / cross;
+    const u = (dx * d1y - dy * d1x) / cross;
+
+    if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
+        return {
+            point: {
+                x: ox + t * d1x,
+                y: oy + t * d1y,
+            },
+            distance: t * Math.sqrt(d1x * d1x + d1y * d1y),
+        };
+    }
+
+    return null;
+}
+
+/**
+ * Gera pontos de um círculo para fallback (sem paredes).
+ */
+export function generateCirclePoints(
+    center: Point2D,
+    radius: number,
+    segments: number,
+    coneAngle?: number,
+    coneRotation?: number,
+): number[] {
+    const points: number[] = [];
+
+    let startAngle = 0;
+    let endAngle = Math.PI * 2;
+    let segCount = segments;
+
+    if (coneAngle !== undefined && coneRotation !== undefined) {
+        startAngle = coneRotation - coneAngle / 2;
+        endAngle = coneRotation + coneAngle / 2;
+        segCount = Math.max(4, Math.floor(segments * coneAngle / (Math.PI * 2)));
+    }
+
+    const step = (endAngle - startAngle) / segCount;
+
+    for (let i = 0; i <= segCount; i++) {
+        const angle = startAngle + i * step;
+        points.push(
+            center.x + Math.cos(angle) * radius,
+            center.y + Math.sin(angle) * radius,
+        );
+    }
+
+    return points;
+}
+
+/**
+ * Verifica se um segmento de movimento cruza alguma parede.
+ * Para collision detection de tokens.
+ */
+export function detectWallCrossing(
+    fromX: number, fromY: number,
+    toX: number, toY: number,
+    walls: Wall[],
+): { wall: Wall; intersection: Point2D } | null {
+    let best: { wall: Wall; intersection: Point2D; dist: number } | null = null;
+
+    for (const wall of walls) {
+        if (!wall.flags.blocksMovement) continue;
+
+        const hit = raySegmentIntersection(
+            fromX, fromY, toX, toY,
+            wall.x1, wall.y1, wall.x2, wall.y2,
+        );
+
+        if (hit) {
+            if (!best || hit.distance < best.dist) {
+                best = { wall, intersection: hit.point, dist: hit.distance };
+            }
+        }
+    }
+
+    return best ? { wall: best.wall, intersection: best.intersection } : null;
 }

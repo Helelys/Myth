@@ -25,6 +25,10 @@ import {
   ToolService,
   VttEventService,
   PersistenceService,
+  LightService,
+  WallService,
+  VisionService,
+  ExplorationService,
 } from './services';
 import { ToolMode } from './models';
 import {
@@ -291,6 +295,10 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
   private eventService = inject(VttEventService);
   private persistence = inject(PersistenceService);
   private route = inject(ActivatedRoute);
+  private lightService = inject(LightService);
+  private wallService = inject(WallService);
+  private visionService = inject(VisionService);
+  private explorationService = inject(ExplorationService);
 
   // Signals UI
   readonly activeTool = this.toolService.currentTool;
@@ -347,7 +355,7 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
     // 2) Background (mapas)
     this.backgroundRenderer = new BackgroundRenderer(this.stage, this.mapService);
     // 3) Fog
-    this.fogRenderer = new FogRenderer(this.stage, this.fogService);
+    this.fogRenderer = new FogRenderer(this.stage, this.fogService, this.wallService, this.lightService, this.visionService, this.explorationService);
     // 4) Tokens
     this.tokenRenderer = new TokenRenderer(this.stage, this.tokenService, this.gridService, this.eventService, this.fogCollisionService);
 

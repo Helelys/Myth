@@ -1,9 +1,25 @@
-import { Component, ChangeDetectionStrategy, Input, inject, ViewChild, ElementRef } from '@angular/core';
+import { Component, ChangeDetectionStrategy, Input, inject, ViewChild, ElementRef, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Token, TokenBar, TokenArmor, BAR_COLORS, createDefaultBar } from './models';
+import { Token, TokenBar, TokenArmor, TokenLight, TokenVision, BAR_COLORS, createDefaultBar } from './models';
 import { TokenService } from './services';
 
+type EditorTab = 'basic' | 'light' | 'vision';
+
+/**
+ * ═══════════════════════════════════════════════════════════
+ * TOKEN EDITOR — Configurações do Token
+ * ═══════════════════════════════════════════════════════════
+ *
+ * Abas:
+ *   📋 Básico   — Nome, imagem, aura, barras, armadura
+ *   💡 Iluminação — Luz emitida pelo token (radial/cone)
+ *   👁  Visão     — Campo de visão (darkvision, blindsight, cone)
+ *
+ * Iluminação e Visão são independentes:
+ *   Token pode iluminar sem enxergar (tocha)
+ *   Token pode enxergar sem iluminar (darkvision)
+ */
 @Component({
   selector: 'app-token-editor-panel',
   standalone: true,
@@ -22,21 +38,18 @@ import { TokenService } from './services';
             <input #imageInput type="file" accept="image/png, image/jpeg, image/webp" hidden (change)="handleImageUpload($event)" />
           </div>
           
-          <div class="field-group">
-            <label>Nome do Token</label>
-            <input type="text" [value]="token.name" (input)="updateName($event)" />
-          </div>
-
-          <div class="field-row">
-            <div class="field-group">
-              <label>Cor da Aura</label>
-              <input type="color" [value]="token.auraColor" (input)="updateColor($event, 'auraColor')" />
-            </div>
-            <div class="field-group">
-              <label>Raio da Aura</label>
-              <input type="number" [value]="token.auraRadius" (input)="updateNumber($event, 'auraRadius')" min="0" step="5" />
-            </div>
-          </div>
+          <!-- Abas de navegação -->
+          <nav class="editor-tabs">
+            <button class="tab-btn" [class.active]="activeTab() === 'basic'" (click)="activeTab.set('basic')">
+              📋 Básico
+            </button>
+            <button class="tab-btn" [class.active]="activeTab() === 'light'" (click)="activeTab.set('light')">
+              💡 Iluminação
+            </button>
+            <button class="tab-btn" [class.active]="activeTab() === 'vision'" (click)="activeTab.set('vision')">
+              👁 Visão
+            </button>
+          </nav>
           
           <div class="editor-section actions">
             <button class="action-btn" (click)="bringToFront()">↑ Trazer para Frente</button>
@@ -47,7 +60,8 @@ import { TokenService } from './services';
 
         <div class="editor-main">
           <div class="editor-header">
-            <h3>Configurações do Token</h3>
+            <h3>{{ tabTitle }}</h3>
+
             <button class="close-btn" (click)="closeEditor()" title="Fechar">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                 <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -56,54 +70,221 @@ import { TokenService } from './services';
           </div>
 
           <div class="editor-scroll-area">
-            <!-- Barras -->
-            <section class="editor-section">
-              <div class="section-header">
-                <h4 class="section-title">Barras</h4>
-                <button class="add-btn" (click)="addBar()" *ngIf="token.bars.length < 3">+ Adicionar Barra</button>
-              </div>
-              
-              <div class="bar-list">
-                <div class="bar-item" *ngFor="let bar of token.bars; let i = index; trackBy: trackByBar">
-                  <div class="bar-controls">
-                    <input type="color" class="color-picker" [value]="bar.color" (input)="updateBarColor(bar.id, $event)" title="Cor da barra"/>
-                    <input type="text" class="bar-label-input" [value]="bar.label" (input)="updateBarLabel(bar.id, $event)" placeholder="Ex: HP"/>
-                    <button class="icon-btn danger" (click)="removeBar(bar.id)" title="Remover">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                        <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                      </svg>
-                    </button>
-                  </div>
-                  <div class="bar-values">
-                    <input type="number" class="val-input" [value]="bar.value" (input)="updateBarValue(bar.id, 'value', $event)" />
-                    <span class="sep">/</span>
-                    <input type="number" class="val-input" [value]="bar.maxValue" (input)="updateBarValue(bar.id, 'maxValue', $event)" />
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <!-- Defesa/Armadura -->
-            <section class="editor-section">
-              <div class="section-header">
-                <h4 class="section-title">Defesa</h4>
-                <label class="toggle-checkbox">
-                  <input type="checkbox" [checked]="token.armor?.enabled" (change)="updateArmorEnabled($event)" />
-                  Exibir Armadura
-                </label>
-              </div>
-
-              <div class="field-row" *ngIf="token.armor?.enabled">
-                <div class="field-group">
-                  <label>Rótulo</label>
-                  <input type="text" [value]="token.armor?.label" (input)="updateArmorLabel($event)" placeholder="CA" />
+            <!-- ════════════════════════════════════════ -->
+            <!-- ABA 1: BÁSICO -->
+            <!-- ════════════════════════════════════════ -->
+            @if (activeTab() === 'basic') {
+              <section class="editor-section">
+                <div class="section-header">
+                  <h4 class="section-title">Identidade</h4>
                 </div>
                 <div class="field-group">
-                  <label>Valor</label>
-                  <input type="number" [value]="token.armor?.value" (input)="updateArmorValue($event)" placeholder="10" />
+                  <label>Nome do Token</label>
+                  <input type="text" [value]="token.name" (input)="updateName($event)" />
                 </div>
-              </div>
-            </section>
+              </section>
+
+              <section class="editor-section">
+                <div class="section-header">
+                  <h4 class="section-title">Aura</h4>
+                </div>
+                <div class="field-row">
+                  <div class="field-group">
+                    <label>Cor</label>
+                    <input type="color" [value]="token.auraColor" (input)="updateColor($event, 'auraColor')" />
+                  </div>
+                  <div class="field-group">
+                    <label>Raio (px)</label>
+                    <input type="number" [value]="token.auraRadius" (input)="updateNumber($event, 'auraRadius')" min="0" step="5" />
+                  </div>
+                </div>
+              </section>
+
+              <section class="editor-section">
+                <div class="section-header">
+                  <h4 class="section-title">Barras</h4>
+                  <button class="add-btn" (click)="addBar()" *ngIf="token.bars.length < 3">+ Adicionar Barra</button>
+                </div>
+                
+                <div class="bar-list">
+                  <div class="bar-item" *ngFor="let bar of token.bars; let i = index; trackBy: trackByBar">
+                    <div class="bar-controls">
+                      <input type="color" class="color-picker" [value]="bar.color" (input)="updateBarColor(bar.id, $event)" title="Cor da barra"/>
+                      <input type="text" class="bar-label-input" [value]="bar.label" (input)="updateBarLabel(bar.id, $event)" placeholder="Ex: HP"/>
+                      <button class="icon-btn danger" (click)="removeBar(bar.id)" title="Remover">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                          <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                      </button>
+                    </div>
+                    <div class="bar-values">
+                      <input type="number" class="val-input" [value]="bar.value" (input)="updateBarValue(bar.id, 'value', $event)" />
+                      <span class="sep">/</span>
+                      <input type="number" class="val-input" [value]="bar.maxValue" (input)="updateBarValue(bar.id, 'maxValue', $event)" />
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="editor-section">
+                <div class="section-header">
+                  <h4 class="section-title">Defesa</h4>
+                  <label class="toggle-checkbox">
+                    <input type="checkbox" [checked]="token.armor?.enabled" (change)="updateArmorEnabled($event)" />
+                    Exibir Armadura
+                  </label>
+                </div>
+
+                <div class="field-row" *ngIf="token.armor?.enabled">
+                  <div class="field-group">
+                    <label>Rótulo</label>
+                    <input type="text" [value]="token.armor?.label" (input)="updateArmorLabel($event)" placeholder="CA" />
+                  </div>
+                  <div class="field-group">
+                    <label>Valor</label>
+                    <input type="number" [value]="token.armor?.value" (input)="updateArmorValue($event)" placeholder="10" />
+                  </div>
+                </div>
+              </section>
+            }
+
+            <!-- ════════════════════════════════════════ -->
+            <!-- ABA 2: ILUMINAÇÃO -->
+            <!-- ════════════════════════════════════════ -->
+            @if (activeTab() === 'light') {
+              <section class="editor-section">
+                <div class="section-header">
+                  <h4 class="section-title">💡 Iluminação do Token</h4>
+                  <label class="toggle-checkbox">
+                    <input type="checkbox" [checked]="token.light?.enabled" (change)="toggleLightEnabled($event)" />
+                    Ativar Luz
+                  </label>
+                </div>
+
+                @if (token.light?.enabled) {
+                  <div class="field-group">
+                    <label>Tipo de Luz</label>
+                    <select [value]="token.light?.type" (change)="updateLightField('type', $event)">
+                      <option value="radial">🌐 Radial (360°)</option>
+                      <option value="cone">🔦 Cone (Lanterna)</option>
+                    </select>
+                  </div>
+
+                  <div class="field-group">
+                    <label>Alcance (px)</label>
+                    <input type="range" [value]="token.light?.radius ?? 100" (input)="updateLightField('radius', $event)" min="20" max="800" step="10" />
+                    <span class="range-value">{{ token.light?.radius ?? 100 }}px</span>
+                  </div>
+
+                  <div class="field-group">
+                    <label>Intensidade</label>
+                    <input type="range" [value]="token.light?.intensity ?? 0.8" (input)="updateLightField('intensity', $event)" min="0" max="1" step="0.05" />
+                    <span class="range-value">{{ ((token.light?.intensity ?? 0.8) * 100).toFixed(0) }}%</span>
+                  </div>
+
+                  <div class="field-group">
+                    <label>Suavidade da Borda</label>
+                    <input type="range" [value]="token.light?.softness ?? 0.4" (input)="updateLightField('softness', $event)" min="0" max="1" step="0.05" />
+                    <span class="range-value">{{ ((token.light?.softness ?? 0.4) * 100).toFixed(0) }}%</span>
+                  </div>
+
+                  <div class="field-group">
+                    <label>Cor da Luz</label>
+                    <input type="color" [value]="token.light?.color ?? '#ffdd88'" (input)="updateLightField('color', $event)" />
+                  </div>
+
+                  @if (token.light?.type === 'cone') {
+                    <div class="field-group">
+                      <label>Ângulo do Cone (graus)</label>
+                      <input type="range" [value]="((token.light?.angle ?? 1) * 180 / Math.PI)" (input)="updateLightConeAngle($event)" min="10" max="360" step="5" />
+                      <span class="range-value">{{ ((token.light?.angle ?? 1) * 180 / Math.PI).toFixed(0) }}°</span>
+                    </div>
+                  }
+
+                  <div class="field-group">
+                    <label class="toggle-checkbox">
+                      <input type="checkbox" [checked]="token.light?.flicker" (change)="updateLightField('flicker', $event)" />
+                      🌟 Flicker (Tocha)
+                    </label>
+                  </div>
+
+                  <div class="info-box">
+                    <strong>Como funciona:</strong> A luz do token <strong>recorta</strong> a Darkness Surface,
+                    revelando o mapa ao redor. A luz respeita paredes (raycasting).
+                  </div>
+                } @else {
+                  <div class="info-box dim">
+                    Ative a luz para que o token ilumine o ambiente.<br />
+                    <small>Token pode ter luz sem visão (ex: tocha no chão).</small>
+                  </div>
+                }
+              </section>
+            }
+
+            <!-- ════════════════════════════════════════ -->
+            <!-- ABA 3: VISÃO -->
+            <!-- ════════════════════════════════════════ -->
+            @if (activeTab() === 'vision') {
+              <section class="editor-section">
+                <div class="section-header">
+                  <h4 class="section-title">👁 Visão do Token</h4>
+                  <label class="toggle-checkbox">
+                    <input type="checkbox" [checked]="token.vision?.enabled" (change)="toggleVisionEnabled($event)" />
+                    Ativar Visão
+                  </label>
+                </div>
+
+                @if (token.vision?.enabled) {
+                  <div class="field-group">
+                    <label>Alcance de Visão (px)</label>
+                    <input type="range" [value]="token.vision?.radius ?? 200" (input)="updateVisionField('radius', $event)" min="20" max="1000" step="10" />
+                    <span class="range-value">{{ token.vision?.radius ?? 200 }}px</span>
+                  </div>
+
+                  <div class="field-row-2">
+                    <label class="toggle-checkbox">
+                      <input type="checkbox" [checked]="token.vision?.darkvision" (change)="updateVisionField('darkvision', $event)" />
+                      🌙 Darkvision
+                    </label>
+                    <label class="toggle-checkbox">
+                      <input type="checkbox" [checked]="token.vision?.blindsight" (change)="updateVisionField('blindsight', $event)" />
+                      🦇 Blindsight
+                    </label>
+                  </div>
+
+                  <div class="field-row-2">
+                    <label class="toggle-checkbox">
+                      <input type="checkbox" [checked]="token.vision?.tremorsense" (change)="updateVisionField('tremorsense', $event)" />
+                      🌍 Tremorsense
+                    </label>
+                    <label class="toggle-checkbox">
+                      <input type="checkbox" [checked]="token.vision?.cone" (change)="updateVisionField('cone', $event)" />
+                      👁 Cone de Visão
+                    </label>
+                  </div>
+
+                  @if (token.vision?.cone) {
+                    <div class="field-group">
+                      <label>Ângulo do Cone (graus)</label>
+                      <input type="range" [value]="(token.vision?.angle ?? 1) * 180 / Math.PI" (input)="updateVisionConeAngle($event)" min="10" max="360" step="5" />
+                      <span class="range-value">{{ ((token.vision?.angle ?? 1) * 180 / Math.PI).toFixed(0) }}°</span>
+                    </div>
+                  }
+
+                  <div class="info-box">
+                    <strong>VISÃO ≠ LUZ</strong><br />
+                    Token pode enxergar na escuridão (darkvision) sem emitir luz.<br />
+                    Token pode emitir luz sem enxergar (tocha estática).<br />
+                    Ambos podem ser combinados.
+                  </div>
+                } @else {
+                  <div class="info-box dim">
+                    Ative a visão para que o token possa ver o ambiente.<br />
+                    <small>Visão respeita paredes, portas e line of sight.</small>
+                  </div>
+                }
+              </section>
+            }
           </div>
         </div>
       </aside>
@@ -116,6 +297,20 @@ export class TokenEditorPanelComponent {
   @Input({ required: true }) token!: Token;
   @ViewChild('imageInput') imageInput!: ElementRef<HTMLInputElement>;
   private tokenService = inject(TokenService);
+
+  readonly Math = Math;
+
+  /** Aba ativa no editor */
+  readonly activeTab = signal<EditorTab>('basic');
+
+  /** Título da aba atual */
+  get tabTitle(): string {
+    switch (this.activeTab()) {
+      case 'light': return 'Configuração de Iluminação';
+      case 'vision': return 'Configuração de Visão';
+      default: return 'Configurações do Token';
+    }
+  }
 
   closeEditor(): void {
     this.tokenService.closeEditor();
@@ -130,7 +325,10 @@ export class TokenEditorPanelComponent {
     this.updateToken({ armor });
   }
 
-  // Helpers de input em tempo real
+  // ════════════════════════════════════════════════════
+  // BÁSICO
+  // ════════════════════════════════════════════════════
+
   updateName(event: Event): void {
     this.updateToken({ name: (event.target as HTMLInputElement).value });
   }
@@ -172,6 +370,10 @@ export class TokenEditorPanelComponent {
     };
     reader.readAsDataURL(file);
   }
+
+  // ════════════════════════════════════════════════════
+  // BARRAS
+  // ════════════════════════════════════════════════════
 
   updateBar(barId: string, partial: Partial<TokenBar>): void {
     const bars = this.token.bars.map(b => b.id === barId ? { ...b, ...partial } : b);
@@ -216,5 +418,107 @@ export class TokenEditorPanelComponent {
   deleteToken(): void {
     this.tokenService.removeToken(this.token.id);
     this.closeEditor();
+  }
+
+  // ════════════════════════════════════════════════════
+  // ILUMINAÇÃO
+  // ════════════════════════════════════════════════════
+
+  toggleLightEnabled(event: Event): void {
+    const enabled = (event.target as HTMLInputElement).checked;
+    if (enabled) {
+      // Ativa luz com configuração inicial se não existir
+      if (!this.token.light) {
+        this.tokenService.setTokenLight(this.token.id, {
+          enabled: true,
+          radius: 200,
+          color: '#ffdd88',
+          intensity: 0.8,
+          softness: 0.4,
+          type: 'radial',
+          flicker: false,
+        });
+      } else {
+        this.tokenService.setTokenLight(this.token.id, { ...this.token.light, enabled: true });
+      }
+    } else {
+      this.tokenService.removeTokenLight(this.token.id);
+    }
+  }
+
+  updateLightField(field: string, event: Event): void {
+    const target = event.target as HTMLInputElement;
+    const light = this.token.light;
+    if (!light) return;
+
+    let value: any = target.value;
+    if (field === 'intensity' || field === 'softness') {
+      value = Number(value);
+    } else if (field === 'radius') {
+      value = Number(value);
+    } else if (field === 'flicker') {
+      value = target.checked;
+    }
+
+    const changes = { [field]: value } as Partial<TokenLight>;
+    this.tokenService.updateTokenLight(this.token.id, changes);
+  }
+
+  updateLightConeAngle(event: Event): void {
+    const degrees = Number((event.target as HTMLInputElement).value);
+    const radians = (degrees * Math.PI) / 180;
+    this.tokenService.updateTokenLight(this.token.id, { angle: radians });
+  }
+
+  // ════════════════════════════════════════════════════
+  // VISÃO
+  // ════════════════════════════════════════════════════
+
+  toggleVisionEnabled(event: Event): void {
+    const enabled = (event.target as HTMLInputElement).checked;
+    if (enabled) {
+      if (!this.token.vision) {
+        this.tokenService.setTokenVision(this.token.id, {
+          enabled: true,
+          radius: 300,
+          darkvision: false,
+          blindsight: false,
+          tremorsense: false,
+          cone: false,
+          angle: Math.PI / 3,
+        });
+      } else {
+        this.tokenService.setTokenVision(this.token.id, { ...this.token.vision, enabled: true });
+      }
+    } else {
+      this.tokenService.removeTokenVision(this.token.id);
+    }
+  }
+
+  updateVisionField(field: string, event: Event): void {
+    const target = event.target as HTMLInputElement;
+    const vision = this.token.vision;
+    if (!vision) return;
+
+    let value: any;
+    if (field === 'darkvision' || field === 'blindsight' || field === 'tremorsense' || field === 'cone') {
+      value = target.checked;
+    } else if (field === 'radius') {
+      value = Number(target.value);
+    } else {
+      value = target.value;
+    }
+
+    const changes = { [field]: value } as Partial<TokenVision>;
+    this.tokenService.setTokenVision(this.token.id, { ...vision, ...changes });
+  }
+
+  updateVisionConeAngle(event: Event): void {
+    const degrees = Number((event.target as HTMLInputElement).value);
+    const radians = (degrees * Math.PI) / 180;
+    const vision = this.token.vision;
+    if (vision) {
+      this.tokenService.setTokenVision(this.token.id, { ...vision, angle: radians });
+    }
   }
 }

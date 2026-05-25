@@ -358,7 +358,8 @@
         margin-bottom: 3px;
       }
 
-      input, textarea {
+      input,
+      textarea {
         width: 100%;
         background: rgba(0, 0, 0, 0.25);
         border: 1px solid var(--border);
@@ -518,7 +519,8 @@
         margin-bottom: 3px;
       }
 
-      input, textarea {
+      input,
+      textarea {
         width: 100%;
         background: rgba(0, 0, 0, 0.25);
         border: 1px solid var(--border);
@@ -620,7 +622,7 @@
     padding: 16px;
     text-align: center;
     color: var(--text-muted);
-    
+
     span {
       font-size: 1.5rem;
     }
@@ -982,6 +984,478 @@
 
 .btn-config-skill,
 .btn-add-skill-row {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+}
+
+/* ============================================================
+   INVENTORY (Accordion with Custom Columns + Description)
+   ============================================================ */
+.inventory-shell {
+  .inventory-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+    gap: 4px;
+
+    .inventory-header-actions {
+      display: flex;
+      gap: 4px;
+    }
+  }
+
+  .inventory-empty-hint {
+    text-align: center;
+    padding: 16px;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+  }
+
+  .inventory-items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .inventory-item-card {
+    background: rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+
+    &.is-expanded {
+      border-color: var(--accent, #7c6fff);
+    }
+
+    .inv-item-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.04);
+      }
+    }
+
+    .inv-expand-icon {
+      font-size: 10px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+      width: 14px;
+      text-align: center;
+    }
+
+    .inv-item-summary {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .inv-summary-field {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+
+      .inv-check-val {
+        font-weight: 600;
+      }
+
+      .inv-number-val {
+        font-weight: 600;
+        color: var(--accent, #7c6fff);
+      }
+
+      .inv-text-val {
+        color: var(--text-primary);
+      }
+    }
+
+    .inv-item-remove {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(224, 90, 90, 0.2);
+      color: #e05a5a;
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      &:hover {
+        background: rgba(224, 90, 90, 0.4);
+      }
+    }
+
+    .inv-item-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.2s ease;
+
+      &.is-open {
+        max-height: 600px;
+      }
+    }
+
+    .inv-item-content {
+      padding: 0 12px 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      padding-top: 10px;
+    }
+
+    .inv-fields-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .inv-field-row {
+      label {
+        display: block;
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        margin-bottom: 3px;
+      }
+
+      input,
+      textarea,
+      select {
+        width: 100%;
+        background: rgba(0, 0, 0, 0.25);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 6px 8px;
+        color: var(--text, #f0f0f5);
+        font-size: 0.8rem;
+        outline: none;
+
+        &:focus {
+          border-color: var(--accent, #7c6fff);
+        }
+
+        &:disabled {
+          opacity: 0.7;
+        }
+      }
+
+      input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        accent-color: var(--accent, #7c6fff);
+        cursor: pointer;
+      }
+
+      textarea {
+        resize: vertical;
+        min-height: 50px;
+      }
+
+      select {
+        cursor: pointer;
+        color-scheme: dark;
+      }
+    }
+
+    .inv-desc-row {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+
+      label {
+        display: block;
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        margin-bottom: 3px;
+      }
+
+      textarea {
+        width: 100%;
+        background: rgba(0, 0, 0, 0.25);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 6px 8px;
+        color: var(--text, #f0f0f5);
+        font-size: 0.8rem;
+        outline: none;
+        resize: vertical;
+        min-height: 50px;
+
+        &:focus {
+          border-color: var(--accent, #7c6fff);
+        }
+
+        &:disabled {
+          opacity: 0.7;
+        }
+      }
+    }
+  }
+}
+
+/* ============================================================
+   ATTACK (Accordion with Dice Rolling + Bonus)
+   ============================================================ */
+.attack-shell {
+  .attack-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+    gap: 4px;
+
+    .attack-header-actions {
+      display: flex;
+      gap: 4px;
+    }
+  }
+
+  .attack-empty-hint {
+    text-align: center;
+    padding: 16px;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+  }
+
+  .attack-items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .attack-item-card {
+    background: rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+
+    &.is-expanded {
+      border-color: var(--accent, #7c6fff);
+    }
+
+    .atk-item-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.04);
+      }
+    }
+
+    .atk-expand-icon {
+      font-size: 10px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+      width: 14px;
+      text-align: center;
+    }
+
+    .atk-item-summary {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .atk-summary-field {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+
+      .atk-text-val {
+        color: var(--text-primary);
+      }
+
+      .atk-dice-val {
+        font-weight: 600;
+        color: var(--accent, #7c6fff);
+      }
+
+      .atk-bonus-val {
+        font-weight: 600;
+        color: #5aace0;
+      }
+    }
+
+    .atk-item-remove {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(224, 90, 90, 0.2);
+      color: #e05a5a;
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      &:hover {
+        background: rgba(224, 90, 90, 0.4);
+      }
+    }
+
+    .atk-item-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.2s ease;
+
+      &.is-open {
+        max-height: 600px;
+      }
+    }
+
+    .atk-item-content {
+      padding: 0 12px 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      padding-top: 10px;
+    }
+
+    .atk-fields-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .atk-field-row {
+      label {
+        display: block;
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        margin-bottom: 3px;
+      }
+
+      input,
+      textarea {
+        width: 100%;
+        background: rgba(0, 0, 0, 0.25);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 6px 8px;
+        color: var(--text, #f0f0f5);
+        font-size: 0.8rem;
+        outline: none;
+
+        &:focus {
+          border-color: var(--accent, #7c6fff);
+        }
+
+        &:disabled {
+          opacity: 0.7;
+        }
+      }
+
+      textarea {
+        resize: vertical;
+        min-height: 50px;
+      }
+    }
+
+    .atk-roll-row {
+      margin-top: 12px;
+      text-align: center;
+    }
+
+    .btn-roll-attack {
+      background: linear-gradient(135deg, #e05a5a, #c0392b);
+      border: none;
+      color: white;
+      padding: 8px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: opacity 0.2s;
+
+      &:hover {
+        opacity: 0.9;
+      }
+    }
+
+    .atk-roll-result {
+      margin-top: 10px;
+      text-align: center;
+      padding: 8px 12px;
+      background: rgba(0, 0, 0, 0.15);
+      border-radius: 6px;
+      font-size: 0.85rem;
+
+      .atk-roll-breakdown {
+        color: var(--text-muted);
+        margin-right: 8px;
+      }
+
+      .atk-roll-total {
+        font-size: 1rem;
+
+        strong {
+          color: var(--accent, #7c6fff);
+          font-size: 1.2rem;
+        }
+      }
+    }
+  }
+}
+
+.btn-config-attack,
+.btn-add-attack-item {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+}
+
+.btn-config-inventory,
+.btn-add-inventory-item {
   background: transparent;
   border: 1px solid var(--border);
   color: var(--text-muted);

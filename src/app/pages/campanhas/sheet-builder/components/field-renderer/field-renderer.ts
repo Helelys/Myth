@@ -1,7 +1,7 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { SheetField, AttributeGroupSettings, SkillTableSettings, SkillColumnDef, AttributeDef, TableSettings, TableColumnDef } from '../../models/sheet-types';
+import { SheetField, AttributeGroupSettings, SkillTableSettings, SkillColumnDef, AttributeDef, InventorySettings, InventoryColumnDef, AttackSettings, AttackColumnDef } from '../../models/sheet-types';
 
 @Component({
   selector: 'app-field-renderer',
@@ -20,7 +20,8 @@ export class FieldRendererComponent {
   @Output() deleteField = new EventEmitter<string>();
   @Output() openAttrConfig = new EventEmitter<SheetField>();
   @Output() openSkillConfig = new EventEmitter<SheetField>();
-  @Output() openTableConfig = new EventEmitter<SheetField>();
+  @Output() openInventoryConfig = new EventEmitter<SheetField>();
+  @Output() openAttackConfig = new EventEmitter<SheetField>();
 
   lastDiceResult: number | null = null;
 
@@ -76,25 +77,23 @@ export class FieldRendererComponent {
     this.lastDiceResult = Math.floor(Math.random() * 20) + 1;
   }
 
-  // ── Repeater ──
+  // ── Power Accordion ──
+  expandedPowers: Set<number> = new Set();
+
+  togglePower(index: number) {
+    if (this.expandedPowers.has(index)) {
+      this.expandedPowers.delete(index);
+    } else {
+      this.expandedPowers.add(index);
+    }
+  }
+
+  isPowerExpanded(index: number): boolean {
+    return this.expandedPowers.has(index);
+  }
+
   getRepeaterItems(): any[] {
     return this.field.items ?? [];
-  }
-
-  getRepeaterSchema(): SheetField[] {
-    return this.field.itemSchema ?? [];
-  }
-
-  addRepeaterItem() {
-    if (!this.field.items) this.field.items = [];
-    if (!this.field.itemSchema) return;
-
-    const newItem: any = { _uid: crypto.randomUUID() };
-    for (const schemaField of this.field.itemSchema) {
-      newItem[schemaField.id] = schemaField.value ?? '';
-    }
-    this.field.items = [...this.field.items, newItem];
-    this.onValueChange(this.field.items);
   }
 
   removeRepeaterItem(index: number) {
@@ -112,82 +111,16 @@ export class FieldRendererComponent {
     this.onValueChange(this.field.items);
   }
 
-  // ── Power Accordion ──
-  expandedPowers: Set<number> = new Set();
+  addRepeaterItem() {
+    if (!this.field.items) this.field.items = [];
+    if (!this.field.itemSchema) return;
 
-  togglePower(index: number) {
-    if (this.expandedPowers.has(index)) {
-      this.expandedPowers.delete(index);
-    } else {
-      this.expandedPowers.add(index);
+    const newItem: any = { _uid: crypto.randomUUID() };
+    for (const schemaField of this.field.itemSchema) {
+      newItem[schemaField.id] = schemaField.value ?? '';
     }
-  }
-
-  isPowerExpanded(index: number): boolean {
-    return this.expandedPowers.has(index);
-  }
-
-  // ── Inventory ──
-
-  getInventoryItems(): any[] {
-    return Array.isArray(this.field.value) ? this.field.value : [];
-  }
-
-  addInventoryItem() {
-    if (!Array.isArray(this.field.value)) this.field.value = [];
-    this.field.value = [
-      ...this.field.value,
-      { nome: '', quantidade: 1, peso: 0 }
-    ];
-    this.onValueChange(this.field.value);
-  }
-
-  removeInventoryItem(index: number) {
-    if (!Array.isArray(this.field.value)) return;
-    this.field.value = this.field.value.filter((_: any, i: number) => i !== index);
-    this.onValueChange(this.field.value);
-  }
-
-  updateInventoryItem(index: number, key: string, value: any) {
-    if (!Array.isArray(this.field.value)) return;
-    this.field.value = this.field.value.map((item: any, i: number) => {
-      if (i !== index) return item;
-      return { ...item, [key]: value };
-    });
-    this.onValueChange(this.field.value);
-  }
-
-  // ── Table ──
-  getTableHeaders(): string[] {
-    return this.field.settings?.headers ?? [];
-  }
-
-  getTableData(): string[][] {
-    const data = Array.isArray(this.field.value) ? this.field.value : [];
-    if (data.length === 0) return this.buildEmptyTable();
-    return data;
-  }
-
-  private buildEmptyTable(): string[][] {
-    const rows = this.field.settings?.rows ?? 3;
-    const cols = this.field.settings?.cols ?? 3;
-    const table: string[][] = [];
-    for (let r = 0; r < rows; r++) {
-      const row: string[] = [];
-      for (let c = 0; c < cols; c++) {
-        row.push('');
-      }
-      table.push(row);
-    }
-    return table;
-  }
-
-  updateTableCell(rowIdx: number, colIdx: number, value: string) {
-    const data = Array.isArray(this.field.value) ? this.field.value : this.buildEmptyTable();
-    if (!data[rowIdx]) data[rowIdx] = [];
-    data[rowIdx][colIdx] = value;
-    this.field.value = data;
-    this.onValueChange(this.field.value);
+    this.field.items = [...this.field.items, newItem];
+    this.onValueChange(this.field.items);
   }
 
   // ── Image ──
@@ -373,65 +306,194 @@ export class FieldRendererComponent {
   }
 
   // ================================================================
-  // TABLE / BACKPACK (Accordion with configurable columns)
+  // INVENTORY (Custom Columns + Accordion + Description)
   // ================================================================
 
-  getTableSettings(): TableSettings {
-    return this.field.settings?.tableSettings || { columns: [], itemDescription: true };
+  expandedInventory: Set<number> = new Set();
+
+  getInventorySettings(): InventorySettings {
+    return this.field.settings?.inventory || { columns: [] };
   }
 
-  getTableColumns(): TableColumnDef[] {
-    return this.getTableSettings().columns;
+  getInventoryColumns(): InventoryColumnDef[] {
+    return this.getInventorySettings().columns;
   }
 
-  getTableItems(): any[] {
+  getInventoryItems(): any[] {
     return Array.isArray(this.field.value) ? this.field.value : [];
   }
 
-  addTableItem() {
-    const columns = this.getTableColumns();
-    const newItem: any = { _uid: crypto.randomUUID(), _descricao: '' };
-    for (const col of columns) {
-      if (col.type === 'number') newItem[col.id] = 0;
-      else newItem[col.id] = '';
+  toggleInventoryItem(index: number) {
+    if (this.expandedInventory.has(index)) {
+      this.expandedInventory.delete(index);
+    } else {
+      this.expandedInventory.add(index);
     }
-    this.field.value = [...this.getTableItems(), newItem];
+  }
+
+  isInventoryItemExpanded(index: number): boolean {
+    return this.expandedInventory.has(index);
+  }
+
+  addInventoryItem() {
+    const columns = this.getInventoryColumns();
+    const item: any = { _uid: crypto.randomUUID(), _desc: '' };
+    for (const col of columns) {
+      if (col.type === 'checkbox') item[col.id] = false;
+      else if (col.type === 'number') item[col.id] = 0;
+      else item[col.id] = '';
+    }
+    this.field.value = [...this.getInventoryItems(), item];
     this.onValueChange(this.field.value);
   }
 
-  removeTableItem(index: number) {
-    this.field.value = this.getTableItems().filter((_: any, i: number) => i !== index);
+  removeInventoryItem(index: number) {
+    const items = this.getInventoryItems();
+    this.field.value = items.filter((_: any, i: number) => i !== index);
     this.onValueChange(this.field.value);
   }
 
-  updateTableItem(index: number, colId: string, value: any) {
-    this.field.value = this.getTableItems().map((item: any, i: number) =>
+  updateInventoryItem(index: number, colId: string, value: any) {
+    const items = this.getInventoryItems().map((item: any, i: number) =>
       i === index ? { ...item, [colId]: value } : item
     );
+    this.field.value = items;
     this.onValueChange(this.field.value);
   }
 
-  updateTableItemDescription(index: number, value: string) {
-    this.field.value = this.getTableItems().map((item: any, i: number) =>
-      i === index ? { ...item, _descricao: value } : item
+  updateInventoryItemDescription(index: number, desc: string) {
+    const items = this.getInventoryItems().map((item: any, i: number) =>
+      i === index ? { ...item, _desc: desc } : item
     );
+    this.field.value = items;
     this.onValueChange(this.field.value);
   }
 
-  // Accordion for table items
-  expandedTableItems: Set<number> = new Set();
+  openInventoryConfigModal() {
+    this.openInventoryConfig.emit(this.field);
+  }
 
-  toggleTableItem(index: number) {
-    if (this.expandedTableItems.has(index)) {
-      this.expandedTableItems.delete(index);
+  // ================================================================
+  // ATTACK (Custom Columns + Accordion with Dice Rolling + Bonus)
+  // ================================================================
+
+  expandedAttacks: Set<number> = new Set();
+
+  getAttackSettings(): AttackSettings {
+    return this.field.settings?.attack || { columns: [] };
+  }
+
+  getAttackColumns(): AttackColumnDef[] {
+    return this.getAttackSettings().columns;
+  }
+
+  getAttackItems(): any[] {
+    return Array.isArray(this.field.value) ? this.field.value : [];
+  }
+
+  toggleAttack(index: number) {
+    if (this.expandedAttacks.has(index)) {
+      this.expandedAttacks.delete(index);
     } else {
-      this.expandedTableItems.add(index);
+      this.expandedAttacks.add(index);
     }
   }
 
-  isTableItemExpanded(index: number): boolean {
-    return this.expandedTableItems.has(index);
+  isAttackExpanded(index: number): boolean {
+    return this.expandedAttacks.has(index);
   }
+
+  addAttackItem() {
+    const columns = this.getAttackColumns();
+    const item: any = { _uid: crypto.randomUUID() };
+    for (const col of columns) {
+      if (col.type === 'dice') item[col.id] = '1d' + (col.diceSides || 6);
+      else if (col.type === 'bonus') item[col.id] = 0;
+      else item[col.id] = '';
+    }
+    this.field.value = [...this.getAttackItems(), item];
+    this.onValueChange(this.field.value);
+  }
+
+  removeAttackItem(index: number) {
+    const items = this.getAttackItems();
+    this.field.value = items.filter((_: any, i: number) => i !== index);
+    this.onValueChange(this.field.value);
+  }
+
+  updateAttackItem(index: number, colId: string, value: any) {
+    const items = this.getAttackItems().map((item: any, i: number) =>
+      i === index ? { ...item, [colId]: value } : item
+    );
+    this.field.value = items;
+    this.onValueChange(this.field.value);
+  }
+
+  /**
+   * Rolls the dice notation string (e.g. "1d6", "2d8") and returns total.
+   */
+  rollAttackDice(diceNotation: string): number {
+    const match = diceNotation.match(/^(\d+)d(\d+)$/i);
+    if (!match) return 0;
+    const count = parseInt(match[1], 10);
+    const sides = parseInt(match[2], 10);
+    let total = 0;
+    for (let i = 0; i < count; i++) {
+      total += Math.floor(Math.random() * sides) + 1;
+    }
+    return total;
+  }
+
+  /**
+   * Rolls damage for an attack item: rolls each dice column + sums bonus columns.
+   * Returns an object with { breakdown: string, total: number }.
+   */
+  rollAttackDamage(index: number): { breakdown: string; total: number } | null {
+    const item = this.getAttackItems()[index];
+    if (!item) return null;
+
+    const columns = this.getAttackColumns();
+    let diceParts: string[] = [];
+    let rollTotal = 0;
+
+    for (const col of columns) {
+      const val = item[col.id];
+
+      if (col.type === 'dice' && val) {
+        const diceStr = typeof val === 'string' ? val : `1d${col.diceSides || 6}`;
+        const roll = this.rollAttackDice(diceStr);
+        diceParts.push(`${diceStr}=${roll}`);
+        rollTotal += roll;
+      }
+
+      if (col.type === 'bonus') {
+        const bonus = Number(val) || 0;
+        if (bonus !== 0) {
+          diceParts.push((bonus > 0 ? '+' : '') + bonus);
+          rollTotal += bonus;
+        }
+      }
+    }
+
+    return {
+      breakdown: diceParts.join(' '),
+      total: rollTotal
+    };
+  }
+
+  attackRollResults: Map<number, { breakdown: string; total: number } | null> = new Map();
+
+  performAttackRoll(index: number) {
+    const result = this.rollAttackDamage(index);
+    this.attackRollResults.set(index, result);
+    // Force change detection by re-assigning the map
+    this.attackRollResults = new Map(this.attackRollResults);
+  }
+
+  openAttackConfigModal() {
+    this.openAttackConfig.emit(this.field);
+  }
+
 }
 
 

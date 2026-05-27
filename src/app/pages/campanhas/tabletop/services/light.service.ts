@@ -60,7 +60,9 @@ export class LightService {
 
     /** Cria uma luz associada a um token */
     createTokenLight(tokenId: string, radius: number, color: string): LightSource {
-        return this.addLight({
+        const id = `light-${tokenId}`;
+        const newLight: LightSource = {
+            id,
             x: 0, y: 0,
             radius,
             intensity: 0.8,
@@ -70,8 +72,11 @@ export class LightService {
             useRaycasting: true,
             softness: 0.4,
             tokenId,
-        });
+        };
+        this.lightsSignal.update(list => [...list, newLight]);
+        return newLight;
     }
+
 
     removeTokenLight(tokenId: string): void {
         this.lightsSignal.update(list =>

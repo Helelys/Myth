@@ -529,7 +529,38 @@ select {
   }
 }
 
+/* ═══ Section divider ═══ */
+.section-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0;
+  color: #6a6a8a;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.08);
+  }
+}
+
+/* ═══ Field hint ═══ */
+.field-hint {
+  font-size: 11px;
+  color: #5a5a7a;
+  font-style: italic;
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
 /* ═══ Info box ═══ */
+
 .info-box {
   padding: 14px;
   background: rgba(79, 195, 247, 0.08);

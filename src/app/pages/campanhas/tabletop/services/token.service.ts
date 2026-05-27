@@ -1,5 +1,5 @@
 import { Injectable, signal, computed, inject, Injector } from '@angular/core';
-import { Token, DEFAULT_TOKEN, TokenLight, TokenVision } from '../models';
+import { Token, DEFAULT_TOKEN, TokenVision } from '../models';
 import { LightService } from './light.service';
 import { VisionService } from './vision.service';
 import { ExplorationService } from './exploration.service';
@@ -14,6 +14,12 @@ import { ExplorationService } from './exploration.service';
  * - Drag and drop
  * - Copy/paste
  * - Duplicação
+ *
+ * Visão e Iluminação AGORA unificados:
+ * Quando um token tem visão ativa, ele automaticamente
+ * cria uma LightSource no LightService para iluminar
+ * o ambiente. O tipo, cor, suavidade e ângulo são
+ * lidos diretamente do TokenVision.
  *
  * ⚠ Evita injeção direta de VisionService para quebrar
  * dependência circular (VisionService → TokenService → VisionService).
@@ -74,10 +80,15 @@ export class TokenService {
   /** Remove um token pelo ID */
   removeToken(id: string): void {
     this.tokens.update((list) => list.filter((t) => t.id !== id));
+    this.lightService.removeTokenLight(id);
   }
 
   /** Remove todos os tokens selecionados */
   removeSelected(): void {
+    const selected = this.tokens().filter(t => t.selected);
+    for (const t of selected) {
+      this.lightService.removeTokenLight(t.id);
+    }
     this.tokens.update((list) => list.filter((t) => !t.selected));
   }
 
@@ -228,24 +239,6 @@ export class TokenService {
     );
   }
 
-  /** Atualiza HP (mantido para compatibilidade) */
-  setHp(id: string, hp: number): void {
-    const token = this.tokens().find((t) => t.id === id);
-    if (token) {
-      const hpBar = token.bars.find((b) => b.id === 'hp');
-      if (hpBar) this.updateBarValue(id, 'hp', hp);
-    }
-  }
-
-  /** Atualiza Mana (mantido para compatibilidade) */
-  setMana(id: string, mana: number): void {
-    const token = this.tokens().find((t) => t.id === id);
-    if (token) {
-      const manaBar = token.bars.find((b) => b.id === 'mana');
-      if (manaBar) this.updateBarValue(id, 'mana', mana);
-    }
-  }
-
   /** Retorna os tokens ordenados por Z index */
   getSortedTokens(): Token[] {
     return [...this.tokens()].sort((a, b) => a.zIndex - b.zIndex);
@@ -257,91 +250,58 @@ export class TokenService {
   }
 
   // ═══════════════════════════════════════════════════════
-  // TOKEN LIGHT — Sincronização com LightService
+  // TOKEN VISION — Gerenciamento unificado de visão + luz
   // ═══════════════════════════════════════════════════════
 
   /**
-   * Ativa/desativa a luz de um token.
-   * Quando ativa, cria uma LightSource no LightService para que
-   * o FogRenderer a processe no pipeline de destination-out.
+   * Sincroniza a LightSource de um token com base na sua visão.
+   * Chamado sempre que a visão é ativada ou alterada.
    */
-  setTokenLight(tokenId: string, lightConfig?: Partial<TokenLight>): void {
-    const token = this.getTokenById(tokenId);
-    if (!token) return;
-
-    const newLight: TokenLight | undefined = lightConfig
-      ? {
-        enabled: true,
-        radius: 200,
-        color: '#ffdd88',
-        intensity: 0.8,
-        softness: 0.4,
-        type: 'radial',
-        flicker: false,
-        ...lightConfig,
-      }
-      : undefined;
-
-    this.updateToken(tokenId, { light: newLight });
-
-    // Sincroniza com LightService
-    if (newLight?.enabled) {
-      const centerX = token.x + token.width / 2;
-      const centerY = token.y + token.height / 2;
-      this.lightService.createTokenLight(tokenId, newLight.radius, newLight.color);
-      this.lightService.updateLight(
-        `light-${tokenId}`,
-        { x: centerX, y: centerY, intensity: newLight.intensity, enabled: true },
-      );
-    } else {
-      this.lightService.removeTokenLight(tokenId);
+  private syncVisionToLight(token: Token): void {
+    const vision = token.vision;
+    if (!vision?.enabled) {
+      this.lightService.removeTokenLight(token.id);
+      return;
     }
 
-    this.visionService.markDirty();
+    const centerX = token.x + token.width / 2;
+    const centerY = token.y + token.height / 2;
+
+    const existingLight = this.lightService.getLightById(`light-${token.id}`);
+    if (existingLight) {
+      // Atualiza luz existente
+      this.lightService.updateLight(`light-${token.id}`, {
+        x: centerX,
+        y: centerY,
+        radius: vision.radius,
+        intensity: vision.intensity,
+        color: vision.color,
+        softness: vision.softness,
+        type: vision.type === 'cone' ? 'cone' : 'token',
+        angle: vision.type === 'cone' ? vision.angle : undefined,
+        rotation: vision.rotation,
+        enabled: vision.enabled,
+        useRaycasting: true,
+      });
+    } else {
+      // Cria nova luz
+      this.lightService.createTokenLight(token.id, vision.radius, vision.color);
+      this.lightService.updateLight(`light-${token.id}`, {
+        x: centerX,
+        y: centerY,
+        intensity: vision.intensity,
+        softness: vision.softness,
+        type: vision.type === 'cone' ? 'cone' : 'token',
+        angle: vision.type === 'cone' ? vision.angle : undefined,
+        rotation: vision.rotation,
+        useRaycasting: true,
+      });
+    }
   }
-
-  /**
-   * Atualiza a luz de um token (quando os parâmetros mudam).
-   */
-  updateTokenLight(tokenId: string, changes: Partial<TokenLight>): void {
-    const token = this.getTokenById(tokenId);
-    if (!token || !token.light) return;
-
-    const updatedLight: TokenLight = { ...token.light, ...changes };
-    this.updateToken(tokenId, { light: updatedLight });
-
-    // Sincroniza com LightService
-    this.lightService.updateLight(
-      `light-${tokenId}`,
-      {
-        radius: updatedLight.radius,
-        intensity: updatedLight.intensity,
-        color: updatedLight.color,
-        enabled: updatedLight.enabled,
-        type: updatedLight.type,
-        angle: updatedLight.angle,
-        rotation: updatedLight.rotation,
-      },
-    );
-
-    this.visionService.markDirty();
-  }
-
-  /**
-   * Remove a luz de um token.
-   */
-  removeTokenLight(tokenId: string): void {
-    this.updateToken(tokenId, { light: undefined });
-    this.lightService.removeTokenLight(tokenId);
-    this.visionService.markDirty();
-  }
-
-  // ═══════════════════════════════════════════════════════
-  // TOKEN VISION — Gerenciamento de visão
-  // ═══════════════════════════════════════════════════════
 
   /**
    * Atualiza a configuração de visão de um token.
+   * Automaticamente sincroniza a luz no LightService.
    */
   setTokenVision(tokenId: string, visionConfig?: Partial<TokenVision>): void {
     const token = this.getTokenById(tokenId);
@@ -351,6 +311,13 @@ export class TokenService {
       ? {
         enabled: true,
         radius: 300,
+        // ═══ Iluminação ═══
+        type: 'radial',
+        softness: 0.5,
+        intensity: 0.8,
+        color: '#ffdd88',
+        rotation: 0,
+        // ═══ Visão ═══
         darkvision: false,
         blindsight: false,
         tremorsense: false,
@@ -361,14 +328,24 @@ export class TokenService {
       : undefined;
 
     this.updateToken(tokenId, { vision: newVision });
+
+    // Sincroniza LightService
+    if (newVision?.enabled) {
+      this.syncVisionToLight({ ...token, vision: newVision });
+    } else {
+      this.lightService.removeTokenLight(tokenId);
+    }
+
     this.visionService.markDirty();
   }
 
   /**
    * Remove a visão configurada de um token (volta a usar fallback).
+   * Também remove a luz associada.
    */
   removeTokenVision(tokenId: string): void {
     this.updateToken(tokenId, { vision: undefined });
+    this.lightService.removeTokenLight(tokenId);
     this.visionService.markDirty();
   }
 
@@ -401,8 +378,8 @@ export class TokenService {
     const centerX = x + (token.width ?? 64) / 2;
     const centerY = y + (token.height ?? 64) / 2;
 
-    // Sincroniza posição da luz no LightService
-    if (token.light?.enabled) {
+    // Sincroniza posição da luz no LightService (se visão ativa)
+    if (token.vision?.enabled) {
       this.lightService.updateTokenLightPosition(id, centerX, centerY);
     }
 
@@ -414,10 +391,6 @@ export class TokenService {
     this.explorationService.markExplored(centerX, centerY, visionRadius);
 
     // Marca para recalcular visibilidade (luz + visão)
-    // SEMPRE que o token se move, para garantir que:
-    //   ✔ A luz antiga desapareça
-    //   ✔ A luz nova apareça na nova posição
-    //   ✔ visibleCells seja recalculado do zero
     this.visionService.markDirty();
   }
 
@@ -429,24 +402,25 @@ export class TokenService {
   /** Carrega tokens de um snapshot */
   loadFromSnapshot(tokens: Token[]): void {
     this.tokens.set(tokens);
-    // Re-sincroniza luzes
+    // Re-sincroniza luzes a partir da visão
     for (const token of tokens) {
-      if (token.light?.enabled) {
+      if (token.vision?.enabled) {
         const centerX = token.x + token.width / 2;
         const centerY = token.y + token.height / 2;
-        this.lightService.createTokenLight(token.id, token.light.radius, token.light.color);
+        this.lightService.createTokenLight(token.id, token.vision.radius, token.vision.color);
         this.lightService.updateLight(
           `light-${token.id}`,
           {
             x: centerX,
             y: centerY,
-            radius: token.light.radius,
-            intensity: token.light.intensity,
-            color: token.light.color,
-            enabled: token.light.enabled,
-            type: token.light.type,
-            angle: token.light.angle,
-            rotation: token.light.rotation,
+            radius: token.vision.radius,
+            intensity: token.vision.intensity ?? 0.8,
+            color: token.vision.color,
+            softness: token.vision.softness ?? 0.5,
+            enabled: token.vision.enabled,
+            type: token.vision.type === 'cone' ? 'cone' : 'token',
+            angle: token.vision.type === 'cone' ? token.vision.angle : undefined,
+            rotation: token.vision.rotation,
           },
         );
       }

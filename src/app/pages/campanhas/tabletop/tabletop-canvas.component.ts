@@ -359,7 +359,35 @@ export class TabletopCanvasComponent implements AfterViewInit, OnDestroy {
     // 4) Tokens
     this.tokenRenderer = new TokenRenderer(this.stage, this.tokenService, this.gridService, this.eventService, this.fogCollisionService);
 
+    // Callback: durante drag do token, atualiza luz e visão em tempo real
+    this.tokenRenderer.onDragMove = (tokenId: string, worldX: number, worldY: number) => {
+      const token = this.tokenService.getTokenById(tokenId);
+      if (!token) return;
+
+      const centerX = worldX + (token.width ?? 64) / 2;
+      const centerY = worldY + (token.height ?? 64) / 2;
+
+      // 1) Atualiza posição da luz no LightService (se visão ativa)
+      if (token.vision?.enabled) {
+        this.lightService.updateTokenLightPosition(tokenId, centerX, centerY);
+      }
+
+
+      // 2) Atualiza posição do token no data model para que
+      //    VisionService calcule o campo de visão e visibleCells
+      //    na posição correta durante o arrasto.
+      //    (moveToken() não é usado para evitar markExplored a cada frame)
+      if (token.x !== worldX || token.y !== worldY) {
+        this.tokenService.updateToken(tokenId, { x: worldX, y: worldY });
+      }
+
+      // 3) Redesenha APENAS a layer de fog (iluminação + visão dinâmica)
+      this.fogRenderer.render(this.cameraService);
+    };
+
+
     this.renderers = [this.gridRenderer, this.backgroundRenderer, this.fogRenderer, this.tokenRenderer];
+
 
     // Callback: clique no fundo do background → deseleciona
     this.backgroundRenderer.onBackgroundClick = () => {

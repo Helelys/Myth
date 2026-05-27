@@ -1,247 +1,460 @@
-import Konva from 'konva';
-import { BaseRenderer } from './base-renderer';
-import { LayerType, FogShape } from '../models';
-import { CameraService, FogService } from '../services';
+import { Component, ChangeDetectionStrategy, Input, inject, ViewChild, ElementRef, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { Token, TokenBar, TokenArmor, TokenVision, BAR_COLORS, createDefaultBar } from './models';
+import { TokenService } from './services';
+
+type EditorTab = 'basic' | 'vision';
 
 /**
- * Renderer do Fog of War — VERSÃO BASEADA EM SHAPES.
+ * ═══════════════════════════════════════════════════════════
+ * TOKEN EDITOR — Configurações do Token
+ * ═══════════════════════════════════════════════════════════
  *
- * Renderiza shapes de fog como Konva.Rect e Konva.Line.
+ * Abas:
+ *   📋 Básico   — Nome, imagem, aura, barras, armadura
+ *   👁  Visão     — Visão + Iluminação unificados:
+ *                  • Tipo: Área circular (radial) ou Lanterna (cone)
+ *                  • Suavidade da borda da luz
+ *                  • Intensidade, cor, alcance
+ *                  • Darkvision, Blindsight, Tremorsense
  *
- * Cada fog shape é um retângulo preto ou uma linha (brush) preta.
- * A opacidade da layer controla a intensidade da neblina.
+ * Visão e Iluminação agora são UMA coisa só:
+ *   Token com visão ativa automaticamente ilumina o ambiente.
  */
-export class FogRenderer extends BaseRenderer {
-  /** Mapa de shapes Konva renderizadas: shapeId → Konva.Node */
-  private shapeNodes = new Map<string, Konva.Rect | Konva.Line>();
-  /** Shape sendo desenhada atualmente (retângulo em progresso) */
-  private drawingRect: Konva.Rect | null = null;
-  /** Pontos do brush em progresso */
-  private brushPoints: number[] = [];
-  private brushLine: Konva.Line | null = null;
-  /** Flag pública para o canvas component verificar */
-  isDrawing = false;
+@Component({
+  selector: 'app-token-editor-panel',
+  standalone: true,
+  imports: [CommonModule, FormsModule],
+  template: `
+    <div class="modal-overlay">
+      <div class="backdrop" (click)="closeEditor()"></div>
+      <aside class="token-editor-modal">
+        <div class="editor-sidebar">
+          <div class="image-preview">
+            <div class="img-container">
+              <img *ngIf="token.image" [src]="token.image" alt="Token" />
+              <div class="img-placeholder" *ngIf="!token.image">{{ token.name.substring(0, 2).toUpperCase() }}</div>
+            </div>
+            <button class="action-btn outline" (click)="openImageUpload()">Alterar Imagem</button>
+            <input #imageInput type="file" accept="image/png, image/jpeg, image/webp" hidden (change)="handleImageUpload($event)" />
+          </div>
+          
+          <!-- Abas de navegação -->
+          <nav class="editor-tabs">
+            <button class="tab-btn" [class.active]="activeTab() === 'basic'" (click)="activeTab.set('basic')">
+              📋 Básico
+            </button>
+            <button class="tab-btn" [class.active]="activeTab() === 'vision'" (click)="activeTab.set('vision')">
+              👁 Visão + Iluminação
+            </button>
+          </nav>
+          
+          <div class="editor-section actions">
+            <button class="action-btn" (click)="bringToFront()">↑ Trazer para Frente</button>
+            <button class="action-btn" (click)="sendToBack()">↓ Enviar para Trás</button>
+            <button class="action-btn danger-solid" (click)="deleteToken()">🗑 Excluir Token</button>
+          </div>
+        </div>
 
-  constructor(
-    stage: Konva.Stage,
-    private fogService: FogService,
-  ) {
-    super(LayerType.Fog, stage);
-    this.layer.listening(true);
+        <div class="editor-main">
+          <div class="editor-header">
+            <h3>{{ tabTitle }}</h3>
+
+            <button class="close-btn" (click)="closeEditor()" title="Fechar">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="editor-scroll-area">
+            <!-- ════════════════════════════════════════ -->
+            <!-- ABA 1: BÁSICO -->
+            <!-- ════════════════════════════════════════ -->
+            @if (activeTab() === 'basic') {
+              <section class="editor-section">
+                <div class="section-header">
+                  <h4 class="section-title">Identidade</h4>
+                </div>
+                <div class="field-group">
+                  <label>Nome do Token</label>
+                  <input type="text" [value]="token.name" (input)="updateName($event)" />
+                </div>
+              </section>
+
+              <section class="editor-section">
+                <div class="section-header">
+                  <h4 class="section-title">Aura</h4>
+                </div>
+                <div class="field-row">
+                  <div class="field-group">
+                    <label>Cor</label>
+                    <input type="color" [value]="token.auraColor" (input)="updateColor($event, 'auraColor')" />
+                  </div>
+                  <div class="field-group">
+                    <label>Raio (px)</label>
+                    <input type="number" [value]="token.auraRadius" (input)="updateNumber($event, 'auraRadius')" min="0" step="5" />
+                  </div>
+                </div>
+              </section>
+
+              <section class="editor-section">
+                <div class="section-header">
+                  <h4 class="section-title">Barras</h4>
+                  <button class="add-btn" (click)="addBar()" *ngIf="token.bars.length < 3">+ Adicionar Barra</button>
+                </div>
+                
+                <div class="bar-list">
+                  <div class="bar-item" *ngFor="let bar of token.bars; let i = index; trackBy: trackByBar">
+                    <div class="bar-controls">
+                      <input type="color" class="color-picker" [value]="bar.color" (input)="updateBarColor(bar.id, $event)" title="Cor da barra"/>
+                      <input type="text" class="bar-label-input" [value]="bar.label" (input)="updateBarLabel(bar.id, $event)" placeholder="Ex: HP"/>
+                      <button class="icon-btn danger" (click)="removeBar(bar.id)" title="Remover">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                          <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                      </button>
+                    </div>
+                    <div class="bar-values">
+                      <input type="number" class="val-input" [value]="bar.value" (input)="updateBarValue(bar.id, 'value', $event)" />
+                      <span class="sep">/</span>
+                      <input type="number" class="val-input" [value]="bar.maxValue" (input)="updateBarValue(bar.id, 'maxValue', $event)" />
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="editor-section">
+                <div class="section-header">
+                  <h4 class="section-title">Defesa</h4>
+                  <label class="toggle-checkbox">
+                    <input type="checkbox" [checked]="token.armor?.enabled" (change)="updateArmorEnabled($event)" />
+                    Exibir Armadura
+                  </label>
+                </div>
+
+                <div class="field-row" *ngIf="token.armor?.enabled">
+                  <div class="field-group">
+                    <label>Rótulo</label>
+                    <input type="text" [value]="token.armor?.label" (input)="updateArmorLabel($event)" placeholder="CA" />
+                  </div>
+                  <div class="field-group">
+                    <label>Valor</label>
+                    <input type="number" [value]="token.armor?.value" (input)="updateArmorValue($event)" placeholder="10" />
+                  </div>
+                </div>
+              </section>
+            }
+
+            <!-- ════════════════════════════════════════ -->
+            <!-- ABA 2: VISÃO + ILUMINAÇÃO (UNIFICADA) -->
+            <!-- ════════════════════════════════════════ -->
+            @if (activeTab() === 'vision') {
+              <section class="editor-section">
+                <div class="section-header">
+                  <h4 class="section-title">👁 Visão e Iluminação</h4>
+                  <label class="toggle-checkbox">
+                    <input type="checkbox" [checked]="token.vision?.enabled" (change)="toggleVisionEnabled($event)" />
+                    Ativar
+                  </label>
+                </div>
+
+                @if (token.vision?.enabled) {
+                  <!-- ═══ TIPO DE ILUMINAÇÃO ═══ -->
+                  <div class="field-group">
+                    <label>Tipo de Iluminação</label>
+                    <select [value]="token.vision?.type ?? 'radial'" (change)="updateVisionField('type', $event)">
+                      <option value="radial">🌐 Área Circular (Iluminação padrão)</option>
+                      <option value="cone">🔦 Lanterna (Área em cone)</option>
+                    </select>
+                  </div>
+
+                  <!-- ═══ ALCANCE ═══ -->
+                  <div class="field-group">
+                    <label>Alcance (px)</label>
+                    <input type="range" [value]="token.vision?.radius ?? 200" (input)="updateVisionField('radius', $event)" min="20" max="800" step="10" />
+                    <span class="range-value">{{ token.vision?.radius ?? 200 }}px</span>
+                  </div>
+
+                  <!-- ═══ SUAVIDADE ═══ -->
+                  <div class="field-group">
+                    <label>Suavidade da borda</label>
+                    <input type="range" [value]="token.vision?.softness ?? 0.5" (input)="updateVisionField('softness', $event)" min="0" max="1" step="0.05" />
+                    <span class="range-value">{{ ((token.vision?.softness ?? 0.5) * 100).toFixed(0) }}%</span>
+                    <div class="field-hint">Controla o quão suave é o falloff da luz. 0% = borda dura, 100% = muito suave.</div>
+                  </div>
+
+                  <!-- ═══ INTENSIDADE ═══ -->
+                  <div class="field-group">
+                    <label>Intensidade da Luz</label>
+                    <input type="range" [value]="token.vision?.intensity ?? 0.8" (input)="updateVisionField('intensity', $event)" min="0" max="1" step="0.05" />
+                    <span class="range-value">{{ ((token.vision?.intensity ?? 0.8) * 100).toFixed(0) }}%</span>
+                  </div>
+
+                  <!-- ═══ COR DA LUZ ═══ -->
+                  <div class="field-group">
+                    <label>Cor da Luz</label>
+                    <input type="color" [value]="token.vision?.color ?? '#ffdd88'" (input)="updateVisionField('color', $event)" />
+                  </div>
+
+                  <!-- ═══ ÂNGULO DO CONE (LANTERNA) ═══ -->
+                  @if (token.vision?.type === 'cone') {
+                    <div class="field-group">
+                      <label>Ângulo do Cone (graus)</label>
+                      <input type="range" [value]="((token.vision?.angle ?? 1) * 180 / Math.PI)" (input)="updateVisionConeAngle($event)" min="10" max="360" step="5" />
+                      <span class="range-value">{{ ((token.vision?.angle ?? 1) * 180 / Math.PI).toFixed(0) }}°</span>
+                    </div>
+                  }
+
+                  <!-- ═══ DIVISOR: TIPOS DE VISÃO ═══ -->
+                  <div class="section-divider">
+                    <span>Tipos de Visão</span>
+                  </div>
+
+                  <div class="field-row-2">
+                    <label class="toggle-checkbox">
+                      <input type="checkbox" [checked]="token.vision?.darkvision" (change)="updateVisionField('darkvision', $event)" />
+                      🌙 Darkvision
+                    </label>
+                    <label class="toggle-checkbox">
+                      <input type="checkbox" [checked]="token.vision?.blindsight" (change)="updateVisionField('blindsight', $event)" />
+                      🦇 Blindsight
+                    </label>
+                  </div>
+
+                  <div class="field-row-2">
+                    <label class="toggle-checkbox">
+                      <input type="checkbox" [checked]="token.vision?.tremorsense" (change)="updateVisionField('tremorsense', $event)" />
+                      🌍 Tremorsense
+                    </label>
+                    <label class="toggle-checkbox">
+                      <input type="checkbox" [checked]="token.vision?.cone" (change)="updateVisionField('cone', $event)" />
+                      👁 Cone de Visão
+                    </label>
+                  </div>
+
+                  @if (token.vision?.cone) {
+                    <div class="field-group">
+                      <label>Ângulo do Cone de Visão (graus)</label>
+                      <input type="range" [value]="(token.vision?.angle ?? 1) * 180 / Math.PI" (input)="updateVisionConeAngle($event)" min="10" max="360" step="5" />
+                      <span class="range-value">{{ ((token.vision?.angle ?? 1) * 180 / Math.PI).toFixed(0) }}°</span>
+                    </div>
+                  }
+
+                  <div class="info-box">
+                    <strong>Visão + Iluminação unificados:</strong><br />
+                    Quando ativa, o token automaticamente ilumina o ambiente.<br />
+                    A <strong>Suavidade</strong> controla o falloff da luz (borda suave).<br />
+                    Darkvision permite enxergar mesmo em áreas escuras.
+                  </div>
+                } @else {
+                  <div class="info-box dim">
+                    Ative a visão para que o token possa ver e iluminar o ambiente.<br />
+                    <small>A iluminação respeita paredes, portas e line of sight.</small>
+                  </div>
+                }
+              </section>
+            }
+          </div>
+        </div>
+      </aside>
+    </div>
+  `,
+  styleUrls: ['./token-editor-panel.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class TokenEditorPanelComponent {
+  @Input({ required: true }) token!: Token;
+  @ViewChild('imageInput') imageInput!: ElementRef<HTMLInputElement>;
+  private tokenService = inject(TokenService);
+
+  readonly Math = Math;
+
+  /** Aba ativa no editor */
+  readonly activeTab = signal<EditorTab>('basic');
+
+  /** Título da aba atual */
+  get tabTitle(): string {
+    switch (this.activeTab()) {
+      case 'vision': return 'Configuração de Visão e Iluminação';
+      default: return 'Configurações do Token';
+    }
   }
 
-  override render(camera: CameraService): void {
-    const fogEnabled = this.fogService.enabled();
-    const gmVision = this.fogService.gmVision();
+  closeEditor(): void {
+    this.tokenService.closeEditor();
+  }
 
-    if (!fogEnabled || gmVision) {
-      this.layer.visible(false);
-      return;
-    }
+  updateToken(partial: Partial<Token>): void {
+    this.tokenService.updateToken(this.token.id, partial);
+  }
 
-    this.layer.visible(true);
-    this.layer.opacity(this.fogService.opacity());
+  updateArmor(partial: Partial<TokenArmor>): void {
+    const armor = { ...this.token.armor, ...partial } as TokenArmor;
+    this.updateToken({ armor });
+  }
 
-    const currentShapes = this.fogService.shapes();
-    const currentIds = new Set(currentShapes.map((s) => s.id));
+  // ════════════════════════════════════════════════════
+  // BÁSICO
+  // ════════════════════════════════════════════════════
 
-    for (const [id, node] of this.shapeNodes) {
-      if (!currentIds.has(id)) {
-        node.destroy();
-        this.shapeNodes.delete(id);
+  updateName(event: Event): void {
+    this.updateToken({ name: (event.target as HTMLInputElement).value });
+  }
+
+  updateColor(event: Event, field: 'auraColor'): void {
+    this.updateToken({ [field]: (event.target as HTMLInputElement).value });
+  }
+
+  updateNumber(event: Event, field: 'auraRadius'): void {
+    const val = Number((event.target as HTMLInputElement).value) || 0;
+    this.updateToken({ [field]: val });
+  }
+
+  updateArmorEnabled(event: Event): void {
+    this.updateArmor({ enabled: (event.target as HTMLInputElement).checked });
+  }
+
+  updateArmorLabel(event: Event): void {
+    this.updateArmor({ label: (event.target as HTMLInputElement).value });
+  }
+
+  updateArmorValue(event: Event): void {
+    this.updateArmor({ value: Number((event.target as HTMLInputElement).value) || 0 });
+  }
+
+  openImageUpload(): void {
+    this.imageInput.nativeElement.click();
+  }
+
+  handleImageUpload(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e: ProgressEvent<FileReader>) => {
+      this.updateToken({ image: e.target?.result as string });
+      target.value = '';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // ════════════════════════════════════════════════════
+  // BARRAS
+  // ════════════════════════════════════════════════════
+
+  updateBar(barId: string, partial: Partial<TokenBar>): void {
+    const bars = this.token.bars.map(b => b.id === barId ? { ...b, ...partial } : b);
+    this.updateToken({ bars });
+  }
+
+  updateBarLabel(barId: string, event: Event): void {
+    this.updateBar(barId, { label: (event.target as HTMLInputElement).value });
+  }
+
+  updateBarColor(barId: string, event: Event): void {
+    this.updateBar(barId, { color: (event.target as HTMLInputElement).value });
+  }
+
+  updateBarValue(barId: string, field: 'value' | 'maxValue', event: Event): void {
+    this.updateBar(barId, { [field]: Number((event.target as HTMLInputElement).value) || 0 });
+  }
+
+  trackByBar(index: number, bar: TokenBar): string {
+    return bar.id;
+  }
+
+  addBar(): void {
+    if (this.token.bars.length >= 3) return;
+    const defaultColor = BAR_COLORS[this.token.bars.length % BAR_COLORS.length].color;
+    const newBar = createDefaultBar('Nova', defaultColor, 10, 10);
+    this.updateToken({ bars: [...this.token.bars, newBar] });
+  }
+
+  removeBar(barId: string): void {
+    this.updateToken({ bars: this.token.bars.filter(b => b.id !== barId) });
+  }
+
+  bringToFront(): void {
+    this.tokenService.bringToFront(this.token.id);
+  }
+
+  sendToBack(): void {
+    this.tokenService.sendToBack(this.token.id);
+  }
+
+  deleteToken(): void {
+    this.tokenService.removeToken(this.token.id);
+    this.closeEditor();
+  }
+
+  // ════════════════════════════════════════════════════
+  // VISÃO + ILUMINAÇÃO (UNIFICADA)
+  // ════════════════════════════════════════════════════
+
+  toggleVisionEnabled(event: Event): void {
+    const enabled = (event.target as HTMLInputElement).checked;
+    if (enabled) {
+      if (!this.token.vision) {
+        // Ativa com configuração inicial completa
+        this.tokenService.setTokenVision(this.token.id, {
+          enabled: true,
+          radius: 200,
+          // Iluminação
+          type: 'radial',
+          softness: 0.5,
+          intensity: 0.8,
+          color: '#ffdd88',
+          rotation: 0,
+          // Visão
+          darkvision: false,
+          blindsight: false,
+          tremorsense: false,
+          cone: false,
+          angle: Math.PI / 3,
+        });
+      } else {
+        this.tokenService.setTokenVision(this.token.id, { ...this.token.vision, enabled: true });
       }
-    }
-
-    for (const shape of currentShapes) {
-      this.getOrCreateShapeNode(shape);
-    }
-
-    this.redraw();
-  }
-
-  private getOrCreateShapeNode(shape: FogShape): void {
-    if (this.shapeNodes.has(shape.id)) return;
-
-    let node: Konva.Rect | Konva.Line;
-
-    if (shape.type === 'rectangle') {
-      node = new Konva.Rect({
-        x: shape.x,
-        y: shape.y,
-        width: shape.width ?? 100,
-        height: shape.height ?? 100,
-        fill: '#000000',
-        stroke: '#000000',
-        strokeWidth: 0,
-        listening: false,
-        name: `fog-rect-${shape.id}`,
-      });
     } else {
-      node = new Konva.Line({
-        points: shape.points ?? [],
-        stroke: '#000000',
-        strokeWidth: 40,
-        lineCap: 'round',
-        lineJoin: 'round',
-        tension: 0.3,
-        closed: false,
-        listening: false,
-        name: `fog-brush-${shape.id}`,
-      });
+      this.tokenService.removeTokenVision(this.token.id);
+    }
+  }
+
+  updateVisionField(field: string, event: Event): void {
+    const target = event.target as HTMLInputElement;
+    const vision = this.token.vision;
+    if (!vision) return;
+
+    let value: any;
+    if (field === 'darkvision' || field === 'blindsight' || field === 'tremorsense' || field === 'cone') {
+      value = target.checked;
+    } else if (field === 'radius' || field === 'softness' || field === 'intensity') {
+      value = Number(target.value);
+    } else if (field === 'type') {
+      value = target.value as 'radial' | 'cone';
+    } else {
+      value = target.value;
     }
 
-    this.shapeNodes.set(shape.id, node);
-    this.layer.add(node);
-    this.redraw();
-  }
+    const changes = { [field]: value } as Partial<TokenVision>;
 
-  // ════════════════════════════════════════════════════════
-  // RETÂNGULO
-  // ════════════════════════════════════════════════════════
-
-  startRect(worldX: number, worldY: number): void {
-    this.drawingRect = new Konva.Rect({
-      x: worldX,
-      y: worldY,
-      width: 0,
-      height: 0,
-      fill: '#000000',
-      stroke: '#000000',
-      strokeWidth: 0,
-      listening: false,
-      name: 'fog-drawing-rect',
-    });
-    this.layer.add(this.drawingRect);
-    this.isDrawing = true;
-  }
-
-  updateRect(worldX: number, worldY: number): void {
-    if (!this.drawingRect || !this.isDrawing) return;
-    const startX = this.drawingRect.x();
-    const startY = this.drawingRect.y();
-    this.drawingRect.x(Math.min(startX, worldX));
-    this.drawingRect.y(Math.min(startY, worldY));
-    this.drawingRect.width(Math.abs(worldX - startX));
-    this.drawingRect.height(Math.abs(worldY - startY));
-    this.redraw();
-  }
-
-  finishRect(): void {
-    if (!this.drawingRect) return;
-    const rect = this.drawingRect;
-    const shape = this.fogService.addShape({
-      type: 'rectangle',
-      x: rect.x(),
-      y: rect.y(),
-      width: rect.width(),
-      height: rect.height(),
-    });
-    rect.destroy();
-    this.drawingRect = null;
-
-    const node = new Konva.Rect({
-      x: shape.x,
-      y: shape.y,
-      width: shape.width ?? 0,
-      height: shape.height ?? 0,
-      fill: '#000000',
-      stroke: '#000000',
-      strokeWidth: 0,
-      listening: false,
-      name: `fog-rect-${shape.id}`,
-    });
-    this.shapeNodes.set(shape.id, node);
-    this.layer.add(node);
-    this.isDrawing = false;
-    this.redraw();
-  }
-
-  // ════════════════════════════════════════════════════════
-  // BRUSH
-  // ════════════════════════════════════════════════════════
-
-  startBrush(worldX: number, worldY: number): void {
-    this.brushPoints = [worldX, worldY];
-    this.brushLine = new Konva.Line({
-      points: this.brushPoints,
-      stroke: '#000000',
-      strokeWidth: 40,
-      lineCap: 'round',
-      lineJoin: 'round',
-      tension: 0.3,
-      closed: false,
-      listening: false,
-      name: 'fog-drawing-brush',
-    });
-    this.layer.add(this.brushLine);
-    this.isDrawing = true;
-  }
-
-  updateBrush(worldX: number, worldY: number): void {
-    if (!this.isDrawing || !this.brushLine) return;
-    this.brushPoints.push(worldX, worldY);
-    this.brushLine.points(this.brushPoints);
-    this.redraw();
-  }
-
-  finishBrush(): void {
-    if (!this.brushLine || this.brushPoints.length < 4) {
-      this.brushLine?.destroy();
-      this.brushLine = null;
-      this.brushPoints = [];
-      this.isDrawing = false;
-      this.redraw();
-      return;
+    // Se mudou o tipo para 'cone', garante um ângulo padrão
+    if (field === 'type' && value === 'cone' && !vision.angle) {
+      changes.angle = Math.PI / 3;
     }
 
-    const shape = this.fogService.addShape({
-      type: 'brush',
-      x: this.brushPoints[0],
-      y: this.brushPoints[1],
-      points: [...this.brushPoints],
-    });
-
-    this.brushLine.destroy();
-    this.brushLine = null;
-    this.brushPoints = [];
-
-    const node = new Konva.Line({
-      points: shape.points ?? [],
-      stroke: '#000000',
-      strokeWidth: 40,
-      lineCap: 'round',
-      lineJoin: 'round',
-      tension: 0.3,
-      closed: false,
-      listening: false,
-      name: `fog-brush-${shape.id}`,
-    });
-    this.shapeNodes.set(shape.id, node);
-    this.layer.add(node);
-    this.isDrawing = false;
-    this.redraw();
+    this.tokenService.setTokenVision(this.token.id, { ...vision, ...changes });
   }
 
-  cancelDrawing(): void {
-    if (this.drawingRect) {
-      this.drawingRect.destroy();
-      this.drawingRect = null;
+  updateVisionConeAngle(event: Event): void {
+    const degrees = Number((event.target as HTMLInputElement).value);
+    const radians = (degrees * Math.PI) / 180;
+    const vision = this.token.vision;
+    if (vision) {
+      this.tokenService.setTokenVision(this.token.id, { ...vision, angle: radians });
     }
-    if (this.brushLine) {
-      this.brushLine.destroy();
-      this.brushLine = null;
-    }
-    this.brushPoints = [];
-    this.isDrawing = false;
-    this.redraw();
-  }
-
-  override clear(): void {
-    for (const [, node] of this.shapeNodes) {
-      node.destroy();
-    }
-    this.shapeNodes.clear();
-    this.cancelDrawing();
-    super.clear();
   }
 }

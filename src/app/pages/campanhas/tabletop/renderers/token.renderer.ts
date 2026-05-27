@@ -38,6 +38,14 @@ export class TokenRenderer extends BaseRenderer {
   /** Cache de imagens carregadas */
   private imageCache = new Map<string, HTMLImageElement>();
 
+  /**
+   * Callback disparado durante o drag de um token.
+   * Recebe (tokenId, worldX, worldY).
+   * Usado pela camada superior (component) para atualizar
+   * a posição da luz em tempo real no LightService.
+   */
+  onDragMove: ((tokenId: string, worldX: number, worldY: number) => void) | null = null;
+
   constructor(
     stage: Konva.Stage,
     private tokenService: TokenService,
@@ -48,6 +56,7 @@ export class TokenRenderer extends BaseRenderer {
     super(LayerType.Token, stage);
     this.setupEventHandlers();
   }
+
 
   private setupEventHandlers(): void {
     this.layer.on('mouseenter', (e: Konva.KonvaEventObject<MouseEvent>) => {
@@ -222,22 +231,9 @@ export class TokenRenderer extends BaseRenderer {
     });
     group.add(nameText);
 
-    // ═══ Indicador de Luz (se token emitir luz) ═══
-    if (token.light?.enabled) {
-      const hasVision = token.vision?.enabled;
-      const lightIcon = new Konva.Text({
-        text: '💡',
-        fontSize: 11,
-        x: -token.width / 2 + 2,
-        y: -32,
-        name: 'light-indicator',
-        listening: false,
-      });
-      group.add(lightIcon);
-    }
-
-    // ═══ Indicador de Visão (se token tiver visão ativa) ═══
+    // ═══ Indicador de Visão + Iluminação ═══
     if (token.vision?.enabled) {
+      const type = token.vision.type === 'cone' ? '🔦' : '💡';
       const visionIcon = new Konva.Text({
         text: token.vision.darkvision ? '👁🌙' : '👁',
         fontSize: 11,
@@ -248,6 +244,7 @@ export class TokenRenderer extends BaseRenderer {
       });
       group.add(visionIcon);
     }
+
 
     // Barras configuráveis (HP, Mana, etc.)
     TokenBarRenderer.createBars(group, token.width, token.height, token.bars);
@@ -313,8 +310,13 @@ export class TokenRenderer extends BaseRenderer {
     });
 
     group.on('dragmove', () => {
-      // Movimento fluido puramente Konva (o grupo move seu transform local)
+      // Dispara callback para atualizar luz/visão em tempo real
+      if (this.onDragMove) {
+        // group.x() / group.y() já estão em coordenadas do mundo (Konva)
+        this.onDragMove(token.id, group.x(), group.y());
+      }
     });
+
 
     group.on('dragend', () => {
       // Restaura cursor

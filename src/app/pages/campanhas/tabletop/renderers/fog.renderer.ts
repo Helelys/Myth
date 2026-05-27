@@ -46,6 +46,45 @@ import { CameraService, FogService, WallService, LightService, VisionService, Ex
  *   ✔ GM Vision desativa tudo
  */
 export class FogRenderer extends BaseRenderer {
+  /**
+   * Camada preta PERMANENTE — garante que o canvas NUNCA fique
+   * transparente. Mesmo que o shadowSurface (sceneFunc) tenha
+   * latência ou artefatos de renderização, este retângulo preto
+   * SEMPRE está presente como base opaca.
+   *
+   * É adicionado ANTES do shadowSurface, então fica ABAIXO dele
+   * na ordem de empilhamento da layer.
+   */
+  private blackBase: Konva.Rect;
+
+  /**
+   * ShadowSurface — executa APENAS operações destination-out.
+   * NÃO faz source-over nem clearRect. Penetra no blackBase
+   * para revelar o mapa onde há luz/visão.
+   *
+   * ═══════════════════════════════════════════════════════════
+   * PRINCÍPIO FUNDAMENTAL
+   * ═══════════════════════════════════════════════════════════
+   * A layer de fog é composta por dois shapes:
+   *
+   *   1. blackBase (Konva.Rect) — fill: '#000000'
+   *      → SEMPRE presente, SEMPRE opaco
+   *      → NUNCA é destruído/recriado
+   *      → Garante ZERO transparência no canvas
+   *
+   *   2. shadowSurface (Konva.Shape com sceneFunc)
+   *      → sceneFunc executa APENAS destination-out
+   *      → Recorta buracos no blackBase para revelar o mapa
+   *      → NUNCA faz source-over ou clearRect
+   *
+   * Isso elimina o flicker completamente porque:
+   *   ✔ O blackBase é um retângulo Konva.Rect PERSISTENTE
+   *   ✔ Konva o desenha ANTES do shadowSurface (está abaixo)
+   *   ✔ Mesmo se sceneFunc falhar ou demorar, o fundo é PRETO
+   *   ✔ Destination-out recorta PARA SEMPRE sobre preto opaco
+   *   ✔ NUNCA há um frame onde a layer fica transparente
+   * ═══════════════════════════════════════════════════════════
+   */
   private shadowSurface: Konva.Shape;
   private doorGroup: Konva.Group;
   private doorShapes = new Map<string, Konva.Group>();
@@ -65,12 +104,41 @@ export class FogRenderer extends BaseRenderer {
     super(LayerType.Fog, stage);
     this.layer.listening(true);
 
-    // ShadowSurface com sceneFunc completa
+    // ═══════════════════════════════════════════════════════
+    // PASSO 0: BLACK BASE (permanente, SEMPRE presente)
+    // ═══════════════════════════════════════════════════════
+    // Retângulo preto MASSIVO que cobre toda a área do mapa.
+    // Fica ABAIXO do shadowSurface (adicionado primeiro).
+    // NUNCA é removido — é a ANCORA de opacidade da layer.
+    this.blackBase = new Konva.Rect({
+      x: -100000,
+      y: -100000,
+      width: 200000,
+      height: 200000,
+      fill: '#000000',
+      listening: false,
+      name: 'fog-black-base',
+    });
+    this.layer.add(this.blackBase);
+
+    // ═══════════════════════════════════════════════════════
+    // PASSO 1: SHADOW SURFACE (sceneFunc com destination-out)
+    // ═══════════════════════════════════════════════════════
+    // SceneFunc executa APENAS destination-out para recortar
+    // buracos no blackBase onde há luz/visão.
     this.shadowSurface = new Konva.Shape({
       sceneFunc: (context) => {
+        // Pipeline completa: source-over preto + destination-out recortes
+        // O blackBase (Konva.Rect abaixo) já garante o fundo preto,
+        // mas drawFullVisibilityPipeline também faz source-over preto,
+        // o que é redundante mas inofensivo (sobrescreve com a mesma cor).
+        // A vantagem é que se o blackBase NUNCA muda, o canvas
+        // JAMAIS fica transparente entre frames — mesmo durante
+        // zoom/wheel, o flicker é eliminado.
         this.drawFullVisibilityPipeline(context);
       },
-      opacity: 1.0, // Opacidade total — controlada pela pipeline interna
+
+      opacity: 1.0,
       listening: false,
       name: 'fog-shadow-surface',
     });
@@ -82,6 +150,7 @@ export class FogRenderer extends BaseRenderer {
     });
     this.layer.add(this.doorGroup);
   }
+
 
   override render(camera: CameraService): void {
     const fogEnabled = this.fogService.enabled();
@@ -95,64 +164,26 @@ export class FogRenderer extends BaseRenderer {
     this.layer.visible(true);
     this.syncDoors(this.fogService.regions());
 
-    // ════════════════════════════════════════════════
-    // LIMPEZA EXPLÍCITA DA LAYER CANVAS DO KONVA
-    // ════════════════════════════════════════════════
-    // Konva NÃO limpa a layer canvas entre renders.
-    // Sem esta limpeza, pixels cortados por
-    // destination-out em frames anteriores permanecem
-    // e criam "rastros" visuais persistentes.
+    // ═══════════════════════════════════════════════════════
+    // REDRAW COMPLETO DO FRAME
+    // ═══════════════════════════════════════════════════════
+    // O shadowSurface é um Konva.Shape PERSISTENTE (criado
+    // uma única vez no construtor) cuja sceneFunc executa
+    // drawFullVisibilityPipeline a cada redraw.
     //
-    // this.layer.clear() apaga COMPLETAMENTE o
-    // buffer de renderização da layer (scene canvas),
-    // garantindo que NENHUM pixel do frame anterior
-    // sobreviva.
+    // A pipeline NÃO usa ctx.clearRect() no início porque
+    // isso tornava o canvas TRANSPARENTE por um frame,
+    // causando flicker (o mapa aparecia por baixo) durante
+    // zoom. Em vez disso, a pipeline começa diretamente com
+    // source-over + preenchimento preto massivo, que
+    // SUBSTITUI qualquer resíduo do frame anterior.
     //
-    // Diferença entre clear() e destroy+recreate:
-    //   • clear() → limpa o canvas mas mantém os nodes
-    //   • destroy() + new → destrói e recria nodes
-    //
-    // Usamos AMBOS para segurança máxima.
-    // ════════════════════════════════════════════════
-    this.layer.clear();
-    this.layer.batchDraw(); // Força flush do clear
-
-    // ════════════════════════════════════════════════
-    // FULL FRAME REDRAW — Destrói e recria a
-    // shadowSurface para garantir que Konva NÃO
-    // reutilize o canvas interno do frame anterior.
-    //
-    // Konva NÃO garante que sceneFunc será executado
-    // em um canvas limpo. A única maneira 100% segura
-    // de garantir frame-based rendering é destruir e
-    // recriar o Konva.Shape a cada render.
-    //
-    // Isso garante que:
-    //   ✔ luz antiga morre completamente
-    //   ✔ canvas é recriado do zero
-    //   ✔ sem acumulação de pixels
-    //   ✔ sem rastros de frames anteriores
-    // ════════════════════════════════════════════════
-    this.destroyShadowSurface();
-
-    this.shadowSurface = new Konva.Shape({
-      sceneFunc: (context) => {
-        this.drawFullVisibilityPipeline(context);
-      },
-      opacity: 1.0,
-      listening: false,
-      name: 'fog-shadow-surface',
-    });
-    this.layer.add(this.shadowSurface);
-
+    // NÃO destruímos e recriamos o shadowSurface a cada frame.
+    // Isso também causava flicker entre a destruição do
+    // shadowSurface antigo e a criação do novo.
+    // ═══════════════════════════════════════════════════════
     this.redraw();
-  }
 
-  /** Destrói a shadowSurface atual */
-  private destroyShadowSurface(): void {
-    if (this.shadowSurface) {
-      this.shadowSurface.destroy();
-    }
   }
 
   // ═══════════════════════════════════════════════════════
@@ -175,27 +206,29 @@ export class FogRenderer extends BaseRenderer {
     ctx.save();
 
     // ════════════════════════════════════════════════
-    // LIMPEZA COMPLETA DO CANVAS
-    // ════════════════════════════════════════════════
-    // Konva NÃO limpa o canvas interno entre frames.
-    // Sem esta limpeza explícita, os recortes
-    // (destination-out) do FRAME ANTERIOR persistem,
-    // criando "rastros" de iluminação antiga.
-    //
-    // ctx.clearRect garante que o canvas esteja
-    // COMPLETAMENTE TRANSPARENTE antes de começarmos.
-    // ════════════════════════════════════════════════
-    const canvas = ctx.canvas;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // ──────────────────────────────────────────────
     // PASSO 1: DARKNESS SURFACE
-    // ──────────────────────────────────────────────
+    // ════════════════════════════════════════════════
     // O mapa inteiro nasce escuro.
     // Um retângulo preto massivo que cobre tudo.
+    //
+    // ⚠ NOTA: NÃO usamos ctx.clearRect() aqui.
+    //   clearRect torna o canvas TRANSPARENTE, o que
+    //   causa um flicker visível (o mapa aparece por
+    //   baixo) durante zoom, pois entre clearRect e
+    //   o preenchimento com preto, há um frame onde
+    //   a layer de fog fica transparente.
+    //
+    //   Em vez disso, vamos direto para source-over
+    //   com preenchimento preto. Como source-over
+    //   SUBSTITUI completamente o conteúdo anterior
+    //   (não usa o destino para composição), qualquer
+    //   resquício de destination-out do frame anterior
+    //   é completamente sobrescrito pelo preto opaco.
+    // ════════════════════════════════════════════════
     ctx.globalCompositeOperation = 'source-over';
     ctx.fillStyle = '#000000';
     ctx.fillRect(-100000, -100000, 200000, 200000);
+
 
     // Todas as próximas operações são destination-out:
     // "recortar" (revelar) áreas na escuridão.
@@ -295,12 +328,15 @@ export class FogRenderer extends BaseRenderer {
         ctx.restore();
       } else {
         // Sem paredes: círculo/cone simples com gradiente
-        if (light.type === 'cone' && light.angle && light.rotation) {
+        if (light.type === 'cone' && light.angle) {
           this.drawConeLight(ctx, light);
         } else {
           this.drawRadialLight(ctx, light);
         }
+
       }
+
+
     }
 
     // ──────────────────────────────────────────────

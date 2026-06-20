@@ -6,22 +6,6 @@ import { TokenService } from './services';
 
 type EditorTab = 'basic' | 'vision';
 
-/**
- * ═══════════════════════════════════════════════════════════
- * TOKEN EDITOR — Configurações do Token
- * ═══════════════════════════════════════════════════════════
- *
- * Abas:
- *   📋 Básico   — Nome, imagem, aura, barras, armadura
- *   👁  Visão     — Visão + Iluminação unificados:
- *                  • Tipo: Área circular (radial) ou Lanterna (cone)
- *                  • Suavidade da borda da luz
- *                  • Intensidade, cor, alcance
- *                  • Darkvision, Blindsight, Tremorsense
- *
- * Visão e Iluminação agora são UMA coisa só:
- *   Token com visão ativa automaticamente ilumina o ambiente.
- */
 @Component({
   selector: 'app-token-editor-panel',
   standalone: true,
@@ -40,13 +24,12 @@ type EditorTab = 'basic' | 'vision';
             <input #imageInput type="file" accept="image/png, image/jpeg, image/webp" hidden (change)="handleImageUpload($event)" />
           </div>
           
-          <!-- Abas de navegação -->
           <nav class="editor-tabs">
             <button class="tab-btn" [class.active]="activeTab() === 'basic'" (click)="activeTab.set('basic')">
               📋 Básico
             </button>
             <button class="tab-btn" [class.active]="activeTab() === 'vision'" (click)="activeTab.set('vision')">
-              👁 Visão + Iluminação
+              Iluminação
             </button>
           </nav>
           
@@ -60,7 +43,6 @@ type EditorTab = 'basic' | 'vision';
         <div class="editor-main">
           <div class="editor-header">
             <h3>{{ tabTitle }}</h3>
-
             <button class="close-btn" (click)="closeEditor()" title="Fechar">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                 <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -69,9 +51,6 @@ type EditorTab = 'basic' | 'vision';
           </div>
 
           <div class="editor-scroll-area">
-            <!-- ════════════════════════════════════════ -->
-            <!-- ABA 1: BÁSICO -->
-            <!-- ════════════════════════════════════════ -->
             @if (activeTab() === 'basic') {
               <section class="editor-section">
                 <div class="section-header">
@@ -147,13 +126,10 @@ type EditorTab = 'basic' | 'vision';
               </section>
             }
 
-            <!-- ════════════════════════════════════════ -->
-            <!-- ABA 2: VISÃO + ILUMINAÇÃO (UNIFICADA) -->
-            <!-- ════════════════════════════════════════ -->
             @if (activeTab() === 'vision') {
               <section class="editor-section">
                 <div class="section-header">
-                  <h4 class="section-title">👁 Visão e Iluminação</h4>
+                  <h4 class="section-title">Iluminação</h4>
                   <label class="toggle-checkbox">
                     <input type="checkbox" [checked]="token.vision?.enabled" (change)="toggleVisionEnabled($event)" />
                     Ativar
@@ -161,7 +137,6 @@ type EditorTab = 'basic' | 'vision';
                 </div>
 
                 @if (token.vision?.enabled) {
-                  <!-- ═══ TIPO DE ILUMINAÇÃO ═══ -->
                   <div class="field-group">
                     <label>Tipo de Iluminação</label>
                     <select [value]="token.vision?.type ?? 'radial'" (change)="updateVisionField('type', $event)">
@@ -170,83 +145,28 @@ type EditorTab = 'basic' | 'vision';
                     </select>
                   </div>
 
-                  <!-- ═══ ALCANCE ═══ -->
                   <div class="field-group">
                     <label>Alcance (px)</label>
                     <input type="range" [value]="token.vision?.radius ?? 200" (input)="updateVisionField('radius', $event)" min="20" max="800" step="10" />
                     <span class="range-value">{{ token.vision?.radius ?? 200 }}px</span>
                   </div>
 
-                  <!-- ═══ SUAVIDADE ═══ -->
                   <div class="field-group">
                     <label>Suavidade da borda</label>
                     <input type="range" [value]="token.vision?.softness ?? 0.5" (input)="updateVisionField('softness', $event)" min="0" max="1" step="0.05" />
                     <span class="range-value">{{ ((token.vision?.softness ?? 0.5) * 100).toFixed(0) }}%</span>
-                    <div class="field-hint">Controla o quão suave é o falloff da luz. 0% = borda dura, 100% = muito suave.</div>
+                    <div class="field-hint">Mais suavidade = borda mais desfocada. 0% = borda dura, 100% = extremamente suave.</div>
                   </div>
 
-                  <!-- ═══ INTENSIDADE ═══ -->
                   <div class="field-group">
                     <label>Intensidade da Luz</label>
                     <input type="range" [value]="token.vision?.intensity ?? 0.8" (input)="updateVisionField('intensity', $event)" min="0" max="1" step="0.05" />
                     <span class="range-value">{{ ((token.vision?.intensity ?? 0.8) * 100).toFixed(0) }}%</span>
                   </div>
 
-                  <!-- ═══ COR DA LUZ ═══ -->
                   <div class="field-group">
                     <label>Cor da Luz</label>
                     <input type="color" [value]="token.vision?.color ?? '#ffdd88'" (input)="updateVisionField('color', $event)" />
-                  </div>
-
-                  <!-- ═══ ÂNGULO DO CONE (LANTERNA) ═══ -->
-                  @if (token.vision?.type === 'cone') {
-                    <div class="field-group">
-                      <label>Ângulo do Cone (graus)</label>
-                      <input type="range" [value]="((token.vision?.angle ?? 1) * 180 / Math.PI)" (input)="updateVisionConeAngle($event)" min="10" max="360" step="5" />
-                      <span class="range-value">{{ ((token.vision?.angle ?? 1) * 180 / Math.PI).toFixed(0) }}°</span>
-                    </div>
-                  }
-
-                  <!-- ═══ DIVISOR: TIPOS DE VISÃO ═══ -->
-                  <div class="section-divider">
-                    <span>Tipos de Visão</span>
-                  </div>
-
-                  <div class="field-row-2">
-                    <label class="toggle-checkbox">
-                      <input type="checkbox" [checked]="token.vision?.darkvision" (change)="updateVisionField('darkvision', $event)" />
-                      🌙 Darkvision
-                    </label>
-                    <label class="toggle-checkbox">
-                      <input type="checkbox" [checked]="token.vision?.blindsight" (change)="updateVisionField('blindsight', $event)" />
-                      🦇 Blindsight
-                    </label>
-                  </div>
-
-                  <div class="field-row-2">
-                    <label class="toggle-checkbox">
-                      <input type="checkbox" [checked]="token.vision?.tremorsense" (change)="updateVisionField('tremorsense', $event)" />
-                      🌍 Tremorsense
-                    </label>
-                    <label class="toggle-checkbox">
-                      <input type="checkbox" [checked]="token.vision?.cone" (change)="updateVisionField('cone', $event)" />
-                      👁 Cone de Visão
-                    </label>
-                  </div>
-
-                  @if (token.vision?.cone) {
-                    <div class="field-group">
-                      <label>Ângulo do Cone de Visão (graus)</label>
-                      <input type="range" [value]="(token.vision?.angle ?? 1) * 180 / Math.PI" (input)="updateVisionConeAngle($event)" min="10" max="360" step="5" />
-                      <span class="range-value">{{ ((token.vision?.angle ?? 1) * 180 / Math.PI).toFixed(0) }}°</span>
-                    </div>
-                  }
-
-                  <div class="info-box">
-                    <strong>Visão + Iluminação unificados:</strong><br />
-                    Quando ativa, o token automaticamente ilumina o ambiente.<br />
-                    A <strong>Suavidade</strong> controla o falloff da luz (borda suave).<br />
-                    Darkvision permite enxergar mesmo em áreas escuras.
                   </div>
                 } @else {
                   <div class="info-box dim">
@@ -295,10 +215,6 @@ export class TokenEditorPanelComponent {
     this.updateToken({ armor });
   }
 
-  // ════════════════════════════════════════════════════
-  // BÁSICO
-  // ════════════════════════════════════════════════════
-
   updateName(event: Event): void {
     this.updateToken({ name: (event.target as HTMLInputElement).value });
   }
@@ -340,10 +256,6 @@ export class TokenEditorPanelComponent {
     };
     reader.readAsDataURL(file);
   }
-
-  // ════════════════════════════════════════════════════
-  // BARRAS
-  // ════════════════════════════════════════════════════
 
   updateBar(barId: string, partial: Partial<TokenBar>): void {
     const bars = this.token.bars.map(b => b.id === barId ? { ...b, ...partial } : b);
@@ -390,29 +302,18 @@ export class TokenEditorPanelComponent {
     this.closeEditor();
   }
 
-  // ════════════════════════════════════════════════════
-  // VISÃO + ILUMINAÇÃO (UNIFICADA)
-  // ════════════════════════════════════════════════════
-
   toggleVisionEnabled(event: Event): void {
     const enabled = (event.target as HTMLInputElement).checked;
     if (enabled) {
       if (!this.token.vision) {
-        // Ativa com configuração inicial completa
         this.tokenService.setTokenVision(this.token.id, {
           enabled: true,
           radius: 200,
-          // Iluminação
           type: 'radial',
           softness: 0.5,
           intensity: 0.8,
           color: '#ffdd88',
           rotation: 0,
-          // Visão
-          darkvision: false,
-          blindsight: false,
-          tremorsense: false,
-          cone: false,
           angle: Math.PI / 3,
         });
       } else {
@@ -429,9 +330,7 @@ export class TokenEditorPanelComponent {
     if (!vision) return;
 
     let value: any;
-    if (field === 'darkvision' || field === 'blindsight' || field === 'tremorsense' || field === 'cone') {
-      value = target.checked;
-    } else if (field === 'radius' || field === 'softness' || field === 'intensity') {
+    if (field === 'radius' || field === 'softness' || field === 'intensity') {
       value = Number(target.value);
     } else if (field === 'type') {
       value = target.value as 'radial' | 'cone';
@@ -441,20 +340,10 @@ export class TokenEditorPanelComponent {
 
     const changes = { [field]: value } as Partial<TokenVision>;
 
-    // Se mudou o tipo para 'cone', garante um ângulo padrão
     if (field === 'type' && value === 'cone' && !vision.angle) {
       changes.angle = Math.PI / 3;
     }
 
     this.tokenService.setTokenVision(this.token.id, { ...vision, ...changes });
-  }
-
-  updateVisionConeAngle(event: Event): void {
-    const degrees = Number((event.target as HTMLInputElement).value);
-    const radians = (degrees * Math.PI) / 180;
-    const vision = this.token.vision;
-    if (vision) {
-      this.tokenService.setTokenVision(this.token.id, { ...vision, angle: radians });
-    }
   }
 }

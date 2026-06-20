@@ -378,6 +378,19 @@ export class FieldRendererComponent {
   // ================================================================
 
   expandedAttacks: Set<number> = new Set();
+  expandedAttackHitConfig: Set<number> = new Set();
+
+  toggleAttackHitConfig(index: number) {
+    if (this.expandedAttackHitConfig.has(index)) {
+      this.expandedAttackHitConfig.delete(index);
+    } else {
+      this.expandedAttackHitConfig.add(index);
+    }
+  }
+
+  isAttackHitConfigOpen(index: number): boolean {
+    return this.expandedAttackHitConfig.has(index);
+  }
 
   getAttackSettings(): AttackSettings {
     return this.field.settings?.attack || { columns: [] };
@@ -411,6 +424,13 @@ export class FieldRendererComponent {
       else if (col.type === 'bonus') item[col.id] = 0;
       else item[col.id] = '';
     }
+    // Attack roll configuration (per item)
+    item._needAttackRoll = false;
+    item._rollDiceCount = 1;
+    item._rollDiceSides = 20;
+    item._rollBonus = 0;
+    item._rollAdvantage = 'none'; // 'none' | 'advantage' | 'disadvantage'
+    item._rollResultMode = 'sum'; // 'sum' | 'highest'
     this.field.value = [...this.getAttackItems(), item];
     this.onValueChange(this.field.value);
   }
@@ -482,12 +502,101 @@ export class FieldRendererComponent {
   }
 
   attackRollResults: Map<number, { breakdown: string; total: number } | null> = new Map();
+  attackToHitResults: Map<number, { breakdown: string; total: number } | null> = new Map();
 
   performAttackRoll(index: number) {
     const result = this.rollAttackDamage(index);
     this.attackRollResults.set(index, result);
     // Force change detection by re-assigning the map
     this.attackRollResults = new Map(this.attackRollResults);
+  }
+
+  /**
+   * Performs an attack roll (to-hit) with the configured settings.
+   * Supports advantage/disadvantage and multi-dice systems.
+   */
+  performAttackToHit(index: number) {
+    const item = this.getAttackItems()[index];
+    if (!item) return;
+    if (!item._needAttackRoll) return;
+
+    const diceCount = Number(item._rollDiceCount) || 1;
+    const diceSides = Number(item._rollDiceSides) || 20;
+    const bonus = Number(item._rollBonus) || 0;
+    const advantage = item._rollAdvantage || 'none';
+
+    let actualDiceCount = diceCount;
+    let description = '';
+
+    // Apply advantage/disadvantage logic
+    if (advantage === 'advantage') {
+      if (diceCount === 1) {
+        // Single die advantage: roll 2, keep highest
+        actualDiceCount = 2;
+        description = 'Vantagem (2 dados, maior)';
+      } else {
+        // Multi-die advantage: +1 die
+        actualDiceCount = diceCount + 1;
+        description = 'Vantagem (+1 dado)';
+      }
+    } else if (advantage === 'disadvantage') {
+      if (diceCount === 1) {
+        // Single die disadvantage: roll 2, keep lowest
+        actualDiceCount = 2;
+        description = 'Desvantagem (2 dados, menor)';
+      } else {
+        // Multi-die disadvantage: -1 die (minimum 1)
+        actualDiceCount = Math.max(1, diceCount - 1);
+        description = 'Desvantagem (-1 dado)';
+      }
+    }
+
+    // Roll all dice
+    const rolls: number[] = [];
+    for (let i = 0; i < actualDiceCount; i++) {
+      rolls.push(Math.floor(Math.random() * diceSides) + 1);
+    }
+
+    // Apply keep-highest or keep-lowest for single die advantage/disadvantage
+    let finalRolls: number[];
+    if (advantage === 'advantage' && diceCount === 1) {
+      finalRolls = [Math.max(...rolls)];
+    } else if (advantage === 'disadvantage' && diceCount === 1) {
+      finalRolls = [Math.min(...rolls)];
+    } else {
+      finalRolls = rolls;
+    }
+
+    // Apply result mode: 'sum' (default) or 'highest' (keep only the highest die)
+    const resultMode = item._rollResultMode || 'sum';
+    let rollValue: number;
+    if (resultMode === 'highest') {
+      rollValue = Math.max(...finalRolls);
+    } else {
+      rollValue = finalRolls.reduce((a, b) => a + b, 0);
+    }
+
+    const total = rollValue + bonus;
+
+    // Build breakdown string
+    let breakdown = '';
+    if (description) {
+      breakdown = description + ': ';
+    }
+    breakdown += `[${rolls.join(', ')}]`;
+    if (finalRolls.length !== rolls.length) {
+      breakdown += ` → usa ${finalRolls.join(', ')}`;
+    }
+    if (resultMode === 'highest') {
+      breakdown += ` → maior ${Math.max(...finalRolls)}`;
+    }
+    if (bonus !== 0) {
+      breakdown += (bonus > 0 ? ' + ' : ' - ') + Math.abs(bonus);
+    }
+    breakdown += ` = ${total}`;
+
+    this.attackToHitResults.set(index, { breakdown, total });
+    this.attackToHitResults = new Map(this.attackToHitResults);
   }
 
   openAttackConfigModal() {

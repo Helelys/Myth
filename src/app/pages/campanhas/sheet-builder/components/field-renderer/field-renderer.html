@@ -92,21 +92,31 @@
             <input type="checkbox" [ngModel]="row[col.id]" (ngModelChange)="updateSkillRow(i, col.id, $event)"
               [disabled]="!allowValueEdit" />
             } @else if (col.type === 'select') {
-            <select [ngModel]="row[col.id]" (ngModelChange)="updateSkillRow(i, col.id, $event)"
-              [disabled]="!allowValueEdit">
+            @if (allowValueEdit) {
+            <select [ngModel]="row[col.id]" (ngModelChange)="updateSkillRow(i, col.id, $event)">
               <option value="">Selecione...</option>
               @for (opt of (col.options || []); track opt) {
               <option [value]="opt">{{ opt }}</option>
               }
             </select>
+            } @else {
+            <span class="skill-select-val">{{ row[col.id] || '—' }}</span>
+            }
             } @else if (col.type === 'related_attr') {
-            <select [ngModel]="row[col.id]" (ngModelChange)="updateSkillRow(i, col.id, $event)"
-              [disabled]="!allowValueEdit">
+            @if (allowValueEdit) {
+            <select [ngModel]="row[col.id]" (ngModelChange)="updateSkillRow(i, col.id, $event)">
               <option value="">Nenhum</option>
               @for (attr of availableAttributes; track attr.id) {
               <option [value]="attr.id">{{ attr.name }}</option>
               }
             </select>
+            } @else {
+            @if (row[col.id]) {
+            <span class="skill-attr-badge">{{ getAttrNameById(row[col.id]) }}</span>
+            } @else {
+            <span class="skill-attr-none">—</span>
+            }
+            }
             } @else if (col.type === 'total') {
             <span class="td-total">{{ getSkillRowValue(row, col) }}</span>
             } @else if (col.type === 'modifier') {
@@ -176,8 +186,12 @@
 @if (field.type === 'number') {
 <div class="field-number">
   <span class="field-label">{{ field.label }}</span>
-  <input type="number" [ngModel]="field.value" (ngModelChange)="onValueChange($event)" [disabled]="!allowValueEdit"
+  @if (allowValueEdit) {
+  <input type="number" [ngModel]="field.value" (ngModelChange)="onValueChange($event)"
     [min]="field.settings?.min ?? null" [max]="field.settings?.max ?? null" [step]="field.settings?.step ?? 1" />
+  } @else {
+  <p>{{ field.value !== null && field.value !== undefined ? field.value : '—' }}</p>
+  }
 </div>
 }
 
@@ -194,12 +208,16 @@
 @if (field.type === 'select') {
 <div class="field-select">
   <span class="field-label">{{ field.label }}</span>
-  <select [ngModel]="field.value" (ngModelChange)="onValueChange($event)" [disabled]="!allowValueEdit">
+  @if (allowValueEdit) {
+  <select [ngModel]="field.value" (ngModelChange)="onValueChange($event)">
     <option value="">Selecione...</option>
     @for (opt of getSelectOptions(); track opt) {
     <option [value]="opt">{{ opt }}</option>
     }
   </select>
+  } @else {
+  <p>{{ field.value || '—' }}</p>
+  }
 </div>
 }
 
@@ -375,16 +393,85 @@
             }
           </div>
 
-          <!-- Roll Damage Button -->
+          <!-- Attack Roll Configuration (per item) -->
           @if (allowValueEdit) {
-          <div class="atk-roll-row">
-            <button class="btn-roll-attack" (click)="performAttackRoll(i)">🎲 Rolagem de ataque</button>
+          <div class="atk-hit-config">
+            <div class="atk-hit-config-header" (click)="toggleAttackHitConfig(i)">
+              <span class="atk-hit-config-toggle">{{ isAttackHitConfigOpen(i) ? '▼' : '▶' }}</span>
+              <span class="atk-hit-config-title">Configurar Rolagem de Ataque</span>
+              <span class="atk-hit-config-badge" [class.active]="item._needAttackRoll">
+                {{ item._needAttackRoll ? '✓ Ativado' : 'Desativado' }}
+              </span>
+            </div>
+            <div class="atk-hit-config-body" [class.is-open]="isAttackHitConfigOpen(i)">
+              <label class="atk-hit-checkbox-row">
+                <input type="checkbox" [ngModel]="item._needAttackRoll"
+                  (ngModelChange)="updateAttackItem(i, '_needAttackRoll', $event)" />
+                <span>Precisa de rolagem de acerto</span>
+              </label>
+              @if (item._needAttackRoll) {
+              <div class="atk-hit-fields">
+                <div class="atk-hit-field">
+                  <label>Qtd. Dados</label>
+                  <input type="number" [ngModel]="item._rollDiceCount"
+                    (ngModelChange)="updateAttackItem(i, '_rollDiceCount', $event)" min="1" max="20"
+                    (click)="$event.stopPropagation()" />
+                </div>
+                <div class="atk-hit-field">
+                  <label>Lados do Dado</label>
+                  <input type="number" [ngModel]="item._rollDiceSides"
+                    (ngModelChange)="updateAttackItem(i, '_rollDiceSides', $event)" min="2" max="100"
+                    (click)="$event.stopPropagation()" />
+                </div>
+                <div class="atk-hit-field">
+                  <label>Bônus</label>
+                  <input type="number" [ngModel]="item._rollBonus"
+                    (ngModelChange)="updateAttackItem(i, '_rollBonus', $event)" (click)="$event.stopPropagation()" />
+                </div>
+                <div class="atk-hit-field">
+                  <label>Vantagem</label>
+                  <select [ngModel]="item._rollAdvantage"
+                    (ngModelChange)="updateAttackItem(i, '_rollAdvantage', $event)" (click)="$event.stopPropagation()">
+                    <option value="none">Nenhuma</option>
+                    <option value="advantage">Vantagem</option>
+                    <option value="disadvantage">Desvantagem</option>
+                  </select>
+                </div>
+                <div class="atk-hit-field">
+                  <label>Modo do Resultado</label>
+                  <select [ngModel]="item._rollResultMode"
+                    (ngModelChange)="updateAttackItem(i, '_rollResultMode', $event)" (click)="$event.stopPropagation()">
+                    <option value="sum">Somar todos</option>
+                    <option value="highest">Apenas o maior</option>
+                  </select>
+                </div>
+              </div>
+              }
+            </div>
           </div>
           }
 
-          <!-- Roll Result -->
+          <!-- Roll Buttons Row -->
+          @if (allowValueEdit) {
+          <div class="atk-roll-row">
+            <button class="btn-roll-damage" (click)="performAttackRoll(i)">🎲 Rolar Dano</button>
+            @if (item._needAttackRoll) {
+            <button class="btn-roll-tohit" (click)="performAttackToHit(i)">⚔️ Rolar Ataque</button>
+            }
+          </div>
+          }
+
+          <!-- Roll Results -->
+          @if (attackToHitResults.has(i)) {
+          <div class="atk-roll-result atk-roll-result-tohit">
+            <span class="atk-roll-label">Ataque:</span>
+            <span class="atk-roll-breakdown">{{ attackToHitResults.get(i)?.breakdown }}</span>
+            <span class="atk-roll-total">= <strong>{{ attackToHitResults.get(i)?.total }}</strong></span>
+          </div>
+          }
           @if (attackRollResults.has(i)) {
-          <div class="atk-roll-result">
+          <div class="atk-roll-result atk-roll-result-damage">
+            <span class="atk-roll-label">Dano:</span>
             <span class="atk-roll-breakdown">{{ attackRollResults.get(i)?.breakdown }}</span>
             <span class="atk-roll-total">= <strong>{{ attackRollResults.get(i)?.total }}</strong></span>
           </div>

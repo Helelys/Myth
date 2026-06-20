@@ -498,6 +498,10 @@ export function computeVisibilityPolygon(
     // Para cada ângulo, dispara um raio e encontra a parede mais próxima
     const points: number[] = [];
 
+    if (coneAngle !== undefined && coneRotation !== undefined) {
+        points.push(origin.x, origin.y);
+    }
+
     for (const angle of sortedAngles) {
         const dirX = Math.cos(angle);
         const dirY = Math.sin(angle);
@@ -602,20 +606,42 @@ export function generateCirclePoints(
 ): number[] {
     const points: number[] = [];
 
-    let startAngle = 0;
-    let endAngle = Math.PI * 2;
-    let segCount = segments;
-
+    // ── CONE VERDADEIRO (triângulo/pirâmide) ──
+    // Em vez de gerar pontos ao longo de um arco circular (setor circular),
+    // geramos APENAS o ponto de origem + os 2 pontos das bordas do cone,
+    // formando um triângulo com a extremidade reta (não arredondada).
+    // Isso resulta em um cone de iluminação REAL como uma pirâmide:
+    //   - Parte estreita no token
+    //   - Expande linearmente até a distância máxima
+    //   - Extremidade frontal RETA (não curvada)
     if (coneAngle !== undefined && coneRotation !== undefined) {
-        startAngle = coneRotation - coneAngle / 2;
-        endAngle = coneRotation + coneAngle / 2;
-        segCount = Math.max(4, Math.floor(segments * coneAngle / (Math.PI * 2)));
+        const halfAngle = coneAngle / 2;
+        const startAngle = coneRotation - halfAngle;
+        const endAngle = coneRotation + halfAngle;
+
+        // Origem do cone (vértice)
+        points.push(center.x, center.y);
+
+        // Borda esquerda do cone
+        points.push(
+            center.x + Math.cos(startAngle) * radius,
+            center.y + Math.sin(startAngle) * radius,
+        );
+
+        // Borda direita do cone
+        points.push(
+            center.x + Math.cos(endAngle) * radius,
+            center.y + Math.sin(endAngle) * radius,
+        );
+
+        return points;
     }
 
-    const step = (endAngle - startAngle) / segCount;
+    // ── CÍRCULO COMPLETO (radial) ──
+    const step = (Math.PI * 2) / segments;
 
-    for (let i = 0; i <= segCount; i++) {
-        const angle = startAngle + i * step;
+    for (let i = 0; i <= segments; i++) {
+        const angle = i * step;
         points.push(
             center.x + Math.cos(angle) * radius,
             center.y + Math.sin(angle) * radius,

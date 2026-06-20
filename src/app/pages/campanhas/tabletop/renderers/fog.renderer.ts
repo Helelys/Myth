@@ -262,26 +262,17 @@ export class FogRenderer extends BaseRenderer {
       }
     }
 
-    // ════════════════════════════════════════════════
-    // PRÉ-PASSO: ATUALIZAR VISIBLE CELLS DO FRAME
-    // ════════════════════════════════════════════════
-    // visibleCells é um Set TEMPORÁRIO que expressa
-    // APENAS o que está sob a luz neste frame específico.
-    // Não é cumulativo, é substituído a cada frame.
-    //
-    // PRECISA ser chamado ANTES dos passos 3 e 4
-    // para que a exploration memory (PASSO 5) possa
-    // consultar visibleCells já atualizado.
-    this.visionService.updateVisibleCellsForCurrentFrame();
-
     // ──────────────────────────────────────────────
-    // PASSO 3: LIGHT SOURCES (destino-out c/ gradiente)
+    // PASSO 3: LIGHT SOURCES (destination-out c/ gradiente)
     // ──────────────────────────────────────────────
+    // ⚠ APENAS ILUMINAÇÃO — sem visão, sem exploração.
+    // Cada luz é renderizada diretamente com seu próprio
+    // gradiente, sem raycasting ou polígonos de visibilidade.
+    // ═══════════════════════════════════════════════════
     const activeLights = this.lightService.getActiveLights();
 
     for (const light of activeLights) {
       if (light.type === 'ambient') {
-        // Luz ambiente → revela tudo
         ctx.globalAlpha = light.intensity * 0.8;
         ctx.fillStyle = '#000000';
         ctx.fillRect(-100000, -100000, 200000, 200000);
@@ -289,123 +280,15 @@ export class FogRenderer extends BaseRenderer {
         continue;
       }
 
-      // Para luzes com raycasting, computa o polígono de visibilidade
-      const walls = this.wallService.getWallsBlockingLight();
-      const pts = this.visionService.computeVisibilityPolygonForLight(light, walls);
-
-      if (pts && pts.length >= 6) {
-        // Polígono de visibilidade recortado por paredes
-        ctx.beginPath();
-        ctx.moveTo(pts[0], pts[1]);
-        for (let i = 2; i < pts.length; i += 2) {
-          ctx.lineTo(pts[i], pts[i + 1]);
-        }
-        ctx.closePath();
-
-        // Falloff suave com gradiente radial
-        ctx.save();
-
-        // Cria gradiente radial para suavidade da borda
-        const gradient = ctx.createRadialGradient(
-          light.x, light.y, 0,
-          light.x, light.y, light.radius * (1 - light.softness * 0.5),
-        );
-        gradient.addColorStop(0, `rgba(0,0,0,${light.intensity})`);
-        gradient.addColorStop(0.6, `rgba(0,0,0,${light.intensity * 0.6})`);
-        gradient.addColorStop(1, 'rgba(0,0,0,0)');
-
-        ctx.clip();
-
-        // Preenche o polígono recortado com gradiente
-        ctx.fillStyle = gradient;
-        ctx.fillRect(
-          light.x - light.radius,
-          light.y - light.radius,
-          light.radius * 2,
-          light.radius * 2,
-        );
-
-        ctx.restore();
+      if (light.type === 'cone' && light.angle) {
+        this.drawConeLight(ctx, light);
       } else {
-        // Sem paredes: círculo/cone simples com gradiente
-        if (light.type === 'cone' && light.angle) {
-          this.drawConeLight(ctx, light);
-        } else {
-          this.drawRadialLight(ctx, light);
-        }
-
+        this.drawRadialLight(ctx, light);
       }
-
-
     }
 
     // ──────────────────────────────────────────────
-    // PASSO 4: VISION SOURCES (visão dos tokens)
-    // ──────────────────────────────────────────────
-    const wallsBlockVision = this.wallService.getWallsBlockingVision();
-    const visionPolygons = this.visionService.computeTokenVisionPolygons();
-
-    for (const vp of visionPolygons) {
-      if (vp.points.length < 6) continue;
-
-      ctx.beginPath();
-      ctx.moveTo(vp.points[0], vp.points[1]);
-      for (let i = 2; i < vp.points.length; i += 2) {
-        ctx.lineTo(vp.points[i], vp.points[i + 1]);
-      }
-      ctx.closePath();
-      ctx.fillStyle = '#000000';
-      ctx.fill();
-    }
-
-    // ──────────────────────────────────────────────
-    // PASSO 5: EXPLORATION MEMORY
-    // ──────────────────────────────────────────────
-    // visibleCells já foi atualizado no PRÉ-PASSO,
-    // antes das luzes e visão. Aqui apenas consultamos.
-    // visibleCells é TEMPORÁRIO — um Set que expressa
-    // APENAS o que está sob a luz neste frame específico.
-    // Não é cumulativo, é substituído a cada frame.
-
-    // Áreas exploradas (já visitadas) recebem um recorte
-    // com opacidade reduzida, criando o efeito "cinza escuro"
-    // de área já explorada mas não visível agora.
-    const exploredConfig = this.explorationService.config();
-    const exploredCells = this.explorationService.explored();
-    const visibleCells = this.explorationService.visibleCells();
-
-    if (this.explorationService.enabled()) {
-      // Cria um gradiente de opacidade para explored vs invisible
-      // As células visible já foram recortadas acima.
-      // As células explored precisam ser recortadas com alpha reduzido.
-      ctx.save();
-
-      // Para performance, usa-se um fill retangular aproximado
-      // em vez de célula por célula
-      ctx.globalAlpha = 1.0 - exploredConfig.exploredOpacity;
-      ctx.fillStyle = '#000000';
-
-      // Este passo requer iteração sobre células exploradas
-      // Para performance razoável, renderiza apenas células
-      // que NÃO são visible (visible já foi cortado acima)
-      const cellSize = exploredConfig.cellSize;
-      let cellsDrawn = 0;
-
-      for (const key of Object.keys(exploredCells)) {
-        if (visibleCells.has(key)) continue; // Já recortado pela visão
-        if (cellsDrawn > 50000) break; // Limite de segurança
-
-        const [cx, cy] = key.split(',').map(Number);
-        ctx.fillRect(cx * cellSize, cy * cellSize, cellSize, cellSize);
-        cellsDrawn++;
-      }
-
-      ctx.globalAlpha = 1.0;
-      ctx.restore();
-    }
-
-    // ──────────────────────────────────────────────
-    // PASSO 6: PREVIEW (temporário)
+    // PASSO 4: PREVIEW (temporário)
     // ──────────────────────────────────────────────
     if (this.previewState) {
       if (this.previewState.type === 'rect') {
@@ -467,28 +350,81 @@ export class FogRenderer extends BaseRenderer {
   }
 
   /**
-   * Desenha uma luz em cone (lanterna) com gradiente.
+   * Cone de iluminação cinematográfico multi-camada.
+   *
+   * ═══════════════════════════════════════════════════════════
+   * ILUMINAÇÃO VOLUMÉTRICA EM CONE
+   * ═══════════════════════════════════════════════════════════
+   *
+   * 3 camadas sobrepostas para efeito profissional:
+   *
+   *   1. AMBIENT GLOW  → Cone largo + translúcido
+   *   2. MAIN BEAM     → Corpo principal com falloff radial
+   *   3. CORE BLOOM    → Hotspot brilhante central
+   *
+   * Formato triangular REAL (não setor circular),
+   * mas com bordas ANGULARMENTE suavizadas via
+   * overlap de camadas de diferentes larguras.
+   *
+   * Visual: Foundry VTT / Roll20 / Diablo
+   *   ✔ Bordas suaves  ✔ Gradiente natural
+   *   ✔ Profundidade   ✔ Glow atmosférico
    */
   private drawConeLight(ctx: CanvasRenderingContext2D, light: any): void {
     const halfAngle = (light.angle ?? Math.PI / 4) / 2;
     const rotation = light.rotation ?? 0;
+    const radius = light.radius;
+    const intensity = light.intensity;
+    const softness = light.softness ?? 0.4;
 
     ctx.save();
     ctx.translate(light.x, light.y);
     ctx.rotate(rotation);
 
-    // Gradiente radial no cone
-    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, light.radius);
-    gradient.addColorStop(0, `rgba(0,0,0,${light.intensity})`);
-    gradient.addColorStop(0.7, `rgba(0,0,0,${light.intensity * 0.5})`);
-    gradient.addColorStop(1, 'rgba(0,0,0,0)');
-
+    // ── AMBIENT GLOW ──
+    // Dispersão atmosférica: cone 1.4x mais largo, baixa opacidade
+    const outerA = halfAngle * (1 + softness * 0.8);
     ctx.beginPath();
     ctx.moveTo(0, 0);
-    ctx.arc(0, 0, light.radius, -halfAngle, halfAngle);
+    ctx.lineTo(Math.cos(-outerA) * radius, Math.sin(-outerA) * radius);
+    ctx.lineTo(Math.cos(outerA) * radius, Math.sin(outerA) * radius);
     ctx.closePath();
+    let g = ctx.createLinearGradient(0, 0, radius, 0);
+    g.addColorStop(0, `rgba(0,0,0,${intensity * 0.15})`);
+    g.addColorStop(0.4, `rgba(0,0,0,${intensity * 0.08})`);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fill();
 
-    ctx.fillStyle = gradient;
+    // ── MAIN BEAM ──
+    // Corpo principal: triângulo real com gradiente radial
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(Math.cos(-halfAngle) * radius, Math.sin(-halfAngle) * radius);
+    ctx.lineTo(Math.cos(halfAngle) * radius, Math.sin(halfAngle) * radius);
+    ctx.closePath();
+    g = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
+    g.addColorStop(0, `rgba(0,0,0,${intensity * 0.85})`);
+    g.addColorStop(0.35, `rgba(0,0,0,${intensity * 0.55})`);
+    g.addColorStop(0.7, `rgba(0,0,0,${intensity * 0.25})`);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fill();
+
+    // ── CORE BLOOM ──
+    // Hotspot brilhante: 50% do ângulo, 40% do raio
+    const coreA = halfAngle * 0.5;
+    const coreR = radius * 0.4;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(Math.cos(-coreA) * coreR, Math.sin(-coreA) * coreR);
+    ctx.lineTo(Math.cos(coreA) * coreR, Math.sin(coreA) * coreR);
+    ctx.closePath();
+    g = ctx.createRadialGradient(0, 0, 0, 0, 0, coreR);
+    g.addColorStop(0, `rgba(0,0,0,${intensity * 0.95})`);
+    g.addColorStop(0.5, `rgba(0,0,0,${intensity * 0.50})`);
+    g.addColorStop(1, `rgba(0,0,0,${intensity * 0.15})`);
+    ctx.fillStyle = g;
     ctx.fill();
 
     ctx.restore();

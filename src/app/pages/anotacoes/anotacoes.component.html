@@ -6,11 +6,17 @@
     </div>
     <div class="header-actions">
       <button class="btn-outline" (click)="showImportModal.set(true)">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0-13l-4 4m4-4l4 4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <path d="M12 3v13m0-13l-4 4m4-4l4 4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round" />
+        </svg>
         Importar de Campanha
       </button>
       <button class="btn-primary" (click)="createNewNote()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round" />
+        </svg>
         Nova Anotação
       </button>
     </div>
@@ -19,21 +25,20 @@
   <!-- Notes Grid -->
   <main class="notes-grid" *ngIf="!isEditing()">
     @for (note of notes(); track note.id) {
-      <div class="note-card" (click)="editNote(note)">
-        <div class="card-header">
-          <h3>{{ note.title }}</h3>
-          <button class="delete-btn" (click)="deleteNote(note.id, $event)">×</button>
-        </div>
-        <div class="card-preview">
-          {{ getPlainText(note.content) }}
-        </div>
-        <div class="card-footer">
-          {{ note.createdAt | date:'shortDate' }}
-        </div>
+    <div class="note-card" (click)="editNote(note)">
+      <div class="card-header">
+        <h3>{{ note.title }}</h3>
+        <button class="delete-btn" (click)="deleteNote(note.id, $event)">×</button>
       </div>
+      <div class="card-preview">
+        {{ getPlainText(note.content) }}
+      </div>
+      <div class="card-footer">
+        {{ note.createdAt | date:'shortDate' }}
+      </div>
+    </div>
     }
     <div class="empty-state" *ngIf="notes().length === 0">
-      <div class="empty-icon">📝</div>
       <p>Nenhuma anotação criada.</p>
       <button class="btn-primary" (click)="createNewNote()">Criar Primeira Anotação</button>
     </div>
@@ -48,20 +53,20 @@
 
     <div class="rich-text-editor">
       <div class="editor-toolbar">
-        <button class="tool-btn" [class.active]="isBold" (mousedown)="onToolMouseDown('bold', $event)" title="Negrito"><b>B</b></button>
-        <button class="tool-btn" [class.active]="isItalic" (mousedown)="onToolMouseDown('italic', $event)" title="Itálico"><i>I</i></button>
-        <button class="tool-btn" [class.active]="isUnderline" (mousedown)="onToolMouseDown('underline', $event)" title="Sublinhado"><u>U</u></button>
+        <button class="tool-btn" [class.active]="isBold" (mousedown)="onToolMouseDown('bold', $event)"
+          title="Negrito"><b>B</b></button>
+        <button class="tool-btn" [class.active]="isItalic" (mousedown)="onToolMouseDown('italic', $event)"
+          title="Itálico"><i>I</i></button>
+        <button class="tool-btn" [class.active]="isUnderline" (mousedown)="onToolMouseDown('underline', $event)"
+          title="Sublinhado"><u>U</u></button>
         <div class="tool-sep"></div>
-        <button class="tool-btn" [class.active]="currentHeading === 'h1'" (mousedown)="onToolMouseDown('h1', $event)" title="Título 1">H1</button>
-        <button class="tool-btn" [class.active]="currentHeading === 'h2'" (mousedown)="onToolMouseDown('h2', $event)" title="Título 2">H2</button>
+        <button class="tool-btn" [class.active]="currentHeading === 'h1'" (mousedown)="onToolMouseDown('h1', $event)"
+          title="Título 1">H1</button>
+        <button class="tool-btn" [class.active]="currentHeading === 'h2'" (mousedown)="onToolMouseDown('h2', $event)"
+          title="Título 2">H2</button>
       </div>
-      <div
-        #editorArea
-        class="editor-area"
-        contenteditable="true"
-        (input)="onContentEdit($event)"
-        placeholder="Sua anotação aqui..."
-      ></div>
+      <div #editorArea class="editor-area" contenteditable="true" (input)="onContentEdit($event)"
+        placeholder="Sua anotação aqui..."></div>
     </div>
 
     <div class="editor-actions">
@@ -81,10 +86,10 @@
       </div>
       <div class="campaign-list">
         @for (camp of campaigns(); track camp.id) {
-          <div class="campaign-item" (click)="importFromCampaign(camp.id)">
-            <span>{{ camp.nome }}</span>
-            <button class="btn-import-sm">Importar</button>
-          </div>
+        <div class="campaign-item" (click)="importFromCampaign(camp.id)">
+          <span>{{ camp.nome }}</span>
+          <button class="btn-import-sm">Importar</button>
+        </div>
         }
       </div>
     </div>
@@ -98,10 +103,10 @@
       </div>
       <div class="campaign-list">
         @for (camp of campaigns(); track camp.id) {
-          <div class="campaign-item" (click)="exportToCampaign(camp.id)">
-            <span>{{ camp.nome }}</span>
-            <button class="btn-export-sm">Exportar</button>
-          </div>
+        <div class="campaign-item" (click)="exportToCampaign(camp.id)">
+          <span>{{ camp.nome }}</span>
+          <button class="btn-export-sm">Exportar</button>
+        </div>
         }
       </div>
     </div>

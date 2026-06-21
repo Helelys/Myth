@@ -9,8 +9,8 @@ export interface SheetField {
   value: any;
   width?: number;          // col-span (1-12)
   settings?: FieldSettings;
-  itemSchema?: SheetField[]; // For repeater fields (schema definition)
-  items?: any[];           // For repeater, stored data
+  itemSchema?: SheetField[]; // For power fields (schema definition)
+  items?: any[];           // For power, stored data
 }
 
 export type FieldType =
@@ -19,17 +19,16 @@ export type FieldType =
   | 'text'
   | 'textarea'
   | 'select'
-  | 'inventory'
   | 'power'
-  | 'table'
   | 'image'
   | 'checkbox'
   | 'dice'
-  | 'repeater'
   | 'number'
   | 'notes'
   | 'attribute_group'
-  | 'skill_table';
+  | 'skill_table'
+  | 'inventory'
+  | 'attack';
 
 export interface FieldSettings {
   // Resource bar
@@ -61,8 +60,11 @@ export interface FieldSettings {
   // Skill Table
   skillTable?: SkillTableSettings;
 
-  // Dynamic Table
-  tableSettings?: TableSettings;
+  // Inventory
+  inventory?: InventorySettings;
+
+  // Attack
+  attack?: AttackSettings;
 }
 
 
@@ -106,18 +108,32 @@ export interface SkillTableSettings {
 }
 
 // ============================================================
-// Dynamic Table (Custom Columns, like Skill Table)
+// Inventory (Custom Columns + Accordion Items + Description)
 // ============================================================
-export interface TableColumnDef {
+export interface InventoryColumnDef {
   id: string;
   label: string;
-  type: 'text' | 'number';
+  type: 'text' | 'number' | 'checkbox' | 'select' | 'textarea';
+  options?: string[];
   width?: number;
 }
 
-export interface TableSettings {
-  columns: TableColumnDef[];
-  itemDescription?: boolean; // Whether to show a description textarea in the accordion
+export interface InventorySettings {
+  columns: InventoryColumnDef[];
+}
+
+// ============================================================
+// Attack (Custom Columns + Accordion Items with Dice Rolling)
+// ============================================================
+export interface AttackColumnDef {
+  id: string;
+  label: string;
+  type: 'text' | 'dice' | 'bonus' | 'textarea';
+  diceSides?: number; // for dice type, default 6
+}
+
+export interface AttackSettings {
+  columns: AttackColumnDef[];
 }
 
 export interface SheetSection {
@@ -232,42 +248,11 @@ export const FIELD_PRESETS: FieldPreset[] = [
     defaultWidth: 4
   },
   {
-    type: 'repeater',
-    label: 'Lista Repetível',
-    icon: '∞',
-    description: 'Poderes, itens, magias, perícias...',
-    defaultWidth: 12
-  },
-  {
-    type: 'inventory',
-    label: 'Inventário',
-    icon: '🎒',
-    description: 'Lista de itens com quantidade',
-    defaultWidth: 12
-  },
-  {
     type: 'power',
     label: 'Poder/Habilidade',
     icon: '✦',
     description: 'Poder com nome, custo, descrição',
     defaultWidth: 12
-  },
-  {
-    type: 'table',
-    label: 'Tabela (Mochila)',
-    icon: '🎒',
-    description: 'Mochila com colunas configuráveis',
-    defaultWidth: 12,
-    defaultSettings: {
-      tableSettings: {
-        columns: [
-          { id: crypto.randomUUID(), label: 'Nome', type: 'text' },
-          { id: crypto.randomUUID(), label: 'Qtd', type: 'number' },
-          { id: crypto.randomUUID(), label: 'Peso', type: 'number' },
-        ],
-        itemDescription: true
-      }
-    }
   },
   {
     type: 'image',
@@ -317,6 +302,39 @@ export const FIELD_PRESETS: FieldPreset[] = [
           { id: crypto.randomUUID(), label: 'Bônus', type: 'number' },
           { id: crypto.randomUUID(), label: 'Atributo', type: 'related_attr' },
           { id: crypto.randomUUID(), label: 'Total', type: 'total' }
+        ]
+      }
+    }
+  },
+  {
+    type: 'inventory',
+    label: 'Inventário',
+    icon: '🎒',
+    description: 'Lista de itens com campos customizáveis e descrição em sanfona',
+    defaultWidth: 12,
+    defaultSettings: {
+      inventory: {
+        columns: [
+          { id: crypto.randomUUID(), label: 'Item', type: 'text' },
+          { id: crypto.randomUUID(), label: 'Qtd.', type: 'number' },
+          { id: crypto.randomUUID(), label: 'Peso', type: 'number' }
+        ]
+      }
+    }
+  },
+  {
+    type: 'attack',
+    label: 'Ataque',
+    icon: '⚔️',
+    description: 'Ataques com rolagem de dano, bônus e descrição em sanfona',
+    defaultWidth: 12,
+    defaultSettings: {
+      attack: {
+        columns: [
+          { id: crypto.randomUUID(), label: 'Nome', type: 'text' },
+          { id: crypto.randomUUID(), label: 'Dano', type: 'dice', diceSides: 6 },
+          { id: crypto.randomUUID(), label: 'Bônus', type: 'bonus' },
+          { id: crypto.randomUUID(), label: 'Observação', type: 'textarea' }
         ]
       }
     }

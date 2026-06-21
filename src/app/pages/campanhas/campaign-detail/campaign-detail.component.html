@@ -4,7 +4,10 @@
     <div class="header-main">
       <div class="header-left">
         <a routerLink="/campanhas" class="back-btn">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" />
+          </svg>
         </a>
         <div class="campaign-info">
           <h1>{{ camp.nome }}</h1>
@@ -13,7 +16,10 @@
       </div>
       <div class="header-actions">
         <button class="btn-outline">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
           Editar
         </button>
       </div>
@@ -22,47 +28,72 @@
     <!-- Tab Navigation -->
     <nav class="tab-nav">
       <button class="tab-btn" [class.active]="activeTab() === 'sistema'" (click)="setActiveTab('sistema')">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5" />
+          <path
+            d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"
+            stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        </svg>
         Sistema
       </button>
       <button class="tab-btn" [class.active]="activeTab() === 'personagens'" (click)="setActiveTab('personagens')">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.5" />
+          <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        </svg>
         Personagens
       </button>
       <button class="tab-btn" [class.active]="activeTab() === 'combates'" (click)="setActiveTab('combates')">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+            stroke-linejoin="round" />
+        </svg>
         Combates
       </button>
       <button class="tab-btn" [class.active]="activeTab() === 'escudo'" (click)="setActiveTab('escudo')">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="currentColor" stroke-width="1.5"/></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+          <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="1.5" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="currentColor" stroke-width="1.5" />
+        </svg>
         Escudo do Mestre
+      </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'tabletop'" (click)="setActiveTab('tabletop')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+          <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.5" />
+          <path d="M8 21h8M12 17v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        </svg>
+        Mesa Virtual
       </button>
     </nav>
   </header>
 
   <!-- Tab Content -->
-  <main class="tab-content" [class.no-padding]="activeTab() === 'sistema' && (activeSystemView() === 'ficha' || activeSystemView() === 'ficha-monstro')">
-    
+  <main class="tab-content"
+    [class.no-padding]="activeTab() === 'sistema' && (activeSystemView() === 'ficha' || activeSystemView() === 'ficha-monstro') || activeTab() === 'tabletop'"
+    [class.tabletop-active]="activeTab() === 'tabletop'">
+
     <!-- ======================== TAB: SISTEMA ======================== -->
-    <section *ngIf="activeTab() === 'sistema'" class="view-section" [class.full-width]="activeSystemView() === 'ficha' || activeSystemView() === 'ficha-monstro'">
+    <section *ngIf="activeTab() === 'sistema'" class="view-section"
+      [class.full-width]="activeSystemView() === 'ficha' || activeSystemView() === 'ficha-monstro'">
 
       <!-- Sub-nav tabs -->
       <nav class="system-sub-nav">
         <button class="sub-nav-btn" [class.active]="activeSystemView() === 'regras'" (click)="setSystemView('regras')">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
           Sistema
         </button>
         <button class="sub-nav-btn" [class.active]="activeSystemView() === 'ficha'" (click)="setSystemView('ficha')">
-          <span>🛡️</span> Ficha Jogador
+          Ficha Jogador
         </button>
-        <button class="sub-nav-btn" [class.active]="activeSystemView() === 'ficha-monstro'" (click)="setSystemView('ficha-monstro')">
-          <span>👿</span> Ficha Monstro
+        <button class="sub-nav-btn" [class.active]="activeSystemView() === 'ficha-monstro'"
+          (click)="setSystemView('ficha-monstro')">
+          Ficha Monstro
         </button>
         <button class="sub-nav-btn" [class.active]="activeSystemView() === 'itens'" (click)="setSystemView('itens')">
-          <span>⚔️</span> Itens
+          Itens
         </button>
-        <button class="sub-nav-btn" [class.active]="activeSystemView() === 'anotacoes'" (click)="setSystemView('anotacoes')">
-          <span>📓</span> Anotações
+        <button class="sub-nav-btn" [class.active]="activeSystemView() === 'anotacoes'"
+          (click)="setSystemView('anotacoes')">
+          Anotações
         </button>
       </nav>
 
@@ -74,7 +105,10 @@
             <p>Escreva aqui as mecânicas que regem o seu RPG.</p>
           </div>
           <button class="btn-outline btn-sm" (click)="importGlobalSystem()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0-13l-4 4m4-4l4 4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M12 3v13m0-13l-4 4m4-4l4 4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round" />
+            </svg>
             Importar do MythMaker
           </button>
         </div>
@@ -82,20 +116,15 @@
           <div class="editor-toolbar">
             <button class="tool-btn" title="Negrito" (mousedown)="onToolMouseDown('bold', $event)"><b>B</b></button>
             <button class="tool-btn" title="Itálico" (mousedown)="onToolMouseDown('italic', $event)"><i>I</i></button>
-            <button class="tool-btn" title="Sublinhado" (mousedown)="onToolMouseDown('underline', $event)"><u>U</u></button>
+            <button class="tool-btn" title="Sublinhado"
+              (mousedown)="onToolMouseDown('underline', $event)"><u>U</u></button>
             <div class="tool-sep"></div>
             <button class="tool-btn" title="Título 1" (mousedown)="onToolMouseDown('h1', $event)">H1</button>
             <button class="tool-btn" title="Título 2" (mousedown)="onToolMouseDown('h2', $event)">H2</button>
 
           </div>
-          <div
-            class="editor-area contenteditable"
-            contenteditable="true"
-            #editorRef
-            (input)="onSystemInput($event)"
-            (blur)="onSystemBlur()"
-            placeholder="Comece a escrever as regras do seu sistema..."
-          ></div>
+          <div class="editor-area contenteditable" contenteditable="true" #editorRef (input)="onSystemInput($event)"
+            (blur)="onSystemBlur()" placeholder="Comece a escrever as regras do seu sistema..."></div>
         </div>
         <div class="view-actions">
           <button class="btn-primary" (click)="saveSystemData()">Salvar Alterações</button>
@@ -110,15 +139,14 @@
             <p>Configure o template base que todos os jogadores usarão nesta campanha.</p>
           </div>
           <button class="btn-outline btn-sm" (click)="importGlobalTemplate('player')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0-13l-4 4m4-4l4 4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M12 3v13m0-13l-4 4m4-4l4 4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round" />
+            </svg>
             Importar Modelo
           </button>
         </div>
-        <app-sheet-builder
-          [campaignId]="campaignId()"
-          [templateType]="'player'"
-          [editMode]="true"
-        ></app-sheet-builder>
+        <app-sheet-builder [campaignId]="campaignId()" [templateType]="'player'" [editMode]="true"></app-sheet-builder>
       </div>
 
       <!-- Sub-view: Ficha Monstro -->
@@ -129,15 +157,14 @@
             <p>Configure o template base para as criaturas desta campanha.</p>
           </div>
           <button class="btn-outline btn-sm" (click)="importGlobalTemplate('monster')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0-13l-4 4m4-4l4 4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M12 3v13m0-13l-4 4m4-4l4 4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round" />
+            </svg>
             Importar Modelo
           </button>
         </div>
-        <app-sheet-builder
-          [campaignId]="campaignId()"
-          [templateType]="'monster'"
-          [editMode]="true"
-        ></app-sheet-builder>
+        <app-sheet-builder [campaignId]="campaignId()" [templateType]="'monster'" [editMode]="true"></app-sheet-builder>
       </div>
 
       <!-- Sub-view: Itens -->
@@ -148,7 +175,10 @@
             <p>Gerencie armas, armaduras e acessórios disponíveis nesta campanha.</p>
           </div>
           <button class="btn-outline btn-sm" (click)="importGlobalItem()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0-13l-4 4m4-4l4 4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M12 3v13m0-13l-4 4m4-4l4 4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round" />
+            </svg>
             Importar do MythMaker
           </button>
         </div>
@@ -157,7 +187,10 @@
             Os itens globais cadastrados no MythMaker estarão disponíveis aqui para consulta.
           </p>
           <button class="btn-primary btn-sm" routerLink="/itens">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round" />
+            </svg>
             Gerenciar Itens Globais
           </button>
         </div>
@@ -171,15 +204,15 @@
             <p>Seus segredos e planos para a campanha.</p>
           </div>
           <button class="btn-outline btn-sm" (click)="importGlobalNote()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0-13l-4 4m4-4l4 4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M12 3v13m0-13l-4 4m4-4l4 4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round" />
+            </svg>
             Importar do MythMaker
           </button>
         </div>
         <div class="rich-text-editor">
-          <textarea 
-            class="editor-area" 
-            [(ngModel)]="gmNotes"
-            placeholder="Anotações privadas do mestre..."></textarea>
+          <textarea class="editor-area" [(ngModel)]="gmNotes" placeholder="Anotações privadas do mestre..."></textarea>
         </div>
         <div class="view-actions">
           <button class="btn-primary" (click)="saveSystemData()">Salvar Alterações</button>
@@ -190,7 +223,7 @@
 
     <!-- Tab: Personagens -->
     <section *ngIf="activeTab() === 'personagens'" class="view-section" [class.full-width]="charViewMode() === 'sheet'">
-      
+
       <div *ngIf="charViewMode() === 'list'">
         <div class="section-header sub-header">
           <div class="header-main-info">
@@ -198,7 +231,10 @@
             <p>Gerencie os heróis e os monstros da sua campanha.</p>
           </div>
           <button class="btn-outline btn-sm" (click)="importGlobalCharacter()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0-13l-4 4m4-4l4 4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M12 3v13m0-13l-4 4m4-4l4 4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round" />
+            </svg>
             Importar do MythMaker
           </button>
         </div>
@@ -206,17 +242,18 @@
         <div class="char-sections">
           <!-- Players -->
           <div class="char-group">
-            <h3 class="group-title">👥 Heróis</h3>
+            <h3 class="group-title">Heróis</h3>
             <div class="char-grid">
               @for (char of characters(); track char.id) {
-                <div class="char-card" (click)="openCharacter(char.id)">
-                  <button class="card-del" (click)="deleteCharacter(char.id, $event)">×</button>
-                  <div class="char-avatar">👤</div>
-                  <div class="char-info">
-                    <input type="text" [(ngModel)]="char.name" (click)="$event.stopPropagation()" (change)="loadCharacters(campaignId()!)" />
-                    <p>Ficha de Jogador</p>
-                  </div>
+              <div class="char-card" (click)="openCharacter(char.id)">
+                <button class="card-del" (click)="deleteCharacter(char.id, $event)">×</button>
+                <div class="char-avatar">👤</div>
+                <div class="char-info">
+                  <input type="text" [(ngModel)]="char.name" (click)="$event.stopPropagation()"
+                    (change)="loadCharacters(campaignId()!)" />
+                  <p>Ficha de Jogador</p>
                 </div>
+              </div>
               }
               <div class="char-card add-card" (click)="createCharacter(false)">
                 <div class="char-avatar">+</div>
@@ -230,17 +267,18 @@
 
           <!-- Monsters -->
           <div class="char-group" style="margin-top: 40px;">
-            <h3 class="group-title">👿 Bestiário</h3>
+            <h3 class="group-title">Bestiário</h3>
             <div class="char-grid">
               @for (monster of monsters(); track monster.id) {
-                <div class="char-card monster-card" (click)="openCharacter(monster.id)">
-                  <button class="card-del" (click)="deleteCharacter(monster.id, $event)">×</button>
-                  <div class="char-avatar">💀</div>
-                  <div class="char-info">
-                    <input type="text" [(ngModel)]="monster.name" (click)="$event.stopPropagation()" (change)="loadCharacters(campaignId()!)" />
-                    <p>Ficha de Monstro</p>
-                  </div>
+              <div class="char-card monster-card" (click)="openCharacter(monster.id)">
+                <button class="card-del" (click)="deleteCharacter(monster.id, $event)">×</button>
+                <div class="char-avatar">💀</div>
+                <div class="char-info">
+                  <input type="text" [(ngModel)]="monster.name" (click)="$event.stopPropagation()"
+                    (change)="loadCharacters(campaignId()!)" />
+                  <p>Ficha de Monstro</p>
                 </div>
+              </div>
               }
               <div class="char-card add-card" (click)="createCharacter(true)">
                 <div class="char-avatar">+</div>
@@ -259,11 +297,9 @@
           <button class="btn-text-back" (click)="closeCharacter()">← Voltar à Lista</button>
           <h2>{{ getSelectedChar()?.name }}</h2>
         </div>
-        
-        <app-player-sheet-view
-          [campaignId]="campaignId()"
-          [templateType]="getSelectedChar()?.isMonster ? 'monster' : 'player'"
-        ></app-player-sheet-view>
+
+        <app-player-sheet-view [campaignId]="campaignId()"
+          [templateType]="getSelectedChar()?.isMonster ? 'monster' : 'player'"></app-player-sheet-view>
       </div>
 
     </section>
@@ -277,11 +313,17 @@
         </div>
         <div class="header-actions combat-actions-gap">
           <button class="btn-outline btn-sm" (click)="openCombatModal()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round" />
+            </svg>
             Rolar Iniciativa
           </button>
           <button class="btn-outline btn-sm" (click)="addManualParticipant()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round" />
+            </svg>
             Anotar Turno
           </button>
         </div>
@@ -297,11 +339,17 @@
           <div class="header-list-actions">
             <div class="turn-controls">
               <button class="btn-icon-sm" (click)="prevTurn()" title="Turno Anterior">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" />
+                </svg>
               </button>
               <span class="turn-label">Turno</span>
               <button class="btn-icon-sm" (click)="nextTurn()" title="Próximo Turno">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" />
+                </svg>
               </button>
             </div>
             <div class="divider-v"></div>
@@ -311,29 +359,31 @@
         </div>
         <div class="combat-list">
           @for (p of combatParticipants(); track $index) {
-            <div class="combat-row" [class.is-first]="$first" [class.is-active]="currentTurnIndex() === $index">
-              <div class="row-rank">
-                <span *ngIf="currentTurnIndex() !== $index">{{ $index + 1 }}º</span>
-                <span *ngIf="currentTurnIndex() === $index">⚔️</span>
-              </div>
-              <div class="row-info">
-                <input class="edit-p-name" [(ngModel)]="p.name" (change)="saveCombatOrder()" placeholder="Nome...">
-                <span class="p-details" *ngIf="p.diceCount > 0">{{ p.diceCount }}d{{ p.diceSides }}{{ p.modifier !== 0 ? ' + ' + p.modifier : '' }} ({{ p.rollMode }})</span>
-                <span class="p-details" *ngIf="p.diceCount === 0">Entrada Manual</span>
-              </div>
-              <div class="row-result-edit">
-                <input type="number" [(ngModel)]="p.result" (change)="saveCombatOrder()" class="edit-p-result">
-              </div>
-              <button class="btn-remove-p" (click)="removeFromCombatOrder($index)" title="Remover participante">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </button>
+          <div class="combat-row" [class.is-first]="$first" [class.is-active]="currentTurnIndex() === $index">
+            <div class="row-rank">
+              <span *ngIf="currentTurnIndex() !== $index">{{ $index + 1 }}º</span>
             </div>
+            <div class="row-info">
+              <input class="edit-p-name" [(ngModel)]="p.name" (change)="saveCombatOrder()" placeholder="Nome...">
+              <span class="p-details" *ngIf="p.diceCount > 0">{{ p.diceCount }}d{{ p.diceSides }}{{ p.modifier !== 0 ? '
+                + ' + p.modifier : '' }} ({{ p.rollMode }})</span>
+              <span class="p-details" *ngIf="p.diceCount === 0">Entrada Manual</span>
+            </div>
+            <div class="row-result-edit">
+              <input type="number" [(ngModel)]="p.result" (change)="saveCombatOrder()" class="edit-p-result">
+            </div>
+            <button class="btn-remove-p" (click)="removeFromCombatOrder($index)" title="Remover participante">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+          </div>
           }
         </div>
       </div>
 
       <div class="empty-view" *ngIf="combatParticipants().length === 0">
-        <div class="empty-icon">⚔️</div>
         <p>Nenhuma ordem de combate ativa no momento.</p>
         <button class="btn-primary" (click)="openCombatModal()">Criar Nova Ordem</button>
       </div>
@@ -348,11 +398,17 @@
         </div>
         <div class="header-actions combat-actions-gap">
           <button class="btn-outline btn-sm" (click)="openImportModal()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0-13l-4 4m4-4l4 4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M12 3v13m0-13l-4 4m4-4l4 4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round" />
+            </svg>
             Exportar Personagem
           </button>
           <button class="btn-primary btn-sm" (click)="openNewDMTracker()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round" />
+            </svg>
             Novo Rastreador
           </button>
         </div>
@@ -361,46 +417,50 @@
       <!-- DM Tracker Grid -->
       <div class="dm-grid" *ngIf="dmTrackers().length > 0">
         @for (tracker of dmTrackers(); track tracker.id) {
-          <div class="dm-card" (click)="editDMTracker(tracker)">
-            <button class="card-del-btn" (click)="removeDMTracker(tracker.id, $event)">×</button>
-            
-            <div class="tracker-header">
-              <div class="tracker-avatar">
-                <img *ngIf="tracker.image" [src]="tracker.image" alt="Avatar">
-                <span *ngIf="!tracker.image">👤</span>
-              </div>
-              <h3>{{ tracker.name || 'Sem nome' }}</h3>
-            </div>
+        <div class="dm-card" (click)="editDMTracker(tracker)">
+          <button class="card-del-btn" (click)="removeDMTracker(tracker.id, $event)">×</button>
 
-            <div class="tracker-bars">
-              @for (bar of tracker.bars; track $index) {
-                <div class="dm-bar-container">
-                  <div class="bar-info">
-                    <span class="bar-label">{{ bar.label }}</span>
-                    <span class="bar-values">{{ bar.current }}/{{ bar.max }}</span>
-                  </div>
-                  <div class="bar-track">
-                    <div class="bar-fill" [style.width.%]="(bar.current / bar.max) * 100" [style.background-color]="bar.color"></div>
-                  </div>
-                  <div class="bar-actions" (click)="$event.stopPropagation()">
-                    <button (click)="adjustBar(tracker.id, $index, -1)">-</button>
-                    <button (click)="adjustBar(tracker.id, $index, 1)">+</button>
-                  </div>
-                </div>
-              }
+          <div class="tracker-header">
+            <div class="tracker-avatar">
+              <img *ngIf="tracker.image" [src]="tracker.image" alt="Avatar">
             </div>
+            <h3>{{ tracker.name || 'Sem nome' }}</h3>
           </div>
+
+          <div class="tracker-bars">
+            @for (bar of tracker.bars; track $index) {
+            <div class="dm-bar-container">
+              <div class="bar-info">
+                <span class="bar-label">{{ bar.label }}</span>
+                <span class="bar-values">{{ bar.current }}/{{ bar.max }}</span>
+              </div>
+              <div class="bar-track">
+                <div class="bar-fill" [style.width.%]="(bar.current / bar.max) * 100"
+                  [style.background-color]="bar.color"></div>
+              </div>
+              <div class="bar-actions" (click)="$event.stopPropagation()">
+                <button (click)="adjustBar(tracker.id, $index, -1)">-</button>
+                <button (click)="adjustBar(tracker.id, $index, 1)">+</button>
+              </div>
+            </div>
+            }
+          </div>
+        </div>
         }
       </div>
 
       <div class="empty-view" *ngIf="dmTrackers().length === 0">
-        <div class="empty-icon">🛡️</div>
         <p>Seu escudo está vazio. Adicione rastreadores ou importe personagens.</p>
         <div class="empty-actions">
           <button class="btn-primary" (click)="openNewDMTracker()">Criar Primeiro Rastreador</button>
           <button class="btn-outline" (click)="openImportModal()">Exportar da Campanha</button>
         </div>
       </div>
+    </section>
+
+    <!-- Tab: Tabletop (Mesa Virtual) -->
+    <section *ngIf="activeTab() === 'tabletop'" class="view-section tabletop-section">
+      <app-tabletop [campaignId]="campaignId()"></app-tabletop>
     </section>
 
   </main>
@@ -413,46 +473,47 @@
       <h3>Configurar Ordem de Combate</h3>
       <button class="close-modal" (click)="closeCombatModal()">×</button>
     </div>
-    
+
     <div class="modal-body">
       <p class="modal-desc">Adicione os jogadores e NPCs para rolar a iniciativa de todos simultaneamente.</p>
-      
+
       <div class="participants-setup-list">
         @for (p of modalParticipants(); track $index) {
-          <div class="setup-row">
-            <div class="field name-field">
-              <label>Nome</label>
-              <input type="text" [(ngModel)]="p.name" (change)="saveCombatOrder()" placeholder="Ex: Guerreiro, Goblin 1...">
-            </div>
-            
-            <div class="field dice-field">
-              <label>Dados</label>
-              <div class="dice-input-group">
-                <input type="number" [(ngModel)]="p.diceCount" (change)="saveCombatOrder()" min="1" max="100">
-                <select [(ngModel)]="p.diceSides" (change)="saveCombatOrder()">
-                  @for (s of dieSidesOptions; track s) {
-                    <option [value]="s">d{{ s }}</option>
-                  }
-                </select>
-              </div>
-            </div>
-            
-            <div class="field mod-field">
-              <label>Mod.</label>
-              <input type="number" [(ngModel)]="p.modifier" (change)="saveCombatOrder()">
-            </div>
+        <div class="setup-row">
+          <div class="field name-field">
+            <label>Nome</label>
+            <input type="text" [(ngModel)]="p.name" (change)="saveCombatOrder()"
+              placeholder="Ex: Guerreiro, Goblin 1...">
+          </div>
 
-            <div class="field mode-field">
-              <label>Modo</label>
-              <select [(ngModel)]="p.rollMode" (change)="saveCombatOrder()">
-                <option value="sum">Somar</option>
-                <option value="highest">Maior</option>
-                <option value="lowest">Menor</option>
+          <div class="field dice-field">
+            <label>Dados</label>
+            <div class="dice-input-group">
+              <input type="number" [(ngModel)]="p.diceCount" (change)="saveCombatOrder()" min="1" max="100">
+              <select [(ngModel)]="p.diceSides" (change)="saveCombatOrder()">
+                @for (s of dieSidesOptions; track s) {
+                <option [value]="s">d{{ s }}</option>
+                }
               </select>
             </div>
-
-            <button class="btn-remove-row" (click)="removeModalRow($index)">×</button>
           </div>
+
+          <div class="field mod-field">
+            <label>Mod.</label>
+            <input type="number" [(ngModel)]="p.modifier" (change)="saveCombatOrder()">
+          </div>
+
+          <div class="field mode-field">
+            <label>Modo</label>
+            <select [(ngModel)]="p.rollMode" (change)="saveCombatOrder()">
+              <option value="sum">Somar</option>
+              <option value="highest">Maior</option>
+              <option value="lowest">Menor</option>
+            </select>
+          </div>
+
+          <button class="btn-remove-row" (click)="removeModalRow($index)">×</button>
+        </div>
         }
       </div>
 
@@ -501,30 +562,31 @@
       <div class="bars-setup-section">
         <div class="section-title">
           <h4>Barras de Status (Máx 3)</h4>
-          <button class="btn-text-accent" (click)="addBarToEditing()" *ngIf="tracker.bars.length < 3">+ Adicionar Barra</button>
+          <button class="btn-text-accent" (click)="addBarToEditing()" *ngIf="tracker.bars.length < 3">+ Adicionar
+            Barra</button>
         </div>
-        
+
         <div class="bars-list">
           @for (bar of tracker.bars; track $index) {
-            <div class="bar-setup-row">
-              <div class="field">
-                <label>Rótulo</label>
-                <input type="text" [(ngModel)]="bar.label" placeholder="HP, Mana...">
-              </div>
-              <div class="field">
-                <label>Atual</label>
-                <input type="number" [(ngModel)]="bar.current">
-              </div>
-              <div class="field">
-                <label>Máx</label>
-                <input type="number" [(ngModel)]="bar.max">
-              </div>
-              <div class="field">
-                <label>Cor</label>
-                <input type="color" [(ngModel)]="bar.color" class="color-picker">
-              </div>
-              <button class="btn-remove-row" (click)="removeBarFromEditing($index)">×</button>
+          <div class="bar-setup-row">
+            <div class="field">
+              <label>Rótulo</label>
+              <input type="text" [(ngModel)]="bar.label" placeholder="HP, Mana...">
             </div>
+            <div class="field">
+              <label>Atual</label>
+              <input type="number" [(ngModel)]="bar.current">
+            </div>
+            <div class="field">
+              <label>Máx</label>
+              <input type="number" [(ngModel)]="bar.max">
+            </div>
+            <div class="field">
+              <label>Cor</label>
+              <input type="color" [(ngModel)]="bar.color" class="color-picker">
+            </div>
+            <button class="btn-remove-row" (click)="removeBarFromEditing($index)">×</button>
+          </div>
           }
         </div>
       </div>
@@ -545,18 +607,18 @@
     </div>
     <div class="modal-body">
       <p class="modal-desc">Selecione quais personagens da campanha você deseja exportar para visualização rápida.</p>
-      
+
       <div class="import-list">
         <div class="import-group" *ngIf="characters().length > 0">
           <h4>Heróis</h4>
           <div class="import-grid">
             @for (char of characters(); track char.id) {
-              <div class="import-item" (click)="importCharacter(char)">
-                <div class="item-avatar">👤</div>
-                <div class="item-info">
-                  <span class="name">{{ char.name }}</span>
-                </div>
+            <div class="import-item" (click)="importCharacter(char)">
+              <div class="item-avatar">👤</div>
+              <div class="item-info">
+                <span class="name">{{ char.name }}</span>
               </div>
+            </div>
             }
           </div>
         </div>
@@ -565,12 +627,12 @@
           <h4>Bestiário</h4>
           <div class="import-grid">
             @for (monster of monsters(); track monster.id) {
-              <div class="import-item monster-item" (click)="importCharacter(monster)">
-                <div class="item-avatar">💀</div>
-                <div class="item-info">
-                  <span class="name">{{ monster.name }}</span>
-                </div>
+            <div class="import-item monster-item" (click)="importCharacter(monster)">
+              <div class="item-avatar">💀</div>
+              <div class="item-info">
+                <span class="name">{{ monster.name }}</span>
               </div>
+            </div>
             }
           </div>
         </div>
@@ -589,11 +651,11 @@
     <div class="modal-body">
       <div class="import-list">
         @for (item of importableItems(); track item.index) {
-          <div class="import-item" (click)="confirmGlobalImport(item.index)">
-            <div class="item-info">
-              <span class="name">{{ item.label }}</span>
-            </div>
+        <div class="import-item" (click)="confirmGlobalImport(item.index)">
+          <div class="item-info">
+            <span class="name">{{ item.label }}</span>
           </div>
+        </div>
         }
       </div>
     </div>

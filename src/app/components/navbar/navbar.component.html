@@ -13,14 +13,20 @@
     <!-- Desktop Links -->
     <ul class="nav-links">
       @for (link of navLinks; track link.label) {
-        <li><a [href]="link.href" class="nav-link">{{ link.label }}</a></li>
+        <li>
+          @if (link.route) {
+            <a [routerLink]="link.route" class="nav-link">{{ link.label }}</a>
+          } @else {
+            <a [href]="link.href" class="nav-link">{{ link.label }}</a>
+          }
+        </li>
       }
     </ul>
 
     <!-- Actions -->
     <div class="nav-actions">
-      <a href="#" class="btn-ghost">Entrar</a>
-      <a href="#" class="btn-primary">Começar agora</a>
+      <button class="btn-ghost" (click)="showLogin.set(true)">Entrar</button>
+      <a routerLink="/dashboard" class="btn-primary">Começar agora</a>
     </div>
 
     <!-- Mobile Toggle -->
@@ -33,12 +39,20 @@
   @if (menuOpen()) {
     <div class="mobile-menu">
       @for (link of navLinks; track link.label) {
-        <a [href]="link.href" class="mobile-link" (click)="toggleMenu()">{{ link.label }}</a>
+        @if (link.route) {
+          <a [routerLink]="link.route" class="mobile-link" (click)="toggleMenu()">{{ link.label }}</a>
+        } @else {
+          <a [href]="link.href" class="mobile-link" (click)="toggleMenu()">{{ link.label }}</a>
+        }
       }
       <div class="mobile-actions">
-        <a href="#" class="btn-ghost">Entrar</a>
-        <a href="#" class="btn-primary">Começar agora</a>
+        <button class="btn-ghost" (click)="showLogin.set(true); toggleMenu()">Entrar</button>
+        <a routerLink="/dashboard" class="btn-primary" (click)="toggleMenu()">Começar agora</a>
       </div>
     </div>
   }
 </nav>
+
+@if (showLogin()) {
+  <app-login-modal (close)="showLogin.set(false)" />
+}

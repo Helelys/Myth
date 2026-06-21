@@ -25,30 +25,21 @@
         </div>
       </div>
 
-      <!-- Link Columns -->
-      @for (col of footerColumns; track col.title) {
-        <div class="footer-col">
-          <h4 class="footer-col-title">{{ col.title }}</h4>
-          <ul class="footer-col-links">
-            @for (link of col.links; track link) {
-              <li><a href="#" class="footer-link">{{ link }}</a></li>
-            }
-          </ul>
-        </div>
-      }
+      <!-- Produto -->
+      <div class="footer-col">
+        <h4 class="footer-col-title">Produto</h4>
+        <ul class="footer-col-links">
+          <li><a href="#" class="footer-link">Recursos</a></li>
+          <li><a routerLink="/precos" class="footer-link">Preços</a></li>
+        </ul>
+      </div>
 
-      <!-- Newsletter -->
-      <div class="footer-newsletter">
-        <h4 class="footer-col-title">Newsletter</h4>
-        <p>Receba novidades e conteúdos exclusivos sobre RPG.</p>
-        <div class="newsletter-form">
-          <input type="email" placeholder="Seu e-mail" class="newsletter-input" id="newsletter-email"/>
-          <button class="newsletter-btn" aria-label="Inscrever">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </button>
-        </div>
+      <!-- Suporte -->
+      <div class="footer-col">
+        <h4 class="footer-col-title">Suporte</h4>
+        <ul class="footer-col-links">
+          <li><button class="footer-report-btn" (click)="showReport.set(true)">Reportar problema</button></li>
+        </ul>
       </div>
 
     </div>
@@ -63,3 +54,7 @@
     </div>
   </div>
 </footer>
+
+@if (showReport()) {
+  <app-report-modal (close)="showReport.set(false)"></app-report-modal>
+}

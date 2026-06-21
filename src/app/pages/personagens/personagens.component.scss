@@ -56,26 +56,30 @@
   .content-view {
     animation: fadeIn 0.3s ease;
 
-    .view-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 32px;
-      
-      h2 { font-size: 1.5rem; color: var(--text-primary); }
-
-      .header-actions {
+      .view-header {
         display: flex;
-        gap: 12px;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 32px;
+        gap: 16px;
         
-        .btn-primary.monster {
-          background: rgba(224, 90, 90, 0.1);
-          color: #e05a5a;
-          border: 1px solid rgba(224, 90, 90, 0.2);
-          &:hover { background: #e05a5a; color: #fff; }
+        h2 { font-size: 1.5rem; color: var(--text-primary); }
+
+        .header-actions {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          
+          button { width: 100%; justify-content: center; }
+          
+          .btn-primary.monster {
+            background: rgba(224, 90, 90, 0.1);
+            color: #e05a5a;
+            border: 1px solid rgba(224, 90, 90, 0.2);
+            &:hover { background: #e05a5a; color: #fff; }
+          }
         }
       }
-    }
   }
 
   .items-grid {

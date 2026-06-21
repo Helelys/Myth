@@ -6,7 +6,7 @@ import {
   CharacterSheet, SheetTab, SheetSection, SheetField, FieldType,
   FIELD_PRESETS, FieldPreset, SheetSettings,
   AttributeGroupSettings, AttributeDef, SkillTableSettings, SkillColumnDef,
-  TableColumnDef, TableSettings
+  InventorySettings, InventoryColumnDef, AttackSettings, AttackColumnDef
 } from './models/sheet-types';
 
 
@@ -62,11 +62,17 @@ export class SheetBuilderComponent implements OnInit {
   editingSelectColumnIndex = signal<number | null>(null);
   selectColumnOptionsText = '';
 
-  // Table / Backpack Config Modal
-  showTableConfigModal = signal(false);
-  editingTableField = signal<SheetField | null>(null);
-  tableColumns: { id: string; label: string; type: 'text' | 'number' }[] = [];
-  tableItemDescription = signal(true);
+  // Inventory Config Modal
+  showInventoryConfigModal = signal(false);
+  editingInventoryField = signal<SheetField | null>(null);
+  inventoryColumns: { id: string; label: string; type: string; options?: string[] }[] = [];
+  editingInvSelectColumnIndex = signal<number | null>(null);
+  invSelectColumnOptionsText = '';
+
+  // Attack Config Modal
+  showAttackConfigModal = signal(false);
+  editingAttackField = signal<SheetField | null>(null);
+  attackColumns: { id: string; label: string; type: string; diceSides?: number }[] = [];
 
   // New section form
   newSectionTitle = '';
@@ -137,19 +143,21 @@ export class SheetBuilderComponent implements OnInit {
           layout: 'stack',
           columns: 1,
           fields: [
-            { id: crypto.randomUUID(), type: 'attribute_group', label: 'Atributos', value: null, width: 12, settings: {
-              attributeGroup: {
-                attributes: [
-                  { id: crypto.randomUUID(), name: 'Força', value: 10 },
-                  { id: crypto.randomUUID(), name: 'Agilidade', value: 10 },
-                  { id: crypto.randomUUID(), name: 'Intelecto', value: 10 },
-                  { id: crypto.randomUUID(), name: 'Presença', value: 10 }
-                ],
-                modifierMode: 'dnd',
-                modifierFormula: { baseValue: 10, interval: 2, increment: 1 },
-                alignment: 'center'
+            {
+              id: crypto.randomUUID(), type: 'attribute_group', label: 'Atributos', value: null, width: 12, settings: {
+                attributeGroup: {
+                  attributes: [
+                    { id: crypto.randomUUID(), name: 'Força', value: 10 },
+                    { id: crypto.randomUUID(), name: 'Agilidade', value: 10 },
+                    { id: crypto.randomUUID(), name: 'Intelecto', value: 10 },
+                    { id: crypto.randomUUID(), name: 'Presença', value: 10 }
+                  ],
+                  modifierMode: 'dnd',
+                  modifierFormula: { baseValue: 10, interval: 2, increment: 1 },
+                  alignment: 'center'
+                }
               }
-            } }
+            }
           ]
         }, {
           id: crypto.randomUUID(),
@@ -157,16 +165,18 @@ export class SheetBuilderComponent implements OnInit {
           layout: 'stack',
           columns: 1,
           fields: [
-            { id: crypto.randomUUID(), type: 'skill_table', label: 'Perícias', value: [], width: 12, settings: {
-              skillTable: {
-                columns: [
-                  { id: crypto.randomUUID(), label: 'Perícia', type: 'text' },
-                  { id: crypto.randomUUID(), label: 'Treinado', type: 'checkbox' },
-                  { id: crypto.randomUUID(), label: 'Bônus', type: 'number' },
-                  { id: crypto.randomUUID(), label: 'Total', type: 'total' }
-                ]
+            {
+              id: crypto.randomUUID(), type: 'skill_table', label: 'Perícias', value: [], width: 12, settings: {
+                skillTable: {
+                  columns: [
+                    { id: crypto.randomUUID(), label: 'Perícia', type: 'text' },
+                    { id: crypto.randomUUID(), label: 'Treinado', type: 'checkbox' },
+                    { id: crypto.randomUUID(), label: 'Bônus', type: 'number' },
+                    { id: crypto.randomUUID(), label: 'Total', type: 'total' }
+                  ]
+                }
               }
-            } }
+            }
           ]
         }, {
           id: crypto.randomUUID(),
@@ -176,14 +186,6 @@ export class SheetBuilderComponent implements OnInit {
           fields: [
             { id: crypto.randomUUID(), type: 'resource', label: 'Vida', value: null, width: 6, settings: { current: 20, maxValue: 20, color: '#e05a5a', showNumbers: true } as any },
             { id: crypto.randomUUID(), type: 'resource', label: 'Mana', value: null, width: 6, settings: { current: 10, maxValue: 10, color: '#5aace0', showNumbers: true } as any },
-          ]
-        }, {
-          id: crypto.randomUUID(),
-          title: 'Inventário',
-          layout: 'stack',
-          columns: 1,
-          fields: [
-            { id: crypto.randomUUID(), type: 'inventory', label: 'Itens', value: [] as any, width: 12 }
           ]
         }]
       }],
@@ -338,13 +340,6 @@ export class SheetBuilderComponent implements OnInit {
         width: preset.defaultWidth || 12,
         settings: preset.defaultSettings ? JSON.parse(JSON.stringify(preset.defaultSettings)) : undefined
       };
-
-      if (preset.type === 'repeater') {
-        newField.itemSchema = [
-          { id: 'nome', type: 'text' as FieldType, label: 'Nome', value: '' },
-          { id: 'descricao', type: 'textarea' as FieldType, label: 'Descrição', value: '' }
-        ];
-      }
 
       if (preset.type === 'power') {
         newField.itemSchema = [
@@ -610,48 +605,68 @@ export class SheetBuilderComponent implements OnInit {
     this.showSkillConfigModal.set(false);
   }
 
-  // ── Table / Backpack Config ──
-  openTableConfig(field: SheetField) {
-    const ts = field.settings?.tableSettings;
-    this.editingTableField.set({ ...field });
-    this.tableColumns = (ts?.columns || []).map((c: TableColumnDef) => ({
+  // ── Inventory Config ──
+  openInventoryConfig(field: SheetField) {
+    const inv = field.settings?.inventory;
+    this.editingInventoryField.set({ ...field });
+    this.inventoryColumns = (inv?.columns || []).map((c: InventoryColumnDef) => ({
       id: c.id,
       label: c.label,
-      type: c.type
+      type: c.type,
+      options: c.options ? [...c.options] : undefined
     }));
-    this.tableItemDescription.set(ts?.itemDescription ?? true);
-    this.showTableConfigModal.set(true);
+    this.showInventoryConfigModal.set(true);
   }
 
-  addTableColumn() {
-    this.tableColumns.push({ id: crypto.randomUUID(), label: 'Novo Campo', type: 'text' });
+  addInventoryColumn() {
+    this.inventoryColumns.push({ id: crypto.randomUUID(), label: 'Novo', type: 'text' });
   }
 
-  removeTableColumn(index: number) {
-    this.tableColumns.splice(index, 1);
+  removeInventoryColumn(index: number) {
+    this.inventoryColumns.splice(index, 1);
   }
 
-  moveTableColumn(index: number, direction: -1 | 1) {
+  moveInventoryColumn(index: number, direction: -1 | 1) {
     const newIdx = index + direction;
-    if (newIdx < 0 || newIdx >= this.tableColumns.length) return;
-    const temp = this.tableColumns[index];
-    this.tableColumns[index] = this.tableColumns[newIdx];
-    this.tableColumns[newIdx] = temp;
+    if (newIdx < 0 || newIdx >= this.inventoryColumns.length) return;
+    const temp = this.inventoryColumns[index];
+    this.inventoryColumns[index] = this.inventoryColumns[newIdx];
+    this.inventoryColumns[newIdx] = temp;
   }
 
-  saveTableConfig() {
-    const field = this.editingTableField();
+  openInvSelectOptions(index: number) {
+    const col = this.inventoryColumns[index];
+    this.editingInvSelectColumnIndex.set(index);
+    this.invSelectColumnOptionsText = (col.options || []).join('\n');
+  }
+
+  cancelInvSelectOptions() {
+    this.editingInvSelectColumnIndex.set(null);
+    this.invSelectColumnOptionsText = '';
+  }
+
+  saveInvSelectOptions() {
+    const idx = this.editingInvSelectColumnIndex();
+    if (idx === null) return;
+    const opts = this.invSelectColumnOptionsText.split('\n').map((o: string) => o.trim()).filter((o: string) => o.length > 0);
+    this.inventoryColumns[idx].options = opts;
+    this.editingInvSelectColumnIndex.set(null);
+    this.invSelectColumnOptionsText = '';
+  }
+
+  saveInventoryConfig() {
+    const field = this.editingInventoryField();
     if (!field) return;
     field.settings = {
       ...field.settings,
-      tableSettings: {
-        columns: this.tableColumns.map((c: any) => ({
+      inventory: {
+        columns: this.inventoryColumns.map((c: any) => ({
           id: c.id,
           label: c.label,
-          type: c.type
-        })),
-        itemDescription: this.tableItemDescription()
-      } as TableSettings
+          type: c.type,
+          options: c.options && c.options.length > 0 ? [...c.options] : undefined
+        }))
+      } as InventorySettings
     };
     this.sheet.update((s: CharacterSheet) => ({
       ...s,
@@ -665,7 +680,65 @@ export class SheetBuilderComponent implements OnInit {
         }))
       }))
     }));
-    this.showTableConfigModal.set(false);
+    this.showInventoryConfigModal.set(false);
+  }
+
+  // ── Attack Config ──
+  openAttackConfig(field: SheetField) {
+    const atk = field.settings?.attack;
+    this.editingAttackField.set({ ...field });
+    this.attackColumns = (atk?.columns || []).map((c: AttackColumnDef) => ({
+      id: c.id,
+      label: c.label,
+      type: c.type,
+      diceSides: c.diceSides
+    }));
+    this.showAttackConfigModal.set(true);
+  }
+
+  addAttackColumn() {
+    this.attackColumns.push({ id: crypto.randomUUID(), label: 'Novo', type: 'text', diceSides: 6 });
+  }
+
+  removeAttackColumn(index: number) {
+    this.attackColumns.splice(index, 1);
+  }
+
+  moveAttackColumn(index: number, direction: -1 | 1) {
+    const newIdx = index + direction;
+    if (newIdx < 0 || newIdx >= this.attackColumns.length) return;
+    const temp = this.attackColumns[index];
+    this.attackColumns[index] = this.attackColumns[newIdx];
+    this.attackColumns[newIdx] = temp;
+  }
+
+  saveAttackConfig() {
+    const field = this.editingAttackField();
+    if (!field) return;
+    field.settings = {
+      ...field.settings,
+      attack: {
+        columns: this.attackColumns.map((c: any) => ({
+          id: c.id,
+          label: c.label,
+          type: c.type,
+          diceSides: c.type === 'dice' ? (c.diceSides || 6) : undefined
+        }))
+      } as AttackSettings
+    };
+    this.sheet.update((s: CharacterSheet) => ({
+      ...s,
+      tabs: s.tabs.map((t: SheetTab) => ({
+        ...t,
+        sections: t.sections.map((sec: SheetSection) => ({
+          ...sec,
+          fields: sec.fields.map((f: SheetField) =>
+            f.id === field.id ? field : f
+          )
+        }))
+      }))
+    }));
+    this.showAttackConfigModal.set(false);
   }
 
   // ── Save / Load ──
@@ -734,7 +807,6 @@ export class SheetBuilderComponent implements OnInit {
       case 'number': return 0;
       case 'attribute': return 10;
       case 'checkbox': return false;
-      case 'inventory': return [];
       default: return '';
     }
   }

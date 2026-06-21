@@ -33,5 +33,6 @@ export class AppLayoutComponent {
     { label: 'Itens',           icon: 'items',        route: '/itens' },
     { label: 'Anotações',       icon: 'notes',        route: '/anotacoes' },
     { label: 'Dados de Rolagem',icon: 'dice',         route: '/dados' },
+    { label: 'Gerador de NPCs', icon: 'npcs',         route: '/gerador-npcs' },
   ];
 }

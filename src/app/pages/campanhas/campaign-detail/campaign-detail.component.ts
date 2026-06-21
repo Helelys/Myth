@@ -7,8 +7,9 @@ import { Campaign } from '../criar-campanha/criar-campanha.component';
 import { SheetBuilderComponent } from '../sheet-builder/sheet-builder';
 import { PlayerSheetViewComponent } from '../sheet-builder/player-sheet-view/player-sheet-view';
 import { Character } from '../player-sheet/player-sheet.component';
+import { TabletopComponent } from '../tabletop/tabletop.component';
 
-type Tab = 'sistema' | 'personagens' | 'combates' | 'escudo';
+type Tab = 'sistema' | 'personagens' | 'combates' | 'escudo' | 'tabletop';
 type SystemView = 'regras' | 'ficha' | 'ficha-monstro' | 'itens' | 'anotacoes';
 
 export interface CombatParticipant {
@@ -37,7 +38,7 @@ export interface DMTracker {
 @Component({
   selector: 'app-campaign-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SheetBuilderComponent, PlayerSheetViewComponent],
+  imports: [CommonModule, FormsModule, RouterLink, SheetBuilderComponent, PlayerSheetViewComponent, TabletopComponent],
   templateUrl: './campaign-detail.component.html',
   styleUrl: './campaign-detail.component.scss'
 })
@@ -46,6 +47,7 @@ export class CampaignDetailComponent implements OnInit, AfterViewInit, OnDestroy
   campaignId = signal<string | null>(null);
   campaign = signal<Campaign | null>(null);
   activeTab = signal<Tab>('sistema');
+  private readonly TAB_STORAGE_KEY = 'dashboard-active-tab';
   activeSystemView = signal<SystemView>('regras');
 
   // Character management
@@ -87,12 +89,19 @@ export class CampaignDetailComponent implements OnInit, AfterViewInit, OnDestroy
 
   @ViewChild('editorRef', { static: false }) editorRef!: ElementRef<HTMLElement>;
 
-  constructor(private route: ActivatedRoute) {}
+  constructor(private route: ActivatedRoute) { }
 
   ngOnInit() {
     const id = this.route.snapshot.paramMap.get('id');
     this.campaignId.set(id);
-    
+
+    // Restaura a aba ativa ANTES de qualquer renderização
+    const savedTab = localStorage.getItem(this.TAB_STORAGE_KEY);
+    console.log('[CampaignDetail] activeTab restaurado:', savedTab);
+    if (savedTab && (savedTab === 'sistema' || savedTab === 'personagens' || savedTab === 'combates' || savedTab === 'escudo' || savedTab === 'tabletop')) {
+      this.activeTab.set(savedTab as Tab);
+    }
+
     if (id) {
       const saved: Campaign[] = JSON.parse(localStorage.getItem('mythmaker_campaigns') ?? '[]');
       const found = saved.find(c => c.id === id);
@@ -336,7 +345,7 @@ export class CampaignDetailComponent implements OnInit, AfterViewInit, OnDestroy
   loadCharacters(campaignId: string) {
     const all: Character[] = JSON.parse(localStorage.getItem('mythmaker_characters') ?? '[]');
     const campaignChars = all.filter(c => c.campaignId === campaignId);
-    
+
     this.characters.set(campaignChars.filter(c => !c.isMonster));
     this.monsters.set(campaignChars.filter(c => c.isMonster));
   }
@@ -349,14 +358,14 @@ export class CampaignDetailComponent implements OnInit, AfterViewInit, OnDestroy
       data: {},
       isMonster
     };
-    
+
     const all = JSON.parse(localStorage.getItem('mythmaker_characters') ?? '[]');
     all.push(newChar);
     localStorage.setItem('mythmaker_characters', JSON.stringify(all));
-    
+
     if (isMonster) this.monsters.update(prev => [...prev, newChar]);
     else this.characters.update(prev => [...prev, newChar]);
-    
+
     this.openCharacter(newChar.id);
   }
 
@@ -384,6 +393,9 @@ export class CampaignDetailComponent implements OnInit, AfterViewInit, OnDestroy
 
   setActiveTab(tab: Tab) {
     this.activeTab.set(tab);
+    // Persiste a aba ativa para restaurar após F5
+    localStorage.setItem(this.TAB_STORAGE_KEY, tab);
+    console.log('[CampaignDetail] activeTab salvo:', tab);
   }
 
   setSystemView(view: SystemView) {
@@ -391,8 +403,8 @@ export class CampaignDetailComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   getSelectedChar() {
-    return this.characters().find(c => c.id === this.selectedCharId()) || 
-           this.monsters().find(c => c.id === this.selectedCharId()) || null;
+    return this.characters().find(c => c.id === this.selectedCharId()) ||
+      this.monsters().find(c => c.id === this.selectedCharId()) || null;
   }
 
   // Combat Order Methods
@@ -427,7 +439,7 @@ export class CampaignDetailComponent implements OnInit, AfterViewInit, OnDestroy
 
   rollInitiative() {
     this.isRollingInitiative.set(true);
-    
+
     // Simulate roll animation
     setTimeout(() => {
       const results = this.modalParticipants().map(p => {
@@ -450,7 +462,7 @@ export class CampaignDetailComponent implements OnInit, AfterViewInit, OnDestroy
 
       // Sort by result descending
       results.sort((a, b) => (b.result || 0) - (a.result || 0));
-      
+
       this.combatParticipants.set(results);
       this.isRollingInitiative.set(false);
       this.saveCombatOrder();
@@ -535,7 +547,7 @@ export class CampaignDetailComponent implements OnInit, AfterViewInit, OnDestroy
       }
       return [...prev, tracker];
     });
-    
+
     this.saveDMData();
     this.showDMModal.set(false);
   }

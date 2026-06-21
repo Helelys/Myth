@@ -6,7 +6,8 @@
   .page-header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-end;
+    align-items: flex-start;
+    gap: 16px;
     margin-bottom: 40px;
 
     .header-info {
@@ -25,7 +26,10 @@
 
     .header-actions {
       display: flex;
-      gap: 12px;
+      flex-direction: column;
+      gap: 8px;
+      
+      button { width: 100%; justify-content: center; }
     }
   }
 

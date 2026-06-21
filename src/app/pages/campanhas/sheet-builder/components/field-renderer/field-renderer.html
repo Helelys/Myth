@@ -9,592 +9,581 @@
 
 <!-- ── ATTRIBUTE ── -->
 @if (field.type === 'attribute') {
-  <div class="field-attribute">
-    <span class="attr-label">{{ field.label }}</span>
-    <div class="attr-value-row">
-      <input
-        type="number"
-        [ngModel]="field.value"
-        (ngModelChange)="onValueChange($event)"
-        [disabled]="!allowValueEdit"
-        [min]="field.settings?.min ?? 0"
-        [max]="field.settings?.max ?? 30"
-      />
-    </div>
-    @if (field.settings?.modifier) {
-      <span class="attr-mod">{{ getModifier(field.value) }}</span>
-    }
+<div class="field-attribute">
+  <span class="attr-label">{{ field.label }}</span>
+  <div class="attr-value-row">
+    <input type="number" [ngModel]="field.value" (ngModelChange)="onValueChange($event)" [disabled]="!allowValueEdit"
+      [min]="field.settings?.min ?? 0" [max]="field.settings?.max ?? 30" />
   </div>
+  @if (field.settings?.modifier) {
+  <span class="attr-mod">{{ getModifier(field.value) }}</span>
+  }
+</div>
 }
 
 <!-- ── ATTRIBUTE GROUP (Block Cards) ── -->
 @if (field.type === 'attribute_group') {
-  <div class="attr-group-shell">
-    <div class="attr-group-header">
-      <span class="field-label">{{ field.label }}</span>
-      @if (editMode) {
-        <button class="btn-config-attr" (click)="openAttributeConfigModal()">⚙️ Configurar Atributos</button>
-      }
-    </div>
-    <div class="attr-cards-container" [style.justify-content]="getAttrGroupAlignment()">
-      @for (attr of getAttrGroup().attributes; track attr.id) {
-        <div class="attr-card">
-          <div class="attr-card-name">{{ attr.name }}</div>
-          <div class="attr-card-value">
-            <input
-              type="number"
-              [ngModel]="attr.value"
-              (ngModelChange)="updateAttrValue(attr.id, $event)"
-              [disabled]="!allowValueEdit"
-              min="0"
-              max="30"
-            />
-          </div>
-          @if (getAttrGroup().modifierMode !== 'none') {
-            <div class="attr-card-mod" [class.is-positive]="isAttrModPositive(attr)">
-              {{ getAttrModifier(attr) }}
-            </div>
-          }
-        </div>
-      }
-    </div>
-    @if (editMode && getAttrGroup().attributes.length === 0) {
-      <div class="attr-empty-hint">Clique em ⚙️ para configurar os atributos.</div>
+<div class="attr-group-shell">
+  <div class="attr-group-header">
+    <span class="field-label">{{ field.label }}</span>
+    @if (editMode) {
+    <button class="btn-config-attr" (click)="openAttributeConfigModal()">⚙️ Configurar Atributos</button>
     }
   </div>
+  <div class="attr-cards-container" [style.justify-content]="getAttrGroupAlignment()">
+    @for (attr of getAttrGroup().attributes; track attr.id) {
+    <div class="attr-card">
+      <div class="attr-card-name">{{ attr.name }}</div>
+      <div class="attr-card-value">
+        <input type="number" [ngModel]="attr.value" (ngModelChange)="updateAttrValue(attr.id, $event)"
+          [disabled]="!allowValueEdit" min="0" max="30" />
+      </div>
+      @if (getAttrGroup().modifierMode !== 'none') {
+      <div class="attr-card-mod" [class.is-positive]="isAttrModPositive(attr)">
+        {{ getAttrModifier(attr) }}
+      </div>
+      }
+    </div>
+    }
+  </div>
+  @if (editMode && getAttrGroup().attributes.length === 0) {
+  <div class="attr-empty-hint">Clique em ⚙️ para configurar os atributos.</div>
+  }
+</div>
 }
 
 <!-- ── SKILL TABLE ── -->
 @if (field.type === 'skill_table') {
-  <div class="skill-table-shell">
-    <div class="skill-table-header">
-      <span class="field-label">{{ field.label }}</span>
-      @if (editMode) {
-        <div class="skill-header-actions">
-          <button class="btn-config-skill" (click)="openSkillConfigModal()">⚙️ Configurar Colunas</button>
-          <button class="btn-add-skill-row" (click)="addSkillRow()">+ Adicionar Perícia</button>
-        </div>
-      }
+<div class="skill-table-shell">
+  <div class="skill-table-header">
+    <span class="field-label">{{ field.label }}</span>
+    @if (editMode) {
+    <div class="skill-header-actions">
+      <button class="btn-config-skill" (click)="openSkillConfigModal()">⚙️ Configurar Colunas</button>
+      <button class="btn-add-skill-row" (click)="addSkillRow()">+ Adicionar Perícia</button>
     </div>
-    @if (getSkillColumns().length > 0) {
-      <div class="skill-table-wrap">
-        <table class="skill-table">
-          <thead>
-            <tr>
-              @for (col of getSkillColumns(); track col.id) {
-                <th [style.min-width]="getSkillColumnWidth(col)">{{ col.label }}</th>
-              }
-              @if (editMode) {
-                <th class="th-actions"></th>
-              }
-            </tr>
-          </thead>
-          <tbody>
-            @for (row of getSkillRows(); track $index; let i = $index) {
-              <tr>
-                @for (col of getSkillColumns(); track col.id) {
-                  <td>
-                    @if (col.type === 'text') {
-                      <input
-                        type="text"
-                        [ngModel]="row[col.id]"
-                        (ngModelChange)="updateSkillRow(i, col.id, $event)"
-                        [disabled]="!allowValueEdit"
-                      />
-                    } @else if (col.type === 'number' || col.type === 'bonus') {
-                      <input
-                        type="number"
-                        class="td-number"
-                        [ngModel]="row[col.id]"
-                        (ngModelChange)="updateSkillRow(i, col.id, $event)"
-                        [disabled]="!allowValueEdit"
-                        min="0"
-                      />
-                    } @else if (col.type === 'checkbox') {
-                      <input
-                        type="checkbox"
-                        [ngModel]="row[col.id]"
-                        (ngModelChange)="updateSkillRow(i, col.id, $event)"
-                        [disabled]="!allowValueEdit"
-                      />
-                    } @else if (col.type === 'select') {
-                      <select
-                        [ngModel]="row[col.id]"
-                        (ngModelChange)="updateSkillRow(i, col.id, $event)"
-                        [disabled]="!allowValueEdit"
-                      >
-                        <option value="">Selecione...</option>
-                        @for (opt of (col.options || []); track opt) {
-                          <option [value]="opt">{{ opt }}</option>
-                        }
-                      </select>
-                    } @else if (col.type === 'related_attr') {
-                      <select
-                        [ngModel]="row[col.id]"
-                        (ngModelChange)="updateSkillRow(i, col.id, $event)"
-                        [disabled]="!allowValueEdit"
-                      >
-                        <option value="">Nenhum</option>
-                        @for (attr of availableAttributes; track attr.id) {
-                          <option [value]="attr.id">{{ attr.name }}</option>
-                        }
-                      </select>
-                    } @else if (col.type === 'total') {
-                      <span class="td-total">{{ getSkillRowValue(row, col) }}</span>
-                    } @else if (col.type === 'modifier') {
-                      <span class="td-mod">{{ getSkillRowValue(row, col) }}</span>
-                    } @else {
-                      <span>{{ getSkillRowValue(row, col) }}</span>
-                    }
-                  </td>
-                }
-                @if (editMode) {
-                  <td class="td-actions">
-                    <button class="skill-row-remove" (click)="removeSkillRow(i)">×</button>
-                  </td>
-                }
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-      @if (getSkillRows().length === 0) {
-        <div class="skill-empty-hint">Nenhuma perícia. Clique em "+ Adicionar Perícia" para começar.</div>
-      }
-    } @else {
-      <div class="skill-empty-hint">Configure as colunas clicando em ⚙️.</div>
     }
   </div>
+  @if (getSkillColumns().length > 0) {
+  <div class="skill-table-wrap">
+    <table class="skill-table">
+      <thead>
+        <tr>
+          @for (col of getSkillColumns(); track col.id) {
+          <th [style.min-width]="getSkillColumnWidth(col)">{{ col.label }}</th>
+          }
+          @if (editMode) {
+          <th class="th-actions"></th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of getSkillRows(); track $index; let i = $index) {
+        <tr>
+          @for (col of getSkillColumns(); track col.id) {
+          <td>
+            @if (col.type === 'text') {
+            <input type="text" [ngModel]="row[col.id]" (ngModelChange)="updateSkillRow(i, col.id, $event)"
+              [disabled]="!allowValueEdit" />
+            } @else if (col.type === 'number' || col.type === 'bonus') {
+            <input type="number" class="td-number" [ngModel]="row[col.id]"
+              (ngModelChange)="updateSkillRow(i, col.id, $event)" [disabled]="!allowValueEdit" min="0" />
+            } @else if (col.type === 'checkbox') {
+            <input type="checkbox" [ngModel]="row[col.id]" (ngModelChange)="updateSkillRow(i, col.id, $event)"
+              [disabled]="!allowValueEdit" />
+            } @else if (col.type === 'select') {
+            @if (allowValueEdit) {
+            <select [ngModel]="row[col.id]" (ngModelChange)="updateSkillRow(i, col.id, $event)">
+              <option value="">Selecione...</option>
+              @for (opt of (col.options || []); track opt) {
+              <option [value]="opt">{{ opt }}</option>
+              }
+            </select>
+            } @else {
+            <span class="skill-select-val">{{ row[col.id] || '—' }}</span>
+            }
+            } @else if (col.type === 'related_attr') {
+            @if (allowValueEdit) {
+            <select [ngModel]="row[col.id]" (ngModelChange)="updateSkillRow(i, col.id, $event)">
+              <option value="">Nenhum</option>
+              @for (attr of availableAttributes; track attr.id) {
+              <option [value]="attr.id">{{ attr.name }}</option>
+              }
+            </select>
+            } @else {
+            @if (row[col.id]) {
+            <span class="skill-attr-badge">{{ getAttrNameById(row[col.id]) }}</span>
+            } @else {
+            <span class="skill-attr-none">—</span>
+            }
+            }
+            } @else if (col.type === 'total') {
+            <span class="td-total">{{ getSkillRowValue(row, col) }}</span>
+            } @else if (col.type === 'modifier') {
+            <span class="td-mod">{{ getSkillRowValue(row, col) }}</span>
+            } @else {
+            <span>{{ getSkillRowValue(row, col) }}</span>
+            }
+          </td>
+          }
+          @if (editMode) {
+          <td class="td-actions">
+            <button class="skill-row-remove" (click)="removeSkillRow(i)">×</button>
+          </td>
+          }
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  @if (getSkillRows().length === 0) {
+  <div class="skill-empty-hint">Nenhuma perícia. Clique em "+ Adicionar Perícia" para começar.</div>
+  }
+  } @else {
+  <div class="skill-empty-hint">Configure as colunas clicando em ⚙️.</div>
+  }
+</div>
 }
 
 <!-- ── RESOURCE BAR ── -->
 @if (field.type === 'resource') {
-  <div class="field-resource">
-    <div class="res-header">
-      <span class="res-label">{{ field.label }}</span>
-      @if (field.settings?.showNumbers) {
-        <div class="res-values">
-          <input
-            type="number"
-            class="res-input"
-            [ngModel]="getResourceCurrent()"
-            (ngModelChange)="setResourceCurrent($event)"
-            [disabled]="!allowValueEdit"
-            min="0"
-          />
-          <span>/</span>
-          <input
-            type="number"
-            class="res-input"
-            [ngModel]="getResourceMax()"
-            (ngModelChange)="setResourceMax($event)"
-            [disabled]="!allowValueEdit"
-            min="1"
-          />
-        </div>
-      }
+<div class="field-resource">
+  <div class="res-header">
+    <span class="res-label">{{ field.label }}</span>
+    @if (field.settings?.showNumbers) {
+    <div class="res-values">
+      <input type="number" class="res-input" [ngModel]="getResourceCurrent()"
+        (ngModelChange)="setResourceCurrent($event)" [disabled]="!allowValueEdit" min="0" />
+      <span>/</span>
+      <input type="number" class="res-input" [ngModel]="getResourceMax()" (ngModelChange)="setResourceMax($event)"
+        [disabled]="!allowValueEdit" min="1" />
     </div>
-    <div class="res-bar-track">
-      <div
-        class="res-bar-fill"
-        [style.width.%]="getResourcePercent()"
-        [style.background-color]="getResourceColor()"
-      ></div>
+    }
+  </div>
+  <div class="res-bar-track">
+    <div class="res-bar-fill" [style.width.%]="getResourcePercent()" [style.background-color]="getResourceColor()">
     </div>
   </div>
+</div>
 }
 
 <!-- ── TEXT ── -->
 @if (field.type === 'text') {
-  @if (allowValueEdit) {
-    <div class="field-text">
-      <span class="field-label">{{ field.label }}</span>
-      <input
-        type="text"
-        [ngModel]="field.value"
-        (ngModelChange)="onValueChange($event)"
-        [placeholder]="field.label"
-      />
-    </div>
-  } @else {
-    <div class="field-text">
-      <span class="field-label">{{ field.label }}</span>
-      <p>{{ field.value || '—' }}</p>
-    </div>
-  }
+@if (allowValueEdit) {
+<div class="field-text">
+  <span class="field-label">{{ field.label }}</span>
+  <input type="text" [ngModel]="field.value" (ngModelChange)="onValueChange($event)" [placeholder]="field.label" />
+</div>
+} @else {
+<div class="field-text">
+  <span class="field-label">{{ field.label }}</span>
+  <p>{{ field.value || '—' }}</p>
+</div>
+}
 }
 
 <!-- ── NUMBER ── -->
 @if (field.type === 'number') {
-  <div class="field-number">
-    <span class="field-label">{{ field.label }}</span>
-    <input
-      type="number"
-      [ngModel]="field.value"
-      (ngModelChange)="onValueChange($event)"
-      [disabled]="!allowValueEdit"
-      [min]="field.settings?.min ?? null"
-      [max]="field.settings?.max ?? null"
-      [step]="field.settings?.step ?? 1"
-    />
-  </div>
+<div class="field-number">
+  <span class="field-label">{{ field.label }}</span>
+  @if (allowValueEdit) {
+  <input type="number" [ngModel]="field.value" (ngModelChange)="onValueChange($event)"
+    [min]="field.settings?.min ?? null" [max]="field.settings?.max ?? null" [step]="field.settings?.step ?? 1" />
+  } @else {
+  <p>{{ field.value !== null && field.value !== undefined ? field.value : '—' }}</p>
+  }
+</div>
 }
 
 <!-- ── TEXTAREA ── -->
 @if (field.type === 'textarea' || field.type === 'notes') {
-  <div class="field-textarea">
-    <span class="field-label">{{ field.label }}</span>
-    <textarea
-      [ngModel]="field.value"
-      (ngModelChange)="onValueChange($event)"
-      [disabled]="!allowValueEdit"
-      [placeholder]="'Digite ' + field.label.toLowerCase() + '...'"
-      rows="3"
-    ></textarea>
-  </div>
+<div class="field-textarea">
+  <span class="field-label">{{ field.label }}</span>
+  <textarea [ngModel]="field.value" (ngModelChange)="onValueChange($event)" [disabled]="!allowValueEdit"
+    [placeholder]="'Digite ' + field.label.toLowerCase() + '...'" rows="3"></textarea>
+</div>
 }
 
 <!-- ── SELECT ── -->
 @if (field.type === 'select') {
-  <div class="field-select">
-    <span class="field-label">{{ field.label }}</span>
-    <select
-      [ngModel]="field.value"
-      (ngModelChange)="onValueChange($event)"
-      [disabled]="!allowValueEdit"
-    >
-      <option value="">Selecione...</option>
-      @for (opt of getSelectOptions(); track opt) {
-        <option [value]="opt">{{ opt }}</option>
-      }
-    </select>
-  </div>
+<div class="field-select">
+  <span class="field-label">{{ field.label }}</span>
+  @if (allowValueEdit) {
+  <select [ngModel]="field.value" (ngModelChange)="onValueChange($event)">
+    <option value="">Selecione...</option>
+    @for (opt of getSelectOptions(); track opt) {
+    <option [value]="opt">{{ opt }}</option>
+    }
+  </select>
+  } @else {
+  <p>{{ field.value || '—' }}</p>
+  }
+</div>
 }
 
 <!-- ── CHECKBOX ── -->
 @if (field.type === 'checkbox') {
-  <div class="field-checkbox">
-    <label class="checkbox-wrapper">
-      <input
-        type="checkbox"
-        [ngModel]="field.value"
-        (ngModelChange)="onValueChange($event)"
-        [disabled]="!allowValueEdit"
-      />
-      <span class="check-label">{{ field.label }}</span>
-    </label>
-  </div>
+<div class="field-checkbox">
+  <label class="checkbox-wrapper">
+    <input type="checkbox" [ngModel]="field.value" (ngModelChange)="onValueChange($event)"
+      [disabled]="!allowValueEdit" />
+    <span class="check-label">{{ field.label }}</span>
+  </label>
+</div>
 }
 
 <!-- ── DICE ── -->
 @if (field.type === 'dice') {
-  <div class="field-dice">
-    <div class="dice-header">
-      <span class="dice-label">{{ field.label }}</span>
-      <button class="dice-roll-btn" (click)="rollDice()">🎲 Rolar</button>
-    </div>
-    @if (lastDiceResult !== null) {
-      <div class="dice-result">
-        Resultado: <strong>{{ lastDiceResult }}</strong>
-      </div>
-    }
+<div class="field-dice">
+  <div class="dice-header">
+    <span class="dice-label">{{ field.label }}</span>
+    <button class="dice-roll-btn" (click)="rollDice()">🎲 Rolar</button>
   </div>
-}
-
-<!-- ── REPEATER (Lista Repetível) ── -->
-@if (field.type === 'repeater') {
-  <div class="field-repeater">
-    <div class="repeater-header">
-      <span class="field-label">{{ field.label }}</span>
-      @if (allowValueEdit) {
-        <button class="btn-add-item" (click)="addRepeaterItem()">+ Adicionar</button>
-      }
-    </div>
-    <div class="repeater-items">
-      @for (item of getRepeaterItems(); track $index) {
-        <div class="repeater-item">
-          @if (allowValueEdit) {
-            <button class="item-remove" (click)="removeRepeaterItem($index)">×</button>
-          }
-          <div class="repeater-item-fields">
-            @for (schemaField of getRepeaterSchema(); track schemaField.id) {
-              <div class="repeater-field">
-                <label>{{ schemaField.label }}</label>
-                @if (schemaField.type === 'text') {
-                  <input
-                    type="text"
-                    [ngModel]="item[schemaField.id]"
-                    (ngModelChange)="updateRepeaterItem($index, schemaField.id, $event)"
-                    [disabled]="!allowValueEdit"
-                  />
-                } @else if (schemaField.type === 'textarea') {
-                  <textarea
-                    [ngModel]="item[schemaField.id]"
-                    (ngModelChange)="updateRepeaterItem($index, schemaField.id, $event)"
-                    [disabled]="!allowValueEdit"
-                    rows="2"
-                  ></textarea>
-                } @else if (schemaField.type === 'number') {
-                  <input
-                    type="number"
-                    [ngModel]="item[schemaField.id]"
-                    (ngModelChange)="updateRepeaterItem($index, schemaField.id, $event)"
-                    [disabled]="!allowValueEdit"
-                  />
-                }
-              </div>
-            }
-          </div>
-        </div>
-      }
-    </div>
-    @if (getRepeaterItems().length === 0) {
-      <div class="repeater-empty">Nenhum item. Clique em "+ Adicionar" para começar.</div>
-    }
+  @if (lastDiceResult !== null) {
+  <div class="dice-result">
+    Resultado: <strong>{{ lastDiceResult }}</strong>
   </div>
-}
-
-<!-- ── INVENTORY ── -->
-@if (field.type === 'inventory') {
-  <div class="field-inventory">
-    <div class="inv-header">
-      <span class="field-label">{{ field.label }}</span>
-      @if (allowValueEdit) {
-        <button class="btn-add-item" (click)="addInventoryItem()">+ Adicionar Item</button>
-      }
-    </div>
-    <div class="inv-table">
-      <div class="inv-row inv-header-row">
-        <span>Item</span>
-        <span>Qtd</span>
-        <span>Peso</span>
-        <span></span>
-      </div>
-      @for (item of getInventoryItems(); track $index) {
-        <div class="inv-row">
-          <input
-            type="text"
-            [ngModel]="item.nome"
-            (ngModelChange)="updateInventoryItem($index, 'nome', $event)"
-            [disabled]="!allowValueEdit"
-            placeholder="Nome do item"
-          />
-          <input
-            type="number"
-            [ngModel]="item.quantidade"
-            (ngModelChange)="updateInventoryItem($index, 'quantidade', $event)"
-            [disabled]="!allowValueEdit"
-            min="1"
-          />
-          <input
-            type="number"
-            [ngModel]="item.peso"
-            (ngModelChange)="updateInventoryItem($index, 'peso', $event)"
-            [disabled]="!allowValueEdit"
-            min="0"
-            step="0.1"
-          />
-          @if (allowValueEdit) {
-            <button class="inv-remove" (click)="removeInventoryItem($index)">×</button>
-          }
-        </div>
-      }
-    </div>
-    @if (getInventoryItems().length === 0) {
-      <div class="inv-empty">Inventário vazio.</div>
-    }
-  </div>
+  }
+</div>
 }
 
 <!-- ── POWER / HABILIDADE (Accordion) ── -->
 @if (field.type === 'power') {
-  @if (editMode) {
-    <!-- Builder mode: static placeholder only -->
-    <div class="field-power field-power-builder">
-      <span class="field-label">{{ field.label }}</span>
-      <p class="power-builder-hint">Habilidades são preenchidas pelo jogador na ficha.</p>
-    </div>
-  } @else {
-    <!-- Player view: accordion cards -->
-    <div class="field-power">
-      <div class="power-header">
-        <span class="field-label">{{ field.label }}</span>
-        @if (allowValueEdit) {
-          <button class="btn-add-item" (click)="addRepeaterItem()">+ Adicionar Habilidade</button>
-        }
+@if (editMode) {
+<!-- Builder mode: static placeholder only -->
+<div class="field-power field-power-builder">
+  <span class="field-label">{{ field.label }}</span>
+  <p class="power-builder-hint">Habilidades são preenchidas pelo jogador na ficha.</p>
+</div>
+} @else {
+<!-- Player view: accordion cards -->
+<div class="field-power">
+  <div class="power-header">
+    <span class="field-label">{{ field.label }}</span>
+    @if (allowValueEdit) {
+    <button class="btn-add-item" (click)="addRepeaterItem()">+ Adicionar Habilidade</button>
+    }
+  </div>
+  <div class="power-list">
+    @for (item of getRepeaterItems(); track item._uid) {
+    <div class="power-card" [class.is-expanded]="isPowerExpanded($index)">
+      <div class="power-card-header" (click)="togglePower($index)">
+        <div class="power-card-title-row">
+          <span class="power-expand-icon">{{ isPowerExpanded($index) ? '▼' : '▶' }}</span>
+          <strong class="power-name-text">{{ item?.nome || '(sem nome)' }}</strong>
+          <span class="power-cost-badge" *ngIf="item?.custo">
+            {{ item.custo }} PM
+          </span>
+        </div>
+        <button class="power-remove" (click)="removeRepeaterItem($index); $event.stopPropagation()">×</button>
       </div>
-      <div class="power-list">
-        @for (item of getRepeaterItems(); track item._uid) {
-          <div class="power-card" [class.is-expanded]="isPowerExpanded($index)">
-            <div class="power-card-header" (click)="togglePower($index)">
-              <div class="power-card-title-row">
-                <span class="power-expand-icon">{{ isPowerExpanded($index) ? '▼' : '▶' }}</span>
-                <strong class="power-name-text">{{ item?.nome || '(sem nome)' }}</strong>
-                <span class="power-cost-badge" *ngIf="item?.custo">
-                  {{ item.custo }} PM
-                </span>
-              </div>
-              <button class="power-remove" (click)="removeRepeaterItem($index); $event.stopPropagation()">×</button>
-            </div>
-            <div class="power-card-body" [class.is-open]="isPowerExpanded($index)">
-              <div class="power-card-content">
-                <div class="power-field-row">
-                  <label>Título</label>
-                  <input
-                    type="text"
-                    class="power-name-input"
-                    [ngModel]="item?.nome"
-                    (ngModelChange)="updateRepeaterItem($index, 'nome', $event)"
-                    [disabled]="!allowValueEdit"
-                    placeholder="Título da habilidade"
-                    (click)="$event.stopPropagation()"
-                  />
-                </div>
-                <div class="power-field-row">
-                  <label>Descrição</label>
-                  <textarea
-                    [ngModel]="item?.descricao"
-                    (ngModelChange)="updateRepeaterItem($index, 'descricao', $event)"
-                    [disabled]="!allowValueEdit"
-                    placeholder="Descrição..."
-                    rows="3"
-                    (click)="$event.stopPropagation()"
-                  ></textarea>
-                </div>
-              </div>
-            </div>
+      <div class="power-card-body" [class.is-open]="isPowerExpanded($index)">
+        <div class="power-card-content">
+          <div class="power-field-row">
+            <label>Título</label>
+            <input type="text" class="power-name-input" [ngModel]="item?.nome"
+              (ngModelChange)="updateRepeaterItem($index, 'nome', $event)" [disabled]="!allowValueEdit"
+              placeholder="Título da habilidade" (click)="$event.stopPropagation()" />
           </div>
-        }
+          <div class="power-field-row">
+            <label>Descrição</label>
+            <textarea [ngModel]="item?.descricao" (ngModelChange)="updateRepeaterItem($index, 'descricao', $event)"
+              [disabled]="!allowValueEdit" placeholder="Descrição..." rows="3"
+              (click)="$event.stopPropagation()"></textarea>
+          </div>
+        </div>
       </div>
-      @if (getRepeaterItems().length === 0) {
-        <div class="power-empty">Nenhuma habilidade adicionada. Clique em "+ Adicionar Habilidade" para criar.</div>
-      }
     </div>
+    }
+  </div>
+  @if (getRepeaterItems().length === 0) {
+  <div class="power-empty">Nenhuma habilidade adicionada. Clique em "+ Adicionar Habilidade" para criar.</div>
   }
+</div>
 }
-
-
-<!-- ── TABLE (Mochila com colunas configuráveis) ── -->
-@if (field.type === 'table') {
-  @if (editMode) {
-    <!-- Builder mode: static placeholder only -->
-    <div class="field-table field-table-builder">
-      <span class="field-label">{{ field.label }}</span>
-      <p class="table-builder-hint">Itens são preenchidos pelo jogador na ficha.</p>
-    </div>
-  } @else {
-    <!-- Player view: backpack with accordion items -->
-    <div class="field-table field-table-backpack">
-      <div class="table-header">
-        <span class="field-label">{{ field.label }}</span>
-        @if (allowValueEdit) {
-          <button class="btn-add-item" (click)="addTableItem()">+ Adicionar Item</button>
-        }
-      </div>
-      @if (getTableItems().length > 0) {
-        <div class="table-items">
-          @for (item of getTableItems(); track item._uid; let i = $index) {
-            <div class="table-item" [class.is-expanded]="isTableItemExpanded(i)">
-              <div class="table-item-header" (click)="toggleTableItem(i)">
-                <span class="table-expand-icon">{{ isTableItemExpanded(i) ? '▼' : '▶' }}</span>
-                <div class="table-item-summary">
-                  @for (col of getTableColumns(); track col.id) {
-                    <span class="table-item-col" [class.col-number]="col.type === 'number'">
-                      @if (col.type === 'number') {
-                        {{ item[col.id] || 0 }}
-                      } @else {
-                        {{ item[col.id] || '—' }}
-                      }
-                    </span>
-                    @if (!$last) {
-                      <span class="table-col-sep">·</span>
-                    }
-                  }
-                </div>
-                <button class="table-item-remove" (click)="removeTableItem(i); $event.stopPropagation()">×</button>
-              </div>
-              <div class="table-item-body" [class.is-open]="isTableItemExpanded(i)">
-                <div class="table-item-fields">
-                  @for (col of getTableColumns(); track col.id) {
-                    <div class="table-field-row">
-                      <label>{{ col.label }}</label>
-                      @if (col.type === 'number') {
-                        <input
-                          type="number"
-                          [ngModel]="item[col.id]"
-                          (ngModelChange)="updateTableItem(i, col.id, $event)"
-                          [disabled]="!allowValueEdit"
-                          min="0"
-                          (click)="$event.stopPropagation()"
-                        />
-                      } @else {
-                        <input
-                          type="text"
-                          [ngModel]="item[col.id]"
-                          (ngModelChange)="updateTableItem(i, col.id, $event)"
-                          [disabled]="!allowValueEdit"
-                          (click)="$event.stopPropagation()"
-                        />
-                      }
-                    </div>
-                  }
-                  <!-- Description textarea (if enabled) -->
-                  @if (getTableSettings().itemDescription) {
-                    <div class="table-field-row table-field-desc">
-                      <label>Descrição</label>
-                      <textarea
-                        [ngModel]="item._descricao"
-                        (ngModelChange)="updateTableItemDescription(i, $event)"
-                        [disabled]="!allowValueEdit"
-                        placeholder="Descrição do item..."
-                        rows="3"
-                        (click)="$event.stopPropagation()"
-                      ></textarea>
-                    </div>
-                  }
-                </div>
-              </div>
-            </div>
-          }
-        </div>
-      } @else {
-        <div class="table-empty">
-          Nenhum item. Clique em "+ Adicionar Item" para começar.
-        </div>
-      }
-    </div>
-  }
 }
 
 <!-- ── IMAGE ── -->
 @if (field.type === 'image') {
-  <div class="field-image">
-    <span class="field-label">{{ field.label }}</span>
-    @if (field.value) {
-      <div class="image-preview">
-        <img [src]="field.value" alt="{{ field.label }}" />
-        @if (allowValueEdit) {
-          <button class="image-remove" (click)="onValueChange(null)">×</button>
-        }
-      </div>
-    } @else {
-      @if (allowValueEdit) {
-          <div class="image-upload" (click)="fileInput.click()">
-          <span>📸</span>
-          <p>Clique para adicionar foto</p>
-          <input #fileInput type="file" hidden accept="image/*" (change)="handleImageUpload($event)" />
-        </div>
-      } @else {
-        <div class="image-empty">
-          <span>📷</span>
-          <p>Sem foto</p>
-        </div>
-      }
+<div class="field-image">
+  <span class="field-label">{{ field.label }}</span>
+  @if (field.value) {
+  <div class="image-preview">
+    <img [src]="field.value" alt="{{ field.label }}" />
+    @if (allowValueEdit) {
+    <button class="image-remove" (click)="onValueChange(null)">×</button>
     }
   </div>
+  } @else {
+  @if (allowValueEdit) {
+  <div class="image-upload" (click)="fileInput.click()">
+    <span>📸</span>
+    <p>Clique para adicionar foto</p>
+    <input #fileInput type="file" hidden accept="image/*" (change)="handleImageUpload($event)" />
+  </div>
+  } @else {
+  <div class="image-empty">
+    <span>📷</span>
+    <p>Sem foto</p>
+  </div>
+  }
+  }
+</div>
+}
+
+<!-- ── ATTACK (Accordion with Dice Rolling + Bonus) ── -->
+@if (field.type === 'attack') {
+<div class="attack-shell">
+  <div class="attack-header">
+    <span class="field-label">{{ field.label }}</span>
+    @if (editMode) {
+    <div class="attack-header-actions">
+      <button class="btn-config-attack" (click)="openAttackConfigModal()">⚙️ Configurar Colunas</button>
+      <button class="btn-add-attack-item" (click)="addAttackItem()">+ Adicionar Ataque</button>
+    </div>
+    }
+  </div>
+
+  @if (getAttackColumns().length > 0) {
+  <div class="attack-items-list">
+    @for (item of getAttackItems(); track item._uid; let i = $index) {
+    <div class="attack-item-card" [class.is-expanded]="isAttackExpanded(i)">
+      <!-- Header (accordion toggle) -->
+      <div class="atk-item-header" (click)="toggleAttack(i)">
+        <span class="atk-expand-icon">{{ isAttackExpanded(i) ? '▼' : '▶' }}</span>
+        <div class="atk-item-summary">
+          @for (col of getAttackColumns(); track col.id) {
+          <span class="atk-summary-field">
+            @if (col.type === 'text') {
+            <span class="atk-text-val">{{ item[col.id] || '-' }}</span>
+            } @else if (col.type === 'dice') {
+            <span class="atk-dice-val">{{ item[col.id] || '-' }}</span>
+            } @else if (col.type === 'bonus') {
+            <span class="atk-bonus-val">{{ item[col.id] > 0 ? '+' : '' }}{{ item[col.id] }}</span>
+            } @else if (col.type === 'textarea') {
+            <span class="atk-text-val">{{ item[col.id] || '-' }}</span>
+            }
+          </span>
+          }
+        </div>
+        <button class="atk-item-remove" (click)="removeAttackItem(i); $event.stopPropagation()">×</button>
+      </div>
+
+      <!-- Body (accordion content) -->
+      <div class="atk-item-body" [class.is-open]="isAttackExpanded(i)">
+        <div class="atk-item-content">
+          <div class="atk-fields-grid">
+            @for (col of getAttackColumns(); track col.id) {
+            <div class="atk-field-row">
+              <label>{{ col.label }}</label>
+              @if (col.type === 'text') {
+              <input type="text" [ngModel]="item[col.id]" (ngModelChange)="updateAttackItem(i, col.id, $event)"
+                [disabled]="!allowValueEdit" [placeholder]="col.label" (click)="$event.stopPropagation()" />
+              } @else if (col.type === 'bonus') {
+              <input type="number" [ngModel]="item[col.id]" (ngModelChange)="updateAttackItem(i, col.id, $event)"
+                [disabled]="!allowValueEdit" placeholder="0" (click)="$event.stopPropagation()" />
+              } @else if (col.type === 'dice') {
+              <input type="text" [ngModel]="item[col.id]" (ngModelChange)="updateAttackItem(i, col.id, $event)"
+                [disabled]="!allowValueEdit" placeholder="1d6" (click)="$event.stopPropagation()" />
+              } @else if (col.type === 'textarea') {
+              <textarea [ngModel]="item[col.id]" (ngModelChange)="updateAttackItem(i, col.id, $event)"
+                [disabled]="!allowValueEdit" rows="2" (click)="$event.stopPropagation()"></textarea>
+              }
+            </div>
+            }
+          </div>
+
+          <!-- Attack Roll Configuration (per item) -->
+          @if (allowValueEdit) {
+          <div class="atk-hit-config">
+            <div class="atk-hit-config-header" (click)="toggleAttackHitConfig(i)">
+              <span class="atk-hit-config-toggle">{{ isAttackHitConfigOpen(i) ? '▼' : '▶' }}</span>
+              <span class="atk-hit-config-title">Configurar Rolagem de Ataque</span>
+              <span class="atk-hit-config-badge" [class.active]="item._needAttackRoll">
+                {{ item._needAttackRoll ? '✓ Ativado' : 'Desativado' }}
+              </span>
+            </div>
+            <div class="atk-hit-config-body" [class.is-open]="isAttackHitConfigOpen(i)">
+              <label class="atk-hit-checkbox-row">
+                <input type="checkbox" [ngModel]="item._needAttackRoll"
+                  (ngModelChange)="updateAttackItem(i, '_needAttackRoll', $event)" />
+                <span>Precisa de rolagem de acerto</span>
+              </label>
+              @if (item._needAttackRoll) {
+              <div class="atk-hit-fields">
+                <div class="atk-hit-field">
+                  <label>Qtd. Dados</label>
+                  <input type="number" [ngModel]="item._rollDiceCount"
+                    (ngModelChange)="updateAttackItem(i, '_rollDiceCount', $event)" min="1" max="20"
+                    (click)="$event.stopPropagation()" />
+                </div>
+                <div class="atk-hit-field">
+                  <label>Lados do Dado</label>
+                  <input type="number" [ngModel]="item._rollDiceSides"
+                    (ngModelChange)="updateAttackItem(i, '_rollDiceSides', $event)" min="2" max="100"
+                    (click)="$event.stopPropagation()" />
+                </div>
+                <div class="atk-hit-field">
+                  <label>Bônus</label>
+                  <input type="number" [ngModel]="item._rollBonus"
+                    (ngModelChange)="updateAttackItem(i, '_rollBonus', $event)" (click)="$event.stopPropagation()" />
+                </div>
+                <div class="atk-hit-field">
+                  <label>Vantagem</label>
+                  <select [ngModel]="item._rollAdvantage"
+                    (ngModelChange)="updateAttackItem(i, '_rollAdvantage', $event)" (click)="$event.stopPropagation()">
+                    <option value="none">Nenhuma</option>
+                    <option value="advantage">Vantagem</option>
+                    <option value="disadvantage">Desvantagem</option>
+                  </select>
+                </div>
+                <div class="atk-hit-field">
+                  <label>Modo do Resultado</label>
+                  <select [ngModel]="item._rollResultMode"
+                    (ngModelChange)="updateAttackItem(i, '_rollResultMode', $event)" (click)="$event.stopPropagation()">
+                    <option value="sum">Somar todos</option>
+                    <option value="highest">Apenas o maior</option>
+                  </select>
+                </div>
+              </div>
+              }
+            </div>
+          </div>
+          }
+
+          <!-- Roll Buttons Row -->
+          @if (allowValueEdit) {
+          <div class="atk-roll-row">
+            <button class="btn-roll-damage" (click)="performAttackRoll(i)">🎲 Rolar Dano</button>
+            @if (item._needAttackRoll) {
+            <button class="btn-roll-tohit" (click)="performAttackToHit(i)">⚔️ Rolar Ataque</button>
+            }
+          </div>
+          }
+
+          <!-- Roll Results -->
+          @if (attackToHitResults.has(i)) {
+          <div class="atk-roll-result atk-roll-result-tohit">
+            <span class="atk-roll-label">Ataque:</span>
+            <span class="atk-roll-breakdown">{{ attackToHitResults.get(i)?.breakdown }}</span>
+            <span class="atk-roll-total">= <strong>{{ attackToHitResults.get(i)?.total }}</strong></span>
+          </div>
+          }
+          @if (attackRollResults.has(i)) {
+          <div class="atk-roll-result atk-roll-result-damage">
+            <span class="atk-roll-label">Dano:</span>
+            <span class="atk-roll-breakdown">{{ attackRollResults.get(i)?.breakdown }}</span>
+            <span class="atk-roll-total">= <strong>{{ attackRollResults.get(i)?.total }}</strong></span>
+          </div>
+          }
+        </div>
+      </div>
+    </div>
+    }
+  </div>
+
+  @if (getAttackItems().length === 0) {
+  <div class="attack-empty-hint">Nenhum ataque. Clique em "+ Adicionar Ataque" para começar.</div>
+  }
+  } @else {
+  <div class="attack-empty-hint">Configure as colunas clicando em ⚙️.</div>
+  }
+</div>
+}
+
+<!-- ── INVENTORY (Accordion with Custom Columns + Description) ── -->
+@if (field.type === 'inventory') {
+<div class="inventory-shell">
+  <div class="inventory-header">
+    <span class="field-label">{{ field.label }}</span>
+    @if (editMode) {
+    <div class="inventory-header-actions">
+      <button class="btn-config-inventory" (click)="openInventoryConfigModal()">⚙️ Configurar Colunas</button>
+      <button class="btn-add-inventory-item" (click)="addInventoryItem()">+ Adicionar Item</button>
+    </div>
+    }
+  </div>
+
+  @if (getInventoryColumns().length > 0) {
+  <!-- Compact summary table showing only values -->
+  <div class="inventory-items-list">
+    @for (item of getInventoryItems(); track item._uid; let i = $index) {
+    <div class="inventory-item-card" [class.is-expanded]="isInventoryItemExpanded(i)">
+      <!-- Header row (always visible) -->
+      <div class="inv-item-header" (click)="toggleInventoryItem(i)">
+        <span class="inv-expand-icon">{{ isInventoryItemExpanded(i) ? '▼' : '▶' }}</span>
+        <div class="inv-item-summary">
+          @for (col of getInventoryColumns(); track col.id) {
+          <span class="inv-summary-field">
+            @if (col.type === 'checkbox') {
+            <span class="inv-check-val">{{ item[col.id] ? '✓' : '✗' }}</span>
+            } @else if (col.type === 'number') {
+            <span class="inv-number-val">{{ item[col.id] }}</span>
+            } @else {
+            <span class="inv-text-val">{{ item[col.id] || '-' }}</span>
+            }
+          </span>
+          }
+        </div>
+        <button class="inv-item-remove" (click)="removeInventoryItem(i); $event.stopPropagation()">×</button>
+      </div>
+
+      <!-- Expanded body (custom fields + description) -->
+      <div class="inv-item-body" [class.is-open]="isInventoryItemExpanded(i)">
+        <div class="inv-item-content">
+          <!-- Custom column fields in edit mode -->
+          <div class="inv-fields-grid">
+            @for (col of getInventoryColumns(); track col.id) {
+            <div class="inv-field-row">
+              <label>{{ col.label }}</label>
+              @if (col.type === 'text') {
+              <input type="text" [ngModel]="item[col.id]" (ngModelChange)="updateInventoryItem(i, col.id, $event)"
+                [disabled]="!allowValueEdit" (click)="$event.stopPropagation()" />
+              } @else if (col.type === 'number') {
+              <input type="number" [ngModel]="item[col.id]" (ngModelChange)="updateInventoryItem(i, col.id, $event)"
+                [disabled]="!allowValueEdit" (click)="$event.stopPropagation()" />
+              } @else if (col.type === 'checkbox') {
+              <input type="checkbox" [ngModel]="item[col.id]" (ngModelChange)="updateInventoryItem(i, col.id, $event)"
+                [disabled]="!allowValueEdit" (click)="$event.stopPropagation()" />
+              } @else if (col.type === 'select') {
+              <select [ngModel]="item[col.id]" (ngModelChange)="updateInventoryItem(i, col.id, $event)"
+                [disabled]="!allowValueEdit" (click)="$event.stopPropagation()">
+                <option value="">Selecione...</option>
+                @for (opt of (col.options || []); track opt) {
+                <option [value]="opt">{{ opt }}</option>
+                }
+              </select>
+              } @else if (col.type === 'textarea') {
+              <textarea [ngModel]="item[col.id]" (ngModelChange)="updateInventoryItem(i, col.id, $event)"
+                [disabled]="!allowValueEdit" rows="2" (click)="$event.stopPropagation()"></textarea>
+              }
+            </div>
+            }
+          </div>
+
+          <!-- Description field (always present) -->
+          <div class="inv-desc-row">
+            <label>Descrição</label>
+            <textarea [ngModel]="item._desc" (ngModelChange)="updateInventoryItemDescription(i, $event)"
+              [disabled]="!allowValueEdit" rows="3" placeholder="Descrição do item..."
+              (click)="$event.stopPropagation()"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+    }
+  </div>
+
+  @if (getInventoryItems().length === 0) {
+  <div class="inventory-empty-hint">Nenhum item. Clique em "+ Adicionar Item" para começar.</div>
+  }
+  } @else {
+  <div class="inventory-empty-hint">Configure as colunas clicando em ⚙️.</div>
+  }
+</div>
 }
 
 <!-- Delete button in edit mode -->
 @if (editMode) {
-  <button class="field-delete-btn" (click)="deleteClicked()">×</button>
+<button class="field-delete-btn" (click)="deleteClicked()">×</button>
 }

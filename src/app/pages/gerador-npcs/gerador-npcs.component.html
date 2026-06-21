@@ -17,7 +17,8 @@
         </svg>
         Configuração
       </button>
-      <button class="nav-tab" [class.active]="activeTab() === 'npcs'" (click)="activeTab.set('npcs')">
+      <button class="nav-tab" [class.active]="activeTab() === 'npcs'"
+        (click)="activeTab.set('npcs'); activeScreen.set('config')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" />
@@ -34,7 +35,7 @@
   <!-- ═══════════════════════════════════════════
        TAB: CONFIGURAÇÃO
   ═══════════════════════════════════════════ -->
-  <main class="tab-content" *ngIf="activeScreen() === 'config'">
+  <main class="tab-content" *ngIf="activeTab() === 'config' && activeScreen() === 'config'">
 
     <!-- Generate Button (CTA) -->
     <div class="generate-cta">

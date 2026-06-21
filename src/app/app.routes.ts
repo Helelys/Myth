@@ -11,6 +11,7 @@ import { AnotacoesComponent } from './pages/anotacoes/anotacoes.component';
 import { ItensComponent } from './pages/itens/itens.component';
 import { DadosComponent } from './pages/dados/dados.component';
 import { PrecosComponent } from './pages/precos/precos.component';
+import { GeradorNpcsComponent } from './pages/gerador-npcs/gerador-npcs.component';
 
 export const routes: Routes = [
   { path: '', component: HomeComponent, pathMatch: 'full' },
@@ -28,6 +29,7 @@ export const routes: Routes = [
       { path: 'anotacoes', component: AnotacoesComponent },
       { path: 'itens', component: ItensComponent },
       { path: 'dados', component: DadosComponent },
+      { path: 'gerador-npcs', component: GeradorNpcsComponent },
       { path: 'campanhas/:id/gerador-missao', loadComponent: () => import('./pages/campanhas/mission-generator/mission-generator.component').then(m => m.MissionGeneratorComponent) },
       { path: 'campanhas/:id/tabletop', loadComponent: () => import('./pages/campanhas/tabletop/tabletop.component').then(m => m.TabletopComponent) },
     ]

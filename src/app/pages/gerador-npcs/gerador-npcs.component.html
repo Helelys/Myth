@@ -7,7 +7,8 @@
       <p>Configure o molde e gere personagens aleatórios em segundos.</p>
     </div>
     <div class="header-tabs">
-      <button class="nav-tab" [class.active]="activeTab() === 'config'" (click)="activeTab.set('config')">
+      <button class="nav-tab" [class.active]="activeTab() === 'config'"
+        (click)="activeTab.set('config'); activeScreen.set('config')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
           <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke="currentColor" stroke-width="2" />
           <path
@@ -33,7 +34,7 @@
   <!-- ═══════════════════════════════════════════
        TAB: CONFIGURAÇÃO
   ═══════════════════════════════════════════ -->
-  <main class="tab-content" *ngIf="activeTab() === 'config'">
+  <main class="tab-content" *ngIf="activeScreen() === 'config'">
 
     <!-- Generate Button (CTA) -->
     <div class="generate-cta">
@@ -66,70 +67,266 @@
       </div>
     </div>
 
-    <!-- ── Atributos ── -->
+    <!-- ── Campos da Ficha ── -->
     <section class="config-section">
       <div class="section-header">
         <div class="section-title-group">
-          <span class="section-icon">◈</span>
+          <span class="section-icon">⚙️</span>
           <div>
-            <h2>Atributos</h2>
-            <p>Defina os atributos do NPC e como seus valores são gerados.</p>
+            <h2>Campos da Ficha</h2>
+            <p>Adicione e remova campos para construir a ficha do seu jeito.</p>
           </div>
         </div>
-        <button class="btn-add" (click)="addAttribute()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-            <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-          </svg>
-          Adicionar
-        </button>
+
+        <!-- Add Field Dropdown -->
+        <div class="add-field-dropdown-wrapper">
+          <button class="btn-add" (click)="addFieldDropdownOpen.set(!addFieldDropdownOpen())">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
+            Adicionar Campo
+          </button>
+          <div class="add-field-dropdown" *ngIf="addFieldDropdownOpen()">
+            <button class="dropdown-item" (click)="addField('attribute')">Atributo</button>
+            <button class="dropdown-item" (click)="addField('skill')">Perícia</button>
+            <button class="dropdown-item" (click)="addField('spell')">Magia</button>
+            <button class="dropdown-item" (click)="addField('selection')">Campo de Seleção</button>
+            <button class="dropdown-item" (click)="addField('text')">Campo de Texto</button>
+            <button class="dropdown-item" (click)="addField('inventory')">Item de Inventário</button>
+          </div>
+        </div>
       </div>
 
-      <div class="attr-table-wrapper" *ngIf="config.attributes.length > 0; else emptyAttrs">
-        <table class="config-table">
-          <thead>
-            <tr>
-              <th>Nome</th>
-              <th>Valor Inicial</th>
-              <th>Mín</th>
-              <th>Máx</th>
-              <th title="Usar modificador D&D: ⌊(valor − 10) ÷ 2⌋">Mod. D&D</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let attr of config.attributes; let i = index">
-              <td>
-                <input class="table-input" type="text" [(ngModel)]="attr.name" placeholder="Ex: Força" />
-              </td>
-              <td>
-                <input class="table-input table-input--num" type="number" [(ngModel)]="attr.startValue" />
-              </td>
-              <td>
-                <input class="table-input table-input--num" type="number" [(ngModel)]="attr.minValue" />
-              </td>
-              <td>
-                <input class="table-input table-input--num" type="number" [(ngModel)]="attr.maxValue" />
-              </td>
-              <td class="td-center">
-                <label class="toggle-wrapper"
-                  [title]="attr.useDndModifier ? 'Modificador D&D ativo: ⌊(val − 10) ÷ 2⌋' : 'Clique para ativar'">
-                  <input type="checkbox" [(ngModel)]="attr.useDndModifier" />
-                  <span class="toggle-track">
-                    <span class="toggle-thumb"></span>
-                  </span>
-                </label>
-              </td>
-              <td class="td-center">
-                <button class="row-delete-btn" (click)="removeAttribute(attr.id)" title="Remover">×</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <!-- Config Entries List -->
+      <div class="entries-list" *ngIf="configEntries().length > 0; else emptyConfigBlock">
+
+        <!-- Name Field Toggle -->
+        <div class="entry-card entry-card--name">
+          <div class="entry-icon">🔤</div>
+          <div class="entry-body">
+            <div class="entry-name-row">
+              <strong>Nome / Sobrenome</strong>
+              <span class="entry-hint">Nome aleatório ativado</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" [checked]="nameFieldEnabled()" (change)="toggleNameField()" />
+              <span class="toggle-track-sm">
+                <span class="toggle-thumb-sm"></span>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Dynamic Entries -->
+        <div class="entry-card" *ngFor="let e of configEntries()"
+          [class.entry-card--expanded]="expandedSelectionId() === e.id">
+
+          <div class="entry-icon">{{ fieldTypeIcon(e.type) }}</div>
+
+          <!-- Attribute Editor (agrupado — tabela inline editável) -->
+          <ng-container *ngIf="e.type === 'attribute'">
+            <div class="entry-body">
+              <div class="entry-name-row">
+                <strong>Atributos ({{ config().attributes.length }})</strong>
+                <span class="entry-type-badge">{{ fieldTypeLabel(e.type) }}</span>
+              </div>
+
+              <!-- Tabela inline de atributos -->
+              <div class="attr-inline-table">
+                <div class="attr-inline-header">
+                  <span class="aih-name">Nome</span>
+                  <span class="aih-num">Inic</span>
+                  <span class="aih-num">Mín</span>
+                  <span class="aih-num">Máx</span>
+                  <span class="aih-dnd">D&D</span>
+                  <span class="aih-del"></span>
+                </div>
+                <div class="attr-inline-row" *ngFor="let a of config().attributes; let i = index">
+                  <input class="ai-input-name" type="text" [(ngModel)]="a.name" placeholder="Ex: Força" />
+                  <input class="ai-input-num" type="number" [(ngModel)]="a.startValue" />
+                  <input class="ai-input-num" type="number" [(ngModel)]="a.minValue" />
+                  <input class="ai-input-num" type="number" [(ngModel)]="a.maxValue" />
+                  <label class="dnd-toggle-label">
+                    <input type="checkbox" [(ngModel)]="a.useDndModifier" />
+                    <span class="toggle-track-xs" [class.active]="a.useDndModifier">
+                      <span class="toggle-thumb-xs"></span>
+                    </span>
+                  </label>
+                  <button class="ai-remove-btn" (click)="removeSingleAttr(a.id)" title="Remover">×</button>
+                </div>
+              </div>
+
+              <!-- Botão para adicionar linha -->
+              <div class="entry-expand-row" style="margin-top:6px">
+                <button class="btn-expand" (click)="addSingleAttr()">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                  </svg>
+                  Adicionar atributo
+                </button>
+              </div>
+            </div>
+          </ng-container>
+
+          <!-- Spell Editor (agrupado — tabela inline) -->
+          <ng-container *ngIf="e.type === 'spell'">
+            <div class="entry-body">
+              <div class="entry-name-row">
+                <strong>Magias ({{ config().spells.length }})</strong>
+                <span class="entry-type-badge">{{ fieldTypeLabel(e.type) }}</span>
+              </div>
+
+              <!-- Tabela inline de magias -->
+              <div class="spell-inline-table">
+                <div class="spell-inline-header">
+                  <span class="sih-name">Nome da Magia</span>
+                  <span class="sih-desc">Descrição</span>
+                  <span class="sih-del"></span>
+                </div>
+                <div class="spell-inline-row" *ngFor="let sp of config().spells">
+                  <input class="spi-input-name" type="text" [(ngModel)]="sp.name" placeholder="Ex: Bola de Fogo" />
+                  <input class="spi-input-desc" type="text" [(ngModel)]="sp.description"
+                    placeholder="Ex: 8d6 de dano em área" />
+                  <button class="spi-remove-btn" (click)="removeSingleSpell(sp.id)" title="Remover">×</button>
+                </div>
+              </div>
+
+              <!-- Botão para adicionar linha -->
+              <div class="entry-expand-row" style="margin-top:6px">
+                <button class="btn-expand" (click)="addSingleSpell()">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                  </svg>
+                  Adicionar magia
+                </button>
+              </div>
+
+              <!-- Magias sorteadas por NPC -->
+              <div class="trained-skills-inline">
+                <span class="tsi-label">Magias sorteadas por NPC</span>
+                <div class="count-input-wrap">
+                  <button class="count-btn" (click)="decrementSpells()">−</button>
+                  <span class="count-val">{{ trainedSpellsCount() }}</span>
+                  <button class="count-btn" (click)="incrementSpells()">+</button>
+                </div>
+                <span class="count-hint">de {{ config().spells.length }} magias</span>
+              </div>
+            </div>
+          </ng-container>
+
+          <!-- Skill Editor (agrupado — tabela inline) -->
+          <ng-container *ngIf="e.type === 'skill'">
+            <div class="entry-body">
+              <div class="entry-name-row">
+                <strong>Perícias ({{ config().skills.length }})</strong>
+                <span class="entry-type-badge">{{ fieldTypeLabel(e.type) }}</span>
+              </div>
+
+              <!-- Tabela inline de perícias -->
+              <div class="skill-inline-table">
+                <div class="skill-inline-header">
+                  <span class="sih-name">Nome da Perícia</span>
+                  <span class="sih-del"></span>
+                </div>
+                <div class="skill-inline-row" *ngFor="let s of config().skills">
+                  <input class="si-input-name" type="text" [(ngModel)]="s.name" placeholder="Ex: Atletismo" />
+                  <button class="si-remove-btn" (click)="removeSingleSkill(s.id)" title="Remover">×</button>
+                </div>
+              </div>
+
+              <!-- Botão para adicionar linha -->
+              <div class="entry-expand-row" style="margin-top:6px">
+                <button class="btn-expand" (click)="addSingleSkill()">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                  </svg>
+                  Adicionar perícia
+                </button>
+              </div>
+
+              <!-- Trained Skills Count (dentro do card de perícias) -->
+              <div class="trained-skills-inline">
+                <span class="tsi-label">Perícias treinadas por NPC</span>
+                <div class="count-input-wrap">
+                  <button class="count-btn" (click)="decrementTrained()">−</button>
+                  <span class="count-val">{{ trainedSkillsCount() }}</span>
+                  <button class="count-btn" (click)="incrementTrained()">+</button>
+                </div>
+                <span class="count-hint">de {{ config().skills.length }} perícias</span>
+              </div>
+            </div>
+          </ng-container>
+
+          <!-- Selection Editor -->
+          <ng-container *ngIf="e.type === 'selection' && e.selection">
+            <div class="entry-body">
+              <div class="entry-name-row">
+                <input class="entry-name-input" type="text" [(ngModel)]="e.selection.fieldName"
+                  placeholder="Ex: Classe" />
+                <span class="entry-type-badge">{{ fieldTypeLabel(e.type) }}</span>
+              </div>
+              <div class="entry-expand-row">
+                <button class="btn-expand" (click)="toggleExpand(e.selection!.id)">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                    [class.rotated]="expandedSelectionId() === e.selection!.id">
+                    <path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                      stroke-linejoin="round" />
+                  </svg>
+                  {{ expandedSelectionId() === e.selection!.id ? 'Fechar opções' : 'Opções: ' +
+                  getOptionsPreview(e.selection) }}
+                </button>
+              </div>
+              <div class="entry-expanded" *ngIf="expandedSelectionId() === e.selection!.id">
+                <textarea class="options-textarea" [(ngModel)]="e.selection.optionsText" rows="4"
+                  placeholder="Guerreiro&#10;Mago&#10;Ladino"></textarea>
+              </div>
+            </div>
+          </ng-container>
+
+          <!-- Text Editor -->
+          <ng-container *ngIf="e.type === 'text'">
+            <div class="entry-body">
+              <div class="entry-name-row">
+                <input class="entry-name-input" type="text" [(ngModel)]="e.id" placeholder="Ex: Background" />
+                <span class="entry-type-badge">{{ fieldTypeLabel(e.type) }}</span>
+              </div>
+            </div>
+          </ng-container>
+
+          <!-- Inventory Editor -->
+          <ng-container *ngIf="e.type === 'inventory' && e.inventory">
+            <div class="entry-body">
+              <div class="entry-name-row">
+                <input class="entry-name-input" type="text" [(ngModel)]="e.inventory.name"
+                  placeholder="Ex: Arma — Corpo a corpo" />
+                <span class="entry-type-badge">{{ fieldTypeLabel(e.type) }}</span>
+              </div>
+              <div class="entry-expand-row">
+                <button class="btn-expand" (click)="toggleExpand(e.inventory!.id)">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                    [class.rotated]="expandedSelectionId() === e.inventory!.id">
+                    <path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                      stroke-linejoin="round" />
+                  </svg>
+                  {{ expandedSelectionId() === e.inventory!.id ? 'Fechar variações' : 'Variações (' +
+                  e.inventory.variations.length + ')' }}
+                </button>
+              </div>
+              <div class="entry-expanded" *ngIf="expandedSelectionId() === e.inventory!.id">
+                <textarea class="options-textarea" [(ngModel)]="e.inventory.variationsText" rows="4"
+                  placeholder="1d6 de dano&#10;1d8 de dano&#10;1d10 de dano"></textarea>
+              </div>
+            </div>
+          </ng-container>
+
+          <!-- Remove Button -->
+          <button class="entry-remove-btn" (click)="removeEntry(e)" title="Remover campo">×</button>
+        </div>
       </div>
 
-      <ng-template #emptyAttrs>
+      <ng-template #emptyConfigBlock>
         <div class="empty-section">
-          <span>Nenhum atributo configurado. Clique em "Adicionar" para começar.</span>
+          <span>Ficha vazia. Clique em "Adicionar Campo" para começar a montar seu molde.</span>
         </div>
       </ng-template>
 
@@ -144,131 +341,6 @@
       </div>
     </section>
 
-    <!-- ── Perícias ── -->
-    <section class="config-section">
-      <div class="section-header">
-        <div class="section-title-group">
-          <span class="section-icon">📋</span>
-          <div>
-            <h2>Perícias</h2>
-            <p>Insira todas as perícias existentes. O gerador sorteia as treinadas.</p>
-          </div>
-        </div>
-        <button class="btn-add" (click)="addSkill()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-            <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-          </svg>
-          Adicionar
-        </button>
-      </div>
-
-      <div class="skills-layout">
-        <div class="skills-grid" *ngIf="config.skills.length > 0; else emptySkills">
-          <div class="skill-chip" *ngFor="let skill of config.skills">
-            <input class="skill-input" type="text" [(ngModel)]="skill.name" />
-            <button class="chip-delete" (click)="removeSkill(skill.id)" title="Remover">×</button>
-          </div>
-        </div>
-        <ng-template #emptySkills>
-          <div class="empty-section">Nenhuma perícia configurada.</div>
-        </ng-template>
-
-        <div class="trained-count-row">
-          <label>
-            <span>Perícias treinadas por NPC</span>
-            <div class="count-input-wrap">
-              <button class="count-btn" (click)="decrementTrained()">−</button>
-              <span class="count-val">{{ config.trainedSkillsCount }}</span>
-              <button class="count-btn" (click)="incrementTrained()">+</button>
-            </div>
-          </label>
-          <span class="count-hint">de {{ config.skills.length }} perícias</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- ── Campos de Seleção ── -->
-    <section class="config-section">
-      <div class="section-header">
-        <div class="section-title-group">
-          <span class="section-icon">▼</span>
-          <div>
-            <h2>Campos de Seleção</h2>
-            <p>Crie campos como Classe, Raça, Sexo. O gerador escolhe uma opção aleatória.</p>
-          </div>
-        </div>
-        <button class="btn-add" (click)="addSelectionField()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-            <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-          </svg>
-          Adicionar Campo
-        </button>
-      </div>
-
-      <div class="selection-fields-list" *ngIf="config.selections.length > 0; else emptySelections">
-        <div class="selection-card" *ngFor="let field of config.selections">
-          <div class="selection-card-header">
-            <div class="selection-card-name">
-              <span class="selection-icon">▼</span>
-              <input class="selection-name-input" type="text" [(ngModel)]="field.fieldName" placeholder="Ex: Classe" />
-            </div>
-            <div class="selection-card-actions">
-              <span class="options-preview">{{ getOptionsPreview(field) }}</span>
-              <button class="btn-icon-sm" (click)="toggleExpand(field.id)"
-                [title]="expandedSelectionId() === field.id ? 'Fechar' : 'Editar opções'">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                  [class.rotated]="expandedSelectionId() === field.id">
-                  <path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                    stroke-linejoin="round" />
-                </svg>
-              </button>
-              <button class="chip-delete" (click)="removeSelectionField(field.id)" title="Remover campo">×</button>
-            </div>
-          </div>
-          <div class="selection-options-editor" *ngIf="expandedSelectionId() === field.id">
-            <label>Opções (uma por linha ou separadas por vírgula):</label>
-            <textarea class="options-textarea" [(ngModel)]="field.optionsText" rows="5"
-              [placeholder]="'Guerreiro\nMago\nLadino'"></textarea>
-          </div>
-        </div>
-      </div>
-
-      <ng-template #emptySelections>
-        <div class="empty-section">Nenhum campo de seleção configurado.</div>
-      </ng-template>
-    </section>
-
-    <!-- ── Campos de Texto ── -->
-    <section class="config-section">
-      <div class="section-header">
-        <div class="section-title-group">
-          <span class="section-icon">📝</span>
-          <div>
-            <h2>Campos de Texto</h2>
-            <p>Campos de texto livre que aparecerão na ficha do NPC (ex: Background, Aparência, Notas).</p>
-          </div>
-        </div>
-        <button class="btn-add" (click)="addTextField()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-            <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-          </svg>
-          Adicionar
-        </button>
-      </div>
-
-      <div class="skills-layout">
-        <div class="skills-grid" *ngIf="config.textFields.length > 0; else emptyTextFields">
-          <div class="skill-chip" *ngFor="let field of config.textFields; let i = index; trackBy: trackByIndex">
-            <input class="skill-input" type="text" [(ngModel)]="config.textFields[i]" />
-            <button class="chip-delete" (click)="removeTextField(field)" title="Remover">×</button>
-          </div>
-        </div>
-        <ng-template #emptyTextFields>
-          <div class="empty-section">Nenhum campo de texto configurado.</div>
-        </ng-template>
-      </div>
-    </section>
-
   </main>
 
   <!-- ═══════════════════════════════════════════
@@ -276,7 +348,6 @@
   ═══════════════════════════════════════════ -->
   <main class="tab-content tab-content--npcs-split" *ngIf="activeTab() === 'npcs'">
 
-    <!-- ── Folder Sidebar ── -->
     <aside class="folders-sidebar">
       <div class="folders-header">
         <h3>Pastas</h3>
@@ -288,7 +359,6 @@
       </div>
 
       <div class="folders-list">
-        <!-- Todos -->
         <div class="folder-item" [class.active]="selectedFolderId() === null" (click)="selectFolder(null)">
           <div class="folder-icon">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -300,7 +370,6 @@
           <span class="folder-count">{{ getFolderCount(null) }}</span>
         </div>
 
-        <!-- Sem Pasta -->
         <div class="folder-item" [class.active]="selectedFolderId() === 'unassigned'"
           (click)="selectFolder('unassigned')">
           <div class="folder-icon">
@@ -316,7 +385,6 @@
 
         <div class="folder-divider"></div>
 
-        <!-- User Folders -->
         <div class="folder-item" *ngFor="let folder of folders()" [class.active]="selectedFolderId() === folder.id"
           (click)="selectFolder(folder.id)">
           <div class="folder-icon">
@@ -333,14 +401,11 @@
       </div>
     </aside>
 
-    <!-- ── NPCs Grid Area ── -->
     <section class="npcs-main-area">
       <div class="npcs-header">
         <div>
           <h2>NPCs Gerados <span class="npcs-count">{{ getFilteredNpcs().length }}</span></h2>
-          <p *ngIf="selectedFolderId() !== null">
-            Pasta atual: <strong>{{ getSelectedFolderName() }}</strong>
-          </p>
+          <p *ngIf="selectedFolderId() !== null">Pasta atual: <strong>{{ getSelectedFolderName() }}</strong></p>
           <p *ngIf="selectedFolderId() === null">Todos os NPCs gerados.</p>
         </div>
         <button class="btn-generate btn-generate--sm" (click)="generateNpc()">
@@ -356,9 +421,9 @@
       <div class="npcs-grid" *ngIf="getFilteredNpcs().length > 0; else emptyNpcs">
         <div class="npc-card" *ngFor="let npc of getFilteredNpcs()" (click)="viewNpc(npc)">
           <div class="npc-card-header">
-            <div class="npc-avatar">{{ npc.name.charAt(0) }}</div>
+            <div class="npc-avatar">{{ npc.name ? npc.name.charAt(0) : '?' }}</div>
             <div class="npc-card-info">
-              <h3>{{ npc.name }}</h3>
+              <h3>{{ npc.name || 'NPC sem nome' }}</h3>
               <p class="npc-date">{{ formatDate(npc.createdAt) }}</p>
             </div>
           </div>
@@ -382,6 +447,13 @@
             <span class="trained-label">{{ trainedCount(npc) }} perícias treinadas</span>
             <div class="trained-skills-list">
               <span class="skill-tag trained" *ngFor="let sk of getTrainedSkills(npc)">{{ sk.name }}</span>
+            </div>
+          </div>
+
+          <div class="npc-spells-preview" *ngIf="npc.spells.length > 0">
+            <span class="trained-label">Magias ({{ npc.spells.length }})</span>
+            <div class="trained-skills-list">
+              <span class="skill-tag trained" *ngFor="let sp of npc.spells">{{ sp.name }}</span>
             </div>
           </div>
 
@@ -414,7 +486,7 @@
   <div class="modal-overlay" *ngIf="viewingNpc()" (click)="closeNpcView()">
     <div class="npc-detail-modal" (click)="$event.stopPropagation()">
       <div class="npc-detail-header">
-        <div class="npc-detail-avatar">{{ viewingNpc()!.name.charAt(0) }}</div>
+        <div class="npc-detail-avatar">{{ viewingNpc()!.name ? viewingNpc()!.name.charAt(0) : '?' }}</div>
         <div class="npc-detail-name-edit">
           <input class="detail-name-input" type="text" [(ngModel)]="viewingNpc()!.name"
             (ngModelChange)="autoSaveNpc()" />
@@ -423,18 +495,17 @@
         <button class="close-btn" (click)="closeNpcView()">×</button>
       </div>
 
-      <!-- Selections -->
       <div class="detail-section" *ngIf="viewingNpc()!.selections.length > 0">
         <h4>Características</h4>
         <div class="detail-selections detail-selections--editable">
           <div class="detail-sel-item" *ngFor="let sel of viewingNpc()!.selections">
             <span class="detail-sel-label">{{ sel.fieldName }}</span>
             <input class="detail-sel-input" type="text" [(ngModel)]="sel.chosen" (ngModelChange)="autoSaveNpc()" />
+            <button class="detail-remove-btn" (click)="removeNpcSelection(sel.id)" title="Remover campo">×</button>
           </div>
         </div>
       </div>
 
-      <!-- Attributes -->
       <div class="detail-section" *ngIf="viewingNpc()!.attributes.length > 0">
         <h4>Atributos</h4>
         <div class="detail-attrs-grid">
@@ -446,11 +517,12 @@
               [class.negative]="attr.modifier < 0">
               {{ attr.modifier >= 0 ? '+' : '' }}{{ attr.modifier }}
             </span>
+            <button class="detail-remove-btn detail-remove-btn--abs" (click)="removeNpcAttribute(attr.id)"
+              title="Remover atributo">×</button>
           </div>
         </div>
       </div>
 
-      <!-- Skills -->
       <div class="detail-section" *ngIf="viewingNpc()!.skills.length > 0">
         <h4>Perícias <span class="detail-trained-count">({{ trainedCount(viewingNpc()!) }} treinadas)</span></h4>
         <div class="detail-skills-grid">
@@ -464,16 +536,44 @@
                 {{ sk.isTrained ? 'Treinado' : 'Não treinada' }}
               </span>
             </label>
+            <button class="detail-remove-btn detail-remove-btn--sm"
+              (click)="$event.stopPropagation(); removeNpcSkill(sk.id)" title="Remover perícia">×</button>
           </div>
         </div>
       </div>
 
-      <!-- Text Fields (editable) -->
+      <div class="detail-section" *ngIf="viewingNpc()!.spells.length > 0">
+        <h4>Magias</h4>
+        <div class="detail-inventory-grid">
+          <div class="detail-inv-item" *ngFor="let sp of viewingNpc()!.spells">
+            <span class="detail-inv-name">{{ sp.name }}</span>
+            <div class="detail-inv-desc">✨ {{ sp.description }}</div>
+            <button class="detail-remove-btn detail-remove-btn--abs" (click)="removeNpcSpell(sp.id)"
+              title="Remover magia">×</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="detail-section" *ngIf="viewingNpc()!.items.length > 0">
+        <h4>Inventário</h4>
+        <div class="detail-inventory-grid">
+          <div class="detail-inv-item" *ngFor="let item of viewingNpc()!.items">
+            <span class="detail-inv-name">{{ item.name }}</span>
+            <div class="detail-inv-desc">🎒 {{ item.description }}</div>
+            <button class="detail-remove-btn detail-remove-btn--abs" (click)="removeNpcItem(item.id)"
+              title="Remover item">×</button>
+          </div>
+        </div>
+      </div>
+
       <div class="detail-section" *ngIf="viewingNpc()!.texts.length > 0">
         <h4>Informações</h4>
         <div class="detail-texts">
           <div class="detail-text-item" *ngFor="let text of viewingNpc()!.texts">
-            <label class="detail-text-label">{{ text.label }}</label>
+            <div class="detail-text-label-row">
+              <label class="detail-text-label">{{ text.label }}</label>
+              <button class="detail-remove-btn" (click)="removeNpcText(text.id)" title="Remover campo">×</button>
+            </div>
             <textarea class="detail-text-input" [(ngModel)]="text.value" rows="3"></textarea>
           </div>
         </div>
@@ -526,6 +626,72 @@
       </div>
     </div>
   </div>
+
+  <!-- ═══════════════════════════════════════════
+       TELA: ATRIBUTOS EM LOTE
+  ═══════════════════════════════════════════ -->
+  <main class="tab-content attr-batch-screen" *ngIf="activeScreen() === 'attr-batch'">
+
+    <header class="attr-batch-header">
+      <button class="btn-back" (click)="cancelAttrBatch()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round" />
+        </svg>
+        Voltar
+      </button>
+      <div>
+        <h2>Adicionar Atributos</h2>
+        <p>Configure os atributos que farão parte da ficha do seu NPC.</p>
+      </div>
+    </header>
+
+    <section class="attr-batch-table-wrap">
+      <div class="attr-batch-table">
+        <div class="attr-batch-header-row">
+          <span class="ab-col-name">Nome</span>
+          <span class="ab-col-start">Inicial</span>
+          <span class="ab-col-min">Mín</span>
+          <span class="ab-col-max">Máx</span>
+          <span class="ab-col-dnd">D&D</span>
+          <span class="ab-col-del"></span>
+        </div>
+        <div class="attr-batch-row" *ngFor="let a of attrBatchList(); let i = index">
+          <input class="ab-input-name" type="text" [(ngModel)]="a.name" placeholder="Ex: Força" />
+          <input class="ab-input-num" type="number" [(ngModel)]="a.startValue" />
+          <input class="ab-input-num" type="number" [(ngModel)]="a.minValue" />
+          <input class="ab-input-num" type="number" [(ngModel)]="a.maxValue" />
+          <label class="dnd-toggle-label">
+            <input type="checkbox" [(ngModel)]="a.useDndModifier" />
+            <span class="toggle-track-xs" [class.active]="a.useDndModifier">
+              <span class="toggle-thumb-xs"></span>
+            </span>
+          </label>
+          <button class="ab-remove-btn" (click)="removeAttrRow(i)" title="Remover">×</button>
+        </div>
+      </div>
+      <div class="attr-batch-actions">
+        <button class="btn-icon-text" (click)="addAttrRow()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          </svg>
+          Adicionar linha
+        </button>
+      </div>
+    </section>
+
+    <div class="attr-batch-footer">
+      <button class="btn-outline" (click)="cancelAttrBatch()">Cancelar</button>
+      <button class="btn-generate" (click)="confirmAttrBatch()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round" />
+        </svg>
+        Confirmar e Adicionar
+      </button>
+    </div>
+
+  </main>
 
   <!-- ─── Folder Create Modal ─── -->
   <div class="modal-overlay" *ngIf="showFolderModal()" (click)="closeFolderModal()">

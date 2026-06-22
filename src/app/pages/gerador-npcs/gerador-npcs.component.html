@@ -37,25 +37,17 @@
   ═══════════════════════════════════════════ -->
   <main class="tab-content" *ngIf="activeTab() === 'config' && activeScreen() === 'config'">
 
-    <!-- Generate Button (CTA) -->
-    <div class="generate-cta">
-      <button class="btn-generate" (click)="generateNpc()">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-          <path
-            d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-        </svg>
-        Gerar NPC Aleatório
-      </button>
-      <div class="cta-actions">
-        <button class="btn-save-config" (click)="saveConfig()">
+    <!-- ── Slot Navigation ── -->
+    <div class="slot-navigation">
+      <div class="slot-actions-row">
+        <button class="btn-save-config" (click)="openSaveSlotsModal()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z" stroke="currentColor"
               stroke-width="2" stroke-linecap="round" />
             <polyline points="17 21 17 13 7 13 7 21" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
             <polyline points="7 3 7 8 15 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
           </svg>
-          Salvar Config
+          Salvar
         </button>
         <button class="btn-reset-config" (click)="resetConfig()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
@@ -63,7 +55,14 @@
               stroke-linecap="round" />
             <path d="M3 3v5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
           </svg>
-          Restaurar Padrão
+          Restaurar
+        </button>
+      </div>
+      <div class="slot-buttons-row">
+        <button class="slot-btn" *ngFor="let slot of [0,1,2,3,4]; let i = index"
+          [class.active]="selectedSlotIndex() === i" [class.has-config]="slotHasConfig(i)" (click)="selectSlot(i)">
+          <span class="slot-label">{{ slotLabel(i) }}</span>
+          <span class="slot-indicator" *ngIf="slotHasConfig(i)">●</span>
         </button>
       </div>
     </div>
@@ -415,7 +414,7 @@
               d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"
               stroke="currentColor" stroke-width="2" stroke-linecap="round" />
           </svg>
-          Gerar Novo
+          Gerar NPC Aleatório
         </button>
       </div>
 
@@ -608,6 +607,30 @@
             Excluir NPC
           </button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Save Slots Modal ─── -->
+  <div class="modal-overlay" *ngIf="showSaveSlotsModal()" (click)="closeSaveSlotsModal()">
+    <div class="modal-content save-slots-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Salvar Configuração</h2>
+      </div>
+      <div class="modal-body">
+        <p>Selecione em qual ficha deseja salvar a configuração atual:</p>
+        <div class="save-slots-grid">
+          <button class="save-slot-btn" *ngFor="let slot of [0,1,2,3,4]; let i = index"
+            [class.has-config]="slotHasConfig(i)" [class.active]="selectedSlotIndex() === i"
+            (click)="saveConfigToSlot(i)">
+            <span class="save-slot-label">{{ slotLabel(i) }}</span>
+            <span class="save-slot-status" *ngIf="slotHasConfig(i)">● Salvo</span>
+            <span class="save-slot-status empty" *ngIf="!slotHasConfig(i)">— Vazio</span>
+          </button>
+        </div>
+      </div>
+      <div class="modal-actions" style="margin-top: 20px;">
+        <button class="btn-outline" (click)="closeSaveSlotsModal()">Cancelar</button>
       </div>
     </div>
   </div>

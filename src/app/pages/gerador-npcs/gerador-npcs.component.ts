@@ -1,4 +1,4 @@
-import { Component, signal, computed, OnInit } from '@angular/core';
+import { Component, signal, computed, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -50,6 +50,8 @@ export interface NpcGeneratorConfig {
   inventory: InventoryItemDef[];
   trainedSkillsCount: number;
   trainedSpellsCount: number;
+  /** Ordem em que os campos foram adicionados – {type, id} */
+  entryOrder: { type: ConfigFieldType; id: string }[];
 }
 
 export interface ConfigEntry {
@@ -145,8 +147,12 @@ const LAST_NAMES: string[] = [
 ];
 
 const STORAGE_NPCS = 'mythmaker_npcs';
-const STORAGE_CONFIG = 'mythmaker_npc_config';
+const STORAGE_CONFIG_SLOTS = 'mythmaker_npc_config_slots';
+const STORAGE_CONFIG_OLD = 'mythmaker_npc_config';
 const STORAGE_FOLDERS = 'mythmaker_npc_folders';
+const STORAGE_SELECTED_SLOT = 'mythmaker_npc_selected_slot';
+
+const NUM_SLOTS = 5;
 
 // ─────────────────────────────────────────────
 // Component
@@ -165,54 +171,75 @@ export class GeradorNpcsComponent implements OnInit {
   // ── Telas ──
   activeScreen = signal<'config' | 'npcs' | 'attr-batch'>('config');
 
-  // ── Config State ──
-  config = signal<NpcGeneratorConfig>(this.blankConfig());
+  // ── Config Slots (1 a 5) ──
+  selectedSlotIndex = signal<number>(0);
+  configSlots = signal<(NpcGeneratorConfig | null)[]>(Array(NUM_SLOTS).fill(null));
+  showSaveSlotsModal = signal(false);
+
+  /** A config atualmente ativa (atalho para o slot selecionado) */
+  config = computed<NpcGeneratorConfig>(() => {
+    const slot = this.configSlots()[this.selectedSlotIndex()];
+    return slot ?? this.blankConfig();
+  });
+
   /** Signal separado para o trained count – evita re-render completo da config ao clicar +/- */
   trainedSkillsCount = signal<number>(2);
+  trainedSpellsCount = signal<number>(2);
   newFieldType: ConfigFieldType = 'text';
   addFieldDropdownOpen = signal(false);
 
   configEntries = computed<ConfigEntry[]>(() => {
     const cfg = this.config();
+    const order = cfg.entryOrder ?? [];
     const entries: ConfigEntry[] = [];
+    const seen = new Set<string>();
 
-    // Atributos: UMA entry única agrupando todos
-    const attrs = cfg.attributes ?? [];
-    if (attrs.length > 0) {
-      entries.push({
-        id: '__attrs__',
-        type: 'attribute',
-        attr: attrs[0],
-      });
+    for (const item of order) {
+      const key = item.type === 'attribute' || item.type === 'skill' || item.type === 'spell' ? item.type : item.id;
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      switch (item.type) {
+        case 'attribute': {
+          const attrs = cfg.attributes ?? [];
+          if (attrs.length > 0) {
+            entries.push({ id: '__attrs__', type: 'attribute', attr: attrs[0] });
+          }
+          break;
+        }
+        case 'skill': {
+          const skills = cfg.skills ?? [];
+          if (skills.length > 0) {
+            entries.push({ id: '__skills__', type: 'skill', skill: skills[0] });
+          }
+          break;
+        }
+        case 'spell': {
+          const spells = cfg.spells ?? [];
+          if (spells.length > 0) {
+            entries.push({ id: '__spells__', type: 'spell' });
+          }
+          break;
+        }
+        case 'selection': {
+          const sel = (cfg.selections ?? []).find(s => s.id === item.id);
+          if (sel) entries.push({ id: sel.id, type: 'selection', selection: sel });
+          break;
+        }
+        case 'text': {
+          if ((cfg.textFields ?? []).includes(item.id)) {
+            entries.push({ id: item.id, type: 'text' });
+          }
+          break;
+        }
+        case 'inventory': {
+          const inv = (cfg.inventory ?? []).find(i => i.id === item.id);
+          if (inv) entries.push({ id: inv.id, type: 'inventory', inventory: inv });
+          break;
+        }
+      }
     }
 
-    // Perícias: UMA entry única agrupando todas
-    const skills = cfg.skills ?? [];
-    if (skills.length > 0) {
-      entries.push({
-        id: '__skills__',
-        type: 'skill',
-        skill: skills[0],
-      });
-    }
-    // Magias: UMA entry única agrupando todas
-    const spells = cfg.spells ?? [];
-    if (spells.length > 0) {
-      entries.push({
-        id: '__spells__',
-        type: 'spell',
-      });
-    }
-
-    for (const sel of cfg.selections ?? []) {
-      entries.push({ id: sel.id, type: 'selection', selection: sel });
-    }
-    for (const t of cfg.textFields ?? []) {
-      entries.push({ id: t, type: 'text' });
-    }
-    for (const i of cfg.inventory ?? []) {
-      entries.push({ id: i.id, type: 'inventory', inventory: i });
-    }
     return entries;
   });
 
@@ -238,9 +265,64 @@ export class GeradorNpcsComponent implements OnInit {
   attrBatchList = signal<{ name: string; startValue: number; minValue: number; maxValue: number; useDndModifier: boolean }[]>([]);
 
   ngOnInit() {
-    this.loadConfig();
+    this.loadConfigSlots();
     this.loadFolders();
     this.loadNpcs();
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent) {
+    const target = event.target as HTMLElement;
+    const dropdown = target.closest('.add-field-dropdown-wrapper');
+    if (!dropdown) {
+      this.addFieldDropdownOpen.set(false);
+    }
+  }
+
+  // ─── Slot Helpers ───
+
+  slotLabel(index: number): string {
+    return `Ficha ${index + 1}`;
+  }
+
+  slotHasConfig(index: number): boolean {
+    return this.configSlots()[index] !== null;
+  }
+
+  selectSlot(index: number) {
+    // Salva o slot anterior antes de trocar
+    this.saveCurrentSlot();
+    this.selectedSlotIndex.set(index);
+    // Sincroniza os counts
+    const cfg = this.configSlots()[index];
+    if (cfg) {
+      this.trainedSkillsCount.set(cfg.trainedSkillsCount ?? 2);
+      this.trainedSpellsCount.set(cfg.trainedSpellsCount ?? 2);
+    } else {
+      this.trainedSkillsCount.set(2);
+      this.trainedSpellsCount.set(2);
+    }
+    localStorage.setItem(STORAGE_SELECTED_SLOT, String(index));
+  }
+
+  private saveCurrentSlot() {
+    const idx = this.selectedSlotIndex();
+    const current = this.config();
+    if (current.attributes.length === 0 && current.skills.length === 0 &&
+      current.spells.length === 0 && current.selections.length === 0 &&
+      current.textFields.length === 0 && current.inventory.length === 0) {
+      return; // não salva se estiver vazio
+    }
+    const saved: NpcGeneratorConfig = {
+      ...current,
+      trainedSkillsCount: this.trainedSkillsCount(),
+      trainedSpellsCount: this.trainedSpellsCount()
+    };
+    this.configSlots.update(slots => {
+      const copy = [...slots];
+      copy[idx] = saved;
+      return copy;
+    });
   }
 
   // ─── Defaults ───
@@ -254,43 +336,89 @@ export class GeradorNpcsComponent implements OnInit {
       textFields: [],
       inventory: [],
       trainedSkillsCount: 2,
-      trainedSpellsCount: 2
+      trainedSpellsCount: 2,
+      entryOrder: []
     };
   }
 
-  // ─── Persistence ───
+  // ─── Slot Persistence ───
 
-  saveConfig() {
+  openSaveSlotsModal() {
+    this.showSaveSlotsModal.set(true);
+  }
+
+  closeSaveSlotsModal() {
+    this.showSaveSlotsModal.set(false);
+  }
+
+  saveConfigToSlot(index: number) {
     const cfg = this.config();
-    // Sincroniza counts antes de salvar
     cfg.trainedSkillsCount = this.trainedSkillsCount();
     cfg.trainedSpellsCount = this.trainedSpellsCount();
-    localStorage.setItem(STORAGE_CONFIG, JSON.stringify(cfg));
-    this.showToast('Configuração salva!');
+    this.configSlots.update(slots => {
+      const copy = [...slots];
+      copy[index] = { ...cfg };
+      return copy;
+    });
+    this.persistConfigSlots();
+    this.showSaveSlotsModal.set(false);
+    this.showToast(`Configuração salva na ${this.slotLabel(index)}!`);
   }
 
-  loadConfig() {
-    const saved = localStorage.getItem(STORAGE_CONFIG);
+  private persistConfigSlots() {
+    localStorage.setItem(STORAGE_CONFIG_SLOTS, JSON.stringify(this.configSlots()));
+  }
+
+  loadConfigSlots() {
+    // Tenta carregar do novo formato (slots)
+    const saved = localStorage.getItem(STORAGE_CONFIG_SLOTS);
     if (saved) {
       try {
-        const parsed = JSON.parse(saved);
-        const count = parsed.trainedSkillsCount ?? 2;
-        this.trainedSkillsCount.set(count);
-        this.config.set({
-          attributes: parsed.attributes ?? [],
-          skills: parsed.skills ?? [],
-          spells: parsed.spells ?? [],
-          selections: parsed.selections ?? [],
-          textFields: parsed.textFields ?? [],
-          inventory: parsed.inventory ?? [],
-          trainedSkillsCount: count,
-          trainedSpellsCount: parsed.trainedSpellsCount ?? 2
-        });
-      } catch {
-        this.config.set(this.blankConfig());
-      }
+        const parsed = JSON.parse(saved) as (NpcGeneratorConfig | null)[];
+        if (Array.isArray(parsed) && parsed.length === NUM_SLOTS) {
+          this.configSlots.set(parsed);
+          // Restaura o slot selecionado
+          const storedSlot = localStorage.getItem(STORAGE_SELECTED_SLOT);
+          const idx = storedSlot ? parseInt(storedSlot, 10) : 0;
+          if (idx >= 0 && idx < NUM_SLOTS) {
+            this.selectedSlotIndex.set(idx);
+          }
+          const active = parsed[idx];
+          if (active) {
+            this.trainedSkillsCount.set(active.trainedSkillsCount ?? 2);
+            this.trainedSpellsCount.set(active.trainedSpellsCount ?? 2);
+          }
+          return;
+        }
+      } catch { /* fallback */ }
     }
+
+    // Fallback: migra do formato antigo
+    const old = localStorage.getItem(STORAGE_CONFIG_OLD);
+    if (old) {
+      try {
+        const parsed = JSON.parse(old) as NpcGeneratorConfig;
+        const slots: (NpcGeneratorConfig | null)[] = Array(NUM_SLOTS).fill(null);
+        slots[0] = parsed;
+        this.configSlots.set(slots);
+        this.selectedSlotIndex.set(0);
+        this.trainedSkillsCount.set(parsed.trainedSkillsCount ?? 2);
+        this.trainedSpellsCount.set(parsed.trainedSpellsCount ?? 2);
+        this.persistConfigSlots();
+        localStorage.removeItem(STORAGE_CONFIG_OLD);
+        return;
+      } catch { /* fallback */ }
+    }
+
+    // Nada salvo — configuração padrão no slot 0
+    const slots: (NpcGeneratorConfig | null)[] = Array(NUM_SLOTS).fill(null);
+    this.configSlots.set(slots);
+    this.selectedSlotIndex.set(0);
+    this.trainedSkillsCount.set(2);
+    this.trainedSpellsCount.set(2);
   }
+
+  // ─── Persistence (NPCs & Folders) ───
 
   loadNpcs() {
     const saved = localStorage.getItem(STORAGE_NPCS);
@@ -344,56 +472,87 @@ export class GeradorNpcsComponent implements OnInit {
     return icons[type];
   }
 
+  private pushEntryOrder(type: ConfigFieldType, id: string) {
+    const current = this.config();
+    const order = [...(current.entryOrder ?? [])];
+    order.push({ type, id });
+    this.configSlots.update(slots => {
+      const copy = [...slots];
+      const slot = copy[this.selectedSlotIndex()];
+      if (slot) {
+        copy[this.selectedSlotIndex()] = { ...slot, entryOrder: order };
+      }
+      return copy;
+    });
+  }
+
   addField(type: ConfigFieldType) {
     try {
       this.addFieldDropdownOpen.set(false);
       const current = this.config();
 
       switch (type) {
-        case 'attribute':
-          this.config.set({
+        case 'attribute': {
+          const newId = crypto.randomUUID();
+          this.updateConfig({
             ...current,
             attributes: [
               ...current.attributes,
-              { id: crypto.randomUUID(), name: '', startValue: 10, minValue: 3, maxValue: 18, useDndModifier: false }
+              { id: newId, name: '', startValue: 10, minValue: 3, maxValue: 18, useDndModifier: false }
             ]
           });
+          this.pushEntryOrder(type, newId);
           return;
-        case 'skill':
-          this.config.set({
+        }
+        case 'skill': {
+          const newId = crypto.randomUUID();
+          this.updateConfig({
             ...current,
-            skills: [...current.skills, { id: crypto.randomUUID(), name: '' }]
+            skills: [...current.skills, { id: newId, name: '' }]
           });
+          this.pushEntryOrder(type, newId);
           break;
-        case 'selection':
-          this.config.set({
+        }
+        case 'selection': {
+          const newId = crypto.randomUUID();
+          this.updateConfig({
             ...current,
-            selections: [...current.selections, { id: crypto.randomUUID(), fieldName: 'Novo Campo', optionsText: '' }]
+            selections: [...current.selections, { id: newId, fieldName: 'Novo Campo', optionsText: '' }]
           });
+          this.pushEntryOrder(type, newId);
           break;
-        case 'text':
-          this.config.set({
+        }
+        case 'text': {
+          const label = 'Novo Campo';
+          this.updateConfig({
             ...current,
-            textFields: [...current.textFields, 'Novo Campo']
+            textFields: [...current.textFields, label]
           });
+          this.pushEntryOrder(type, label);
           break;
-        case 'spell':
-          this.config.set({
+        }
+        case 'spell': {
+          const newId = crypto.randomUUID();
+          this.updateConfig({
             ...current,
-            spells: [...current.spells, { id: crypto.randomUUID(), name: '', description: '' }]
+            spells: [...current.spells, { id: newId, name: '', description: '' }]
           });
+          this.pushEntryOrder(type, newId);
           break;
+        }
         case 'inventory': {
+          const newId = crypto.randomUUID();
           const vars = ['variação 1', 'variação 2'];
-          this.config.set({
+          this.updateConfig({
             ...current,
             inventory: [...current.inventory, {
-              id: crypto.randomUUID(),
+              id: newId,
               name: 'Novo Item',
               variations: vars,
               variationsText: vars.join('\n')
             }]
           });
+          this.pushEntryOrder(type, newId);
           break;
         }
       }
@@ -402,26 +561,35 @@ export class GeradorNpcsComponent implements OnInit {
     }
   }
 
+  /** Atualiza a config dentro do slot ativo */
+  private updateConfig(newConfig: NpcGeneratorConfig) {
+    this.configSlots.update(slots => {
+      const copy = [...slots];
+      copy[this.selectedSlotIndex()] = newConfig;
+      return copy;
+    });
+  }
+
   removeEntry(e: ConfigEntry) {
     const current = this.config();
     switch (e.type) {
       case 'attribute':
-        this.config.set({ ...current, attributes: [] });
+        this.updateConfig({ ...current, attributes: [] });
         break;
       case 'skill':
-        this.config.set({ ...current, skills: [] });
+        this.updateConfig({ ...current, skills: [] });
         break;
       case 'selection':
-        this.config.set({ ...current, selections: current.selections.filter(s => s.id !== e.id) });
+        this.updateConfig({ ...current, selections: current.selections.filter(s => s.id !== e.id) });
         break;
       case 'text':
-        this.config.set({ ...current, textFields: current.textFields.filter(t => t !== e.id) });
+        this.updateConfig({ ...current, textFields: current.textFields.filter(t => t !== e.id) });
         break;
       case 'spell':
-        this.config.set({ ...current, spells: [] });
+        this.updateConfig({ ...current, spells: [] });
         break;
       case 'inventory':
-        this.config.set({ ...current, inventory: current.inventory.filter(i => i.id !== e.id) });
+        this.updateConfig({ ...current, inventory: current.inventory.filter(i => i.id !== e.id) });
         break;
     }
   }
@@ -623,10 +791,16 @@ export class GeradorNpcsComponent implements OnInit {
   }
 
   resetConfig() {
-    this.askConfirm('Restaurar configuração padrão? Isso apagará todas as suas configurações.', () => {
-      this.config.set(this.blankConfig());
-      localStorage.removeItem(STORAGE_CONFIG);
-      this.showToast('Configuração restaurada.');
+    this.askConfirm('Restaurar configuração padrão? Isso apagará todas as configurações do slot atual.', () => {
+      this.configSlots.update(slots => {
+        const copy = [...slots];
+        copy[this.selectedSlotIndex()] = null;
+        return copy;
+      });
+      this.trainedSkillsCount.set(2);
+      this.trainedSpellsCount.set(2);
+      this.persistConfigSlots();
+      this.showToast(`Configuração da ${this.slotLabel(this.selectedSlotIndex())} restaurada.`);
     });
   }
 
@@ -764,58 +938,64 @@ export class GeradorNpcsComponent implements OnInit {
   // ─── Inline Attribute Helpers ───
 
   addSingleAttr() {
-    this.config.update(cfg => ({
-      ...cfg,
+    const current = this.config();
+    this.updateConfig({
+      ...current,
       attributes: [
-        ...cfg.attributes,
+        ...current.attributes,
         { id: crypto.randomUUID(), name: '', startValue: 10, minValue: 3, maxValue: 18, useDndModifier: false }
       ]
-    }));
+    });
   }
 
   removeSingleAttr(id: string) {
-    this.config.update(cfg => ({
-      ...cfg,
-      attributes: cfg.attributes.filter(a => a.id !== id)
-    }));
+    const current = this.config();
+    this.updateConfig({
+      ...current,
+      attributes: current.attributes.filter(a => a.id !== id)
+    });
   }
 
   // ─── Inline Skill Helpers ───
 
   addSingleSkill() {
-    this.config.update(cfg => ({
-      ...cfg,
+    const current = this.config();
+    this.updateConfig({
+      ...current,
       skills: [
-        ...cfg.skills,
+        ...current.skills,
         { id: crypto.randomUUID(), name: '' }
       ]
-    }));
+    });
   }
 
   removeSingleSkill(id: string) {
-    this.config.update(cfg => ({
-      ...cfg,
-      skills: cfg.skills.filter(s => s.id !== id)
-    }));
+    const current = this.config();
+    this.updateConfig({
+      ...current,
+      skills: current.skills.filter(s => s.id !== id)
+    });
   }
 
   // ─── Inline Spell Helpers ───
 
   addSingleSpell() {
-    this.config.update(cfg => ({
-      ...cfg,
+    const current = this.config();
+    this.updateConfig({
+      ...current,
       spells: [
-        ...cfg.spells,
+        ...current.spells,
         { id: crypto.randomUUID(), name: '', description: '' }
       ]
-    }));
+    });
   }
 
   removeSingleSpell(id: string) {
-    this.config.update(cfg => ({
-      ...cfg,
-      spells: cfg.spells.filter(s => s.id !== id)
-    }));
+    const current = this.config();
+    this.updateConfig({
+      ...current,
+      spells: current.spells.filter(s => s.id !== id)
+    });
   }
 
   removeNpcSpell(id: string) {
@@ -826,8 +1006,6 @@ export class GeradorNpcsComponent implements OnInit {
   }
 
   // ─── Spell Count ───
-
-  trainedSpellsCount = signal<number>(2);
 
   decrementSpells() {
     this.trainedSpellsCount.update(v => Math.max(0, v - 1));
@@ -879,7 +1057,7 @@ export class GeradorNpcsComponent implements OnInit {
     }
 
     const current = this.config();
-    this.config.set({
+    this.updateConfig({
       ...current,
       attributes: valid.map(a => ({
         id: crypto.randomUUID(),

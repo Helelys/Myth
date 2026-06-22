@@ -147,6 +147,7 @@ const LAST_NAMES: string[] = [
 ];
 
 const STORAGE_NPCS = 'mythmaker_npcs';
+const STORAGE_SLOT_NAMES = 'mythmaker_npc_slot_names';
 const STORAGE_CONFIG_SLOTS = 'mythmaker_npc_config_slots';
 const STORAGE_CONFIG_OLD = 'mythmaker_npc_config';
 const STORAGE_FOLDERS = 'mythmaker_npc_folders';
@@ -175,6 +176,10 @@ export class GeradorNpcsComponent implements OnInit {
   selectedSlotIndex = signal<number>(0);
   configSlots = signal<(NpcGeneratorConfig | null)[]>(Array(NUM_SLOTS).fill(null));
   showSaveSlotsModal = signal(false);
+  showSlotSelectorModal = signal(false);
+
+  /** Nomes personalizados das fichas (armazenados separadamente no localStorage) */
+  slotNames = signal<string[]>(Array(NUM_SLOTS).fill(''));
 
   /** A config atualmente ativa (atalho para o slot selecionado) */
   config = computed<NpcGeneratorConfig>(() => {
@@ -265,6 +270,7 @@ export class GeradorNpcsComponent implements OnInit {
   attrBatchList = signal<{ name: string; startValue: number; minValue: number; maxValue: number; useDndModifier: boolean }[]>([]);
 
   ngOnInit() {
+    this.loadSlotNames();
     this.loadConfigSlots();
     this.loadFolders();
     this.loadNpcs();
@@ -282,11 +288,36 @@ export class GeradorNpcsComponent implements OnInit {
   // ─── Slot Helpers ───
 
   slotLabel(index: number): string {
-    return `Ficha ${index + 1}`;
+    const custom = this.slotNames()[index];
+    return custom && custom.trim() ? custom.trim() : `Ficha ${index + 1}`;
   }
 
   slotHasConfig(index: number): boolean {
     return this.configSlots()[index] !== null;
+  }
+
+  /** Atualiza o nome de um slot e salva no localStorage */
+  onSlotNameChange(index: number, value: string) {
+    this.slotNames()[index] = value;
+    localStorage.setItem(STORAGE_SLOT_NAMES, JSON.stringify(this.slotNames()));
+  }
+
+  /** Salva os nomes personalizados no localStorage */
+  private persistSlotNames() {
+    localStorage.setItem(STORAGE_SLOT_NAMES, JSON.stringify(this.slotNames()));
+  }
+
+  /** Carrega os nomes personalizados do localStorage */
+  private loadSlotNames() {
+    const saved = localStorage.getItem(STORAGE_SLOT_NAMES);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length === NUM_SLOTS) {
+          this.slotNames.set(parsed);
+        }
+      } catch { /* fallback */ }
+    }
   }
 
   selectSlot(index: number) {
@@ -343,7 +374,12 @@ export class GeradorNpcsComponent implements OnInit {
 
   // ─── Slot Persistence ───
 
+  /** Nome temporário sendo digitado no modal de salvar */
+  saveSlotNameInput = signal('');
+
   openSaveSlotsModal() {
+    // Preenche o input com o nome atual da ficha
+    this.saveSlotNameInput.set(this.slotNames()[this.selectedSlotIndex()] || '');
     this.showSaveSlotsModal.set(true);
   }
 
@@ -351,18 +387,27 @@ export class GeradorNpcsComponent implements OnInit {
     this.showSaveSlotsModal.set(false);
   }
 
-  saveConfigToSlot(index: number) {
+  confirmSaveSlot() {
+    const idx = this.selectedSlotIndex();
+    const name = this.saveSlotNameInput().trim();
+
+    // Salva o nome personalizado
+    this.slotNames()[idx] = name;
+    localStorage.setItem(STORAGE_SLOT_NAMES, JSON.stringify(this.slotNames()));
+
+    // Salva a config
     const cfg = this.config();
     cfg.trainedSkillsCount = this.trainedSkillsCount();
     cfg.trainedSpellsCount = this.trainedSpellsCount();
     this.configSlots.update(slots => {
       const copy = [...slots];
-      copy[index] = { ...cfg };
+      copy[idx] = { ...cfg };
       return copy;
     });
     this.persistConfigSlots();
+
     this.showSaveSlotsModal.set(false);
-    this.showToast(`Configuração salva na ${this.slotLabel(index)}!`);
+    this.showToast(`Configuração salva em "${this.slotLabel(idx)}"!`);
   }
 
   private persistConfigSlots() {
@@ -608,7 +653,53 @@ export class GeradorNpcsComponent implements OnInit {
     return index;
   }
 
-  // ─── Generation ───
+  // ─── Slot Selector (escolher ficha para gerar) ───
+
+  openSlotSelector() {
+    this.showSlotSelectorModal.set(true);
+  }
+
+  closeSlotSelector() {
+    this.showSlotSelectorModal.set(false);
+  }
+
+  generateFromSlot(index: number) {
+    this.showSlotSelectorModal.set(false);
+    const slot = this.configSlots()[index];
+    const cfg: NpcGeneratorConfig = slot ?? this.blankConfig();
+
+    if (cfg.attributes.length === 0 && cfg.skills.length === 0 &&
+      cfg.selections.length === 0 && cfg.textFields.length === 0 &&
+      cfg.inventory.length === 0) {
+      this.showToast(`A ${this.slotLabel(index)} está vazia! Adicione campos primeiro.`);
+      return;
+    }
+
+    let folderId: string | undefined = undefined;
+    if (this.selectedFolderId() && this.selectedFolderId() !== 'unassigned') {
+      folderId = this.selectedFolderId() as string;
+    }
+
+    const npc: GeneratedNpc = {
+      id: crypto.randomUUID(),
+      name: this.nameFieldEnabled() ? this.randomName() : '',
+      createdAt: Date.now(),
+      folderId,
+      attributes: this.generateAttributes(cfg),
+      skills: this.generateSkills(cfg, cfg.trainedSkillsCount ?? 2),
+      spells: this.generateSpells(cfg, cfg.trainedSpellsCount ?? 2),
+      selections: this.generateSelections(cfg),
+      texts: cfg.textFields.map(label => ({ id: crypto.randomUUID(), label, value: '' })),
+      items: this.generateItems(cfg)
+    };
+
+    const updated = [npc, ...this.npcs()];
+    this.saveNpcs(updated);
+    this.activeTab.set('npcs');
+    this.showToast(`NPC "${npc.name}" gerado!`);
+  }
+
+  // ─── Generation (usa a ficha ativa) ───
 
   generateNpc() {
     const cfg = this.config();

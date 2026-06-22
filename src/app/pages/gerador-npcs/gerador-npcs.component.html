@@ -408,7 +408,7 @@
           <p *ngIf="selectedFolderId() !== null">Pasta atual: <strong>{{ getSelectedFolderName() }}</strong></p>
           <p *ngIf="selectedFolderId() === null">Todos os NPCs gerados.</p>
         </div>
-        <button class="btn-generate btn-generate--sm" (click)="generateNpc()">
+        <button class="btn-generate btn-generate--sm" (click)="openSlotSelector()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
             <path
               d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"
@@ -611,26 +611,44 @@
     </div>
   </div>
 
-  <!-- ─── Save Slots Modal ─── -->
-  <div class="modal-overlay" *ngIf="showSaveSlotsModal()" (click)="closeSaveSlotsModal()">
+  <!-- ─── Slot Selector Modal (escolher ficha para gerar) ─── -->
+  <div class="modal-overlay" *ngIf="showSlotSelectorModal()" (click)="closeSlotSelector()">
     <div class="modal-content save-slots-content" (click)="$event.stopPropagation()">
       <div class="modal-header">
-        <h2>Salvar Configuração</h2>
+        <h2>Qual ficha usar?</h2>
       </div>
       <div class="modal-body">
-        <p>Selecione em qual ficha deseja salvar a configuração atual:</p>
+        <p>Selecione qual configuração de ficha será usada para gerar o NPC:</p>
         <div class="save-slots-grid">
           <button class="save-slot-btn" *ngFor="let slot of [0,1,2,3,4]; let i = index"
-            [class.has-config]="slotHasConfig(i)" [class.active]="selectedSlotIndex() === i"
-            (click)="saveConfigToSlot(i)">
+            [class.has-config]="slotHasConfig(i)" (click)="generateFromSlot(i)">
             <span class="save-slot-label">{{ slotLabel(i) }}</span>
-            <span class="save-slot-status" *ngIf="slotHasConfig(i)">● Salvo</span>
-            <span class="save-slot-status empty" *ngIf="!slotHasConfig(i)">— Vazio</span>
+            <span class="save-slot-status" *ngIf="slotHasConfig(i)">● Configurada</span>
+            <span class="save-slot-status empty" *ngIf="!slotHasConfig(i)">— Vazia</span>
           </button>
         </div>
       </div>
       <div class="modal-actions" style="margin-top: 20px;">
+        <button class="btn-outline" (click)="closeSlotSelector()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Save Slots Modal ─── -->
+  <div class="modal-overlay" *ngIf="showSaveSlotsModal()" (click)="closeSaveSlotsModal()">
+    <div class="modal-content save-slot-simple" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Salvar {{ slotLabel(selectedSlotIndex()) }}</h2>
+      </div>
+      <div class="modal-body">
+        <label class="modal-label">Nome da ficha:</label>
+        <input class="table-input" type="text" [ngModel]="saveSlotNameInput()"
+          (ngModelChange)="saveSlotNameInput.set($event)" placeholder="Ex: D&D 5e" (keyup.enter)="confirmSaveSlot()" />
+        <p class="modal-hint">A configuração atual será salva nesta ficha.</p>
+      </div>
+      <div class="modal-actions" style="margin-top: 24px;">
         <button class="btn-outline" (click)="closeSaveSlotsModal()">Cancelar</button>
+        <button class="btn-generate btn-generate--sm" (click)="confirmSaveSlot()">Salvar</button>
       </div>
     </div>
   </div>
